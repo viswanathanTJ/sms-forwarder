@@ -1,0 +1,65 @@
+# Gradle files
+.gradle/
+build/
+*/build/
+!gradle-wrapper.jar
+!gradle-wrapper.properties
+
+# Local configuration file (sdk path, etc)
+local.properties
+
+# Android Studio captures
+.idea/
+*.iml
+
+# User-specific configurations
+*.hprof
+*.log
+
+# Android specific files
+*.apk
+*.ap_
+*.dex
+*.class
+*.so
+*.jar
+*.war
+*.ear
+*.zip
+*.tar.gz
+*.tgz
+*.7z
+
+# Generated files
+captures/
+.externalNativeBuild/
+.cxx/
+*.o
+*.so
+
+# Kotlin specific files
+*.kotlin_module
+
+# Android Studio plugin directories
+captures/
+.idea/caches/
+.idea/libraries/
+.idea/modules.xml
+.idea/workspace.xml
+.idea/gradle.xml
+
+# Miscellaneous
+.DS_Store
+*.swp
+*.tmp
+*.bak
+*.orig
+*.log
+
+# Firebase files
+firebase-debug.log
+
+# DataStore files
+datastore/
+
+.kotlin
