@@ -1,142 +1,253 @@
 package com.viswa2k.smsforwarder.ui
 
-import android.util.Log
+import android.content.Intent
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.viswa2k.smsforwarder.SmsForwarderService
 import com.viswa2k.smsforwarder.UserPreferences
-import kotlinx.coroutines.launch
+import com.viswa2k.smsforwarder.ui.screen.SettingsViewModel
+import com.viswa2k.smsforwarder.ui.screen.SettingsViewModelFactory
 
 @Composable
 fun SettingsScreen(userPreferences: UserPreferences, modifier: Modifier = Modifier) {
-    val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
+    val viewModel: SettingsViewModel = viewModel(factory = SettingsViewModelFactory(userPreferences))
 
-    // Collect current preferences as state
-    val smsServiceEnabled by userPreferences.isSmsServiceEnabled.collectAsState(initial = false)
-    val telegramServiceEnabled by userPreferences.isTelegramServiceEnabled.collectAsState(initial = false)
+    // Collect states from the ViewModel
+    val smsForwardServiceEnabled by viewModel.smsForwardServiceEnabled.collectAsState()
+    val isSkipContacts by viewModel.isSkipContacts.collectAsState()
+    val isBySmsEnabled by viewModel.isBySmsEnabled.collectAsState()
+    val isByTelegramEnabled by viewModel.isByTelegramEnabled.collectAsState()
+    val deviceAlias by viewModel.deviceAlias.collectAsState()
+    val globalMessageFormat by viewModel.globalMessageFormat.collectAsState()
+    val smsMessageFormat by viewModel.smsMessageFormat.collectAsState()
+    val telegramMessageFormat by viewModel.telegramMessageFormat.collectAsState()
+    val smsToNumber by viewModel.smsToNumber.collectAsState()
+    val telegramApiKey by viewModel.telegramApiKey.collectAsState()
+    val telegramUserIds by viewModel.telegramUserIds.collectAsState()
 
-    // Use remember to persist the state
-    var smsToNumber by remember { mutableStateOf("") }
-    var telegramApiKey by remember { mutableStateOf("") }
-    var telegramUserIds by remember { mutableStateOf("") }
+    // Use LazyColumn for scrolling
+    LazyColumn(modifier = modifier.padding(16.dp)) {
+        item {
+            Text("SMS Forwarder", style = MaterialTheme.typography.titleLarge)
 
-    // Collect SMS number
-    LaunchedEffect(Unit) {
-        userPreferences.smsToNumber.collect { number ->
-            smsToNumber = number ?: ""
-        }
-    }
+            Spacer(modifier = Modifier.height(16.dp))
 
-    // Collect Telegram API Key
-    LaunchedEffect(Unit) {
-        userPreferences.telegramApiKey.collect { apiKey ->
-            Log.d("UserPreferences", "API key: $apiKey")
-            telegramApiKey = apiKey ?: ""
-        }
-    }
+            // Configuration Card
+            Card(
+                modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+                shape = MaterialTheme.shapes.medium
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text("Configuration", style = MaterialTheme.typography.titleMedium)
 
-    // Collect Telegram User IDs
-    LaunchedEffect(Unit) {
-        userPreferences.telegramUserIds.collect { userIds ->
-            telegramUserIds = userIds ?: ""
-        }
-    }
+                    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text("Enable Service", modifier = Modifier.weight(1f))
+                        Switch(
+                            checked = smsForwardServiceEnabled,
+                            onCheckedChange = { viewModel.updateSmsForwardServiceEnabled(it) }
+                        )
+                    }
 
-    Column(modifier = modifier.padding(16.dp)) {
-        Text("SMS Forwarder", style = MaterialTheme.typography.titleLarge)
+                    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text("Skip Contacts", modifier = Modifier.weight(1f))
+                        Switch(
+                            checked = isSkipContacts,
+                            onCheckedChange = { viewModel.updateIsSkipContacts(it) }
+                        )
+                    }
 
-        Spacer(modifier = Modifier.height(16.dp))
+                    OutlinedTextField(
+                        value = deviceAlias,
+                        onValueChange = { viewModel.updateDeviceAlias(it) },
+                        label = { Text("Device alias") },
+                        shape = MaterialTheme.shapes.medium,
+                        placeholder = { Text("Android") },
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
+                    )
 
-        // SMS Service Toggle
-        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text("Enable SMS Service", modifier = Modifier.weight(1f)) // Align left
-            Switch(
-                checked = smsServiceEnabled,
-                onCheckedChange = { isChecked ->
-                    coroutineScope.launch {
-                        userPreferences.saveSmsServiceEnabled(isChecked)
+                    OutlinedTextField(
+                        value = globalMessageFormat,
+                        onValueChange = { viewModel.updateGlobalMessageFormat(it) },
+                        label = { Text("Global message format") },
+                        shape = MaterialTheme.shapes.medium,
+                        placeholder = { Text("%m") },
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
+                    )
+                    Text(
+                        text = "Use: %s - sender, %r - receiver, %m - message",
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(start = 16.dp, top = 4.dp)
+                    )
+                }
+            }
+
+            // Forward as SMS Card
+            AnimatedVisibility(smsForwardServiceEnabled) {
+                Card(
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+                    shape = MaterialTheme.shapes.medium
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text("Forward as SMS", style = MaterialTheme.typography.titleMedium)
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            Text("Enable Forward as SMS", modifier = Modifier.weight(1f))
+                            Switch(
+                                checked = isBySmsEnabled,
+                                onCheckedChange = { viewModel.updateIsBySmsEnabled(it) }
+                            )
+                        }
+
+                        AnimatedVisibility(visible = isBySmsEnabled) {
+                            Column {
+                                OutlinedTextField(
+                                    value = smsToNumber,
+                                    onValueChange = { viewModel.updateSmsToNumber(it) },
+                                    label = { Text("SMS to Number") },
+                                    shape = MaterialTheme.shapes.medium,
+                                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
+                                )
+                                OutlinedTextField(
+                                    value = smsMessageFormat,
+                                    onValueChange = { viewModel.updateSmsMessageFormat(it) },
+                                    label = { Text("SMS message format") },
+                                    shape = MaterialTheme.shapes.medium,
+                                    placeholder = { Text("%m") },
+                                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
+                                )
+                                Text(
+                                    text = "By default Global message format used",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    modifier = Modifier.padding(start = 16.dp, top = 4.dp)
+                                )
+                            }
+                        }
                     }
                 }
-            )
-        }
+            }
 
-        // Show SMS to Number TextField if SMS Service is enabled
-        AnimatedVisibility(visible = smsServiceEnabled) {
-            TextField(
-                value = smsToNumber,
-                onValueChange = { newNumber ->
-                    // Validate number length (for example, restrict to 15 digits)
-                    if (newNumber.length <= 15) {
-                        smsToNumber = newNumber
-                    }
-                },
-                label = { Text("SMS to Number") },
-                modifier = Modifier.fillMaxWidth().padding(bottom = 15.dp)
-            )
-        }
+            // Telegram Card
+            AnimatedVisibility(smsForwardServiceEnabled) {
+                Card(
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+                    shape = MaterialTheme.shapes.medium
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text("Send in Telegram", style = MaterialTheme.typography.titleMedium)
 
-        // Telegram Service Toggle
-        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text("Enable Telegram Service", modifier = Modifier.weight(1f)) // Align left
-            Switch(
-                checked = telegramServiceEnabled,
-                onCheckedChange = { isChecked ->
-                    coroutineScope.launch {
-                        userPreferences.saveTelegramServiceEnabled(isChecked)
-                    }
-                }
-            )
-        }
+                        Spacer(modifier = Modifier.height(10.dp))
 
-        Spacer(modifier = Modifier.height(16.dp))
+                        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            Text("Enable Send in Telegram", modifier = Modifier.weight(1f))
+                            Switch(
+                                checked = isByTelegramEnabled,
+                                onCheckedChange = { viewModel.updateIsByTelegramEnabled(it) }
+                            )
+                        }
 
-        // Show Telegram API Key TextField if Telegram Service is enabled
-        AnimatedVisibility(visible = telegramServiceEnabled) {
-            TextField(
-                value = telegramApiKey,
-                onValueChange = { telegramApiKey = it },
-                label = { Text("Telegram API Key") },
-                modifier = Modifier.fillMaxWidth().padding(bottom = 15.dp)
-            )
-        }
-
-        // Show Telegram User IDs TextField if Telegram Service is enabled
-        AnimatedVisibility(visible = telegramServiceEnabled) {
-            TextField(
-                value = telegramUserIds,
-                onValueChange = { telegramUserIds = it },
-                label = { Text("Telegram User IDs") },
-                modifier = Modifier.fillMaxWidth().padding(bottom = 15.dp)
-            )
-        }
-
-        // Center Save Settings Button
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 16.dp),
-            horizontalArrangement = Arrangement.Center // Center button
-        ) {
-            Button(onClick = {
-                coroutineScope.launch {
-                    try {
-                        userPreferences.saveSmsToNumber(smsToNumber)
-                        userPreferences.saveTelegramApiKey(telegramApiKey)
-                        userPreferences.saveTelegramUserIds(telegramUserIds)
-                        Toast.makeText(context, "Settings saved!", Toast.LENGTH_SHORT).show()
-                    } catch (e: Exception) {
-                        Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                        AnimatedVisibility(visible = isByTelegramEnabled) {
+                            Column {
+                                OutlinedTextField(
+                                    value = telegramApiKey,
+                                    onValueChange = { viewModel.updateTelegramApiKey(it) },
+                                    label = { Text("Telegram API Key") },
+                                    shape = MaterialTheme.shapes.medium,
+                                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
+                                )
+                                OutlinedTextField(
+                                    value = telegramUserIds,
+                                    onValueChange = { viewModel.updateTelegramUserIds(it) },
+                                    label = { Text("Telegram User IDs") },
+                                    shape = MaterialTheme.shapes.medium,
+                                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
+                                )
+                                OutlinedTextField(
+                                    value = telegramMessageFormat,
+                                    onValueChange = { viewModel.updateTelegramMessageFormat(it) },
+                                    label = { Text("Telegram message format") },
+                                    placeholder = { Text("%m") },
+                                    shape = MaterialTheme.shapes.medium,
+                                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
+                                )
+                                Text(
+                                    text = "By default Global message format used",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    modifier = Modifier.padding(start = 16.dp, top = 4.dp)
+                                )
+                            }
+                        }
                     }
                 }
-            }) {
-                Text("Save Settings")
+            }
+
+            // Save Settings Button
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Button(
+                    onClick = {
+                        val validationErrors = mutableListOf<String>()
+
+                        // Validation for smsForwardServiceEnabled
+                        if (smsForwardServiceEnabled && !isBySmsEnabled && !isByTelegramEnabled) {
+                            validationErrors.add("Either 'Forward as SMS' or 'Send in Telegram' must be enabled.")
+                        }
+
+                        // Validation for isBySmsEnabled
+                        if (smsForwardServiceEnabled && isBySmsEnabled && smsToNumber.isBlank()) {
+                            validationErrors.add("SMS to Number must be provided.")
+                        }
+
+                        // Validation for isByTelegramEnabled
+                        if (smsForwardServiceEnabled && isByTelegramEnabled) {
+                            if (telegramApiKey.isBlank() || telegramUserIds.isBlank()) {
+                                validationErrors.add("Telegram API Key and User IDs must not be empty.")
+                            }
+                        }
+
+                        if (validationErrors.isNotEmpty()) {
+                            Toast.makeText(context, validationErrors.joinToString("\n"), Toast.LENGTH_LONG).show()
+                        } else {
+                            // Save settings if validation passes
+                            viewModel.saveSettings()
+
+                            // Start or stop the SmsForwarderService based on the service toggle
+                            val serviceIntent = Intent(context, SmsForwarderService::class.java).apply {
+                                putExtra("SMS_FORWARD_SERVICE_ENABLED", smsForwardServiceEnabled)
+                            }
+
+                            if (smsForwardServiceEnabled) {
+                                ContextCompat.startForegroundService(context, serviceIntent) // Start the service
+                            } else {
+                                context.stopService(serviceIntent) // Stop the service
+                            }
+
+                            Toast.makeText(context, "Settings saved!", Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    modifier = Modifier
+                        .height(56.dp)
+                        .padding(horizontal = 32.dp)
+                ) {
+                    Text("Save Settings", fontSize = MaterialTheme.typography.titleMedium.fontSize)
+                }
             }
         }
     }

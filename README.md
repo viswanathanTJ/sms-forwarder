@@ -13,7 +13,7 @@ A simple Android application that forwards received SMS messages to a specified 
 
 | Screenshot 1 | Screenshot 2 | Screenshot 3 |
 |---------------|---------------|---------------|
-| ![Screenshot 1](screenshots/main_settings.png) | ![Screenshot 2](screenshots/sms_forwarding.png) | ![Screenshot 3](screenshots/telegram_settings.png) |
+| ![Screenshot 1](screenshots/main_settings.png) | ![Screenshot 2](screenshots/sms_config.png) | ![Screenshot 3](screenshots/sms_forwarding.png) |
 
 ## Requirements
 
@@ -36,7 +36,7 @@ This app requires the following permissions:
 - `SEND_SMS`: To send SMS messages.
 - `RECEIVE_SMS`: To receive SMS messages.
 - `READ_SMS`: To read incoming SMS messages.
-- `READ_CONTACTS`: To access contact information (optional).
+- `READ_CONTACTS`: To access contact information.
 - `INTERNET`: To send messages via Telegram.
 
 Make sure to grant these permissions when prompted.
@@ -53,6 +53,12 @@ Make sure to grant these permissions when prompted.
 - If the app crashes on receiving SMS, check your permissions in the app settings.
 - Ensure the number entered for SMS forwarding is valid.
 - If you do not receive forwarded messages, check your Telegram settings and API key.
+
+## Changelog
+### v1.1.0
+- Optimized message receiver.
+- Added message configuration (from, to, message).
+- Included device alias feature for easier identification.
 
 ## Contributing
 
