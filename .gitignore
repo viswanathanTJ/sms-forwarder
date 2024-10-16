@@ -63,3 +63,4 @@ firebase-debug.log
 datastore/
 
 .kotlin
+app/release

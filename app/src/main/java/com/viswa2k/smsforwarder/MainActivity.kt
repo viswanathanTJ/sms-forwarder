@@ -1,8 +1,6 @@
 package com.viswa2k.smsforwarder
 
 import android.Manifest
-import android.app.AlertDialog
-import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -10,11 +8,11 @@ import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
 import android.util.Log
-import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.ui.platform.LocalContext
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.datastore.core.DataStore
@@ -22,6 +20,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStore
 import androidx.lifecycle.lifecycleScope
 import com.viswa2k.smsforwarder.ui.SettingsScreen
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 // Create an extension property for DataStore
@@ -33,7 +32,6 @@ class MainActivity : ComponentActivity() {
 
     companion object {
         private const val REQUEST_SMS_PERMISSIONS = 100
-        private const val REQUEST_CONTACT_PERMISSIONS = 101
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -45,10 +43,8 @@ class MainActivity : ComponentActivity() {
         // Initialize defaults
         lifecycleScope.launch {
             userPreferences.initializeDefaults()
+            checkAndStartService()
         }
-
-        // Start the foreground service
-        startForegroundService(Intent(this, SmsForwarderService::class.java))
 
         // Check for battery optimization exemption
         checkBatteryOptimization()
@@ -81,34 +77,6 @@ class MainActivity : ComponentActivity() {
     }
 
 
-//    private fun checkBatteryOptimization() {
-//        val packageName = packageName
-//        val pm = getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
-//
-//        if (!pm.isIgnoringBatteryOptimizations(packageName)) {
-//            // If not ignoring battery optimizations, prompt the user
-//            val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
-//                data = Uri.parse("package:$packageName")
-//            }
-//
-//            // Show an explanation dialog to inform the user
-//            AlertDialog.Builder(this)
-//                .setTitle("Battery Optimization")
-//                .setMessage("This app needs to run without battery optimizations to function properly. Please grant this permission.")
-//                .setPositiveButton("Go to Settings") { _, _ ->
-//                    try {
-//                        startActivity(intent)
-//                    } catch (e: ActivityNotFoundException) {
-//                        // Handle the case where settings activity is not found
-//                        Toast.makeText(this, "Unable to open settings.", Toast.LENGTH_SHORT).show()
-//                    }
-//                }
-//                .setNegativeButton("Cancel", null)
-//                .show()
-//        }
-//    }
-
-
     private fun requestPermissions() {
         val permissionsToRequest = mutableListOf<String>()
 
@@ -130,6 +98,24 @@ class MainActivity : ComponentActivity() {
                 permissionsToRequest.toTypedArray(),
                 REQUEST_SMS_PERMISSIONS
             )
+        }
+    }
+
+    override fun onStop() {
+        super.onStop()
+    }
+
+    private suspend fun checkAndStartService() {
+        val smsForwardServiceEnabled = userPreferences.isSmsForwarderService.first()
+
+        val serviceIntent = Intent(this, SmsForwarderService::class.java).apply {
+            putExtra("SMS_FORWARD_SERVICE_ENABLED", smsForwardServiceEnabled)
+        }
+
+        if (smsForwardServiceEnabled) {
+            ContextCompat.startForegroundService(this, serviceIntent) // Start the service
+        } else {
+            this.stopService(serviceIntent) // Stop the service
         }
     }
 
