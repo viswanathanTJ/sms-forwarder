@@ -1,6 +1,9 @@
 package com.viswa2k.smsforwarder
 
 import android.Manifest
+import android.app.AlertDialog
+import android.app.AlarmManager
+import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -40,6 +43,9 @@ class MainActivity : ComponentActivity() {
         // Initialize DataStore and UserPreferences
         userPreferences = UserPreferences(dataStore)
 
+        // Show privacy policy before anything else
+        showPrivacyPolicy()
+
         // Initialize defaults
         lifecycleScope.launch {
             userPreferences.initializeDefaults()
@@ -49,7 +55,7 @@ class MainActivity : ComponentActivity() {
         // Check for battery optimization exemption
         checkBatteryOptimization()
 
-        // Request permissions
+        // Request permissions with clear explanations
         requestPermissions()
 
         // Set the content view
@@ -60,20 +66,67 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private fun showPrivacyPolicy() {
+        val builder = AlertDialog.Builder(this)
+            .setTitle(getString(R.string.privacy_policy_title))
+            .setMessage(getString(R.string.privacy_policy_summary))
+            .setPositiveButton("I Understand") { dialog, _ ->
+                dialog.dismiss()
+            }
+            .setCancelable(false)
+        
+        builder.show()
+    }
+
     private fun checkBatteryOptimization() {
         try {
             val packageName = packageName
             val pm = getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
 
             if (!pm.isIgnoringBatteryOptimizations(packageName)) {
+                // Request battery optimization exemption
                 val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
                     data = Uri.parse("package:$packageName")
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 }
                 startActivity(intent)
+
+                // Also open battery optimization settings
+                val batterySettingsIntent = Intent().apply {
+                    action = Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                startActivity(batterySettingsIntent)
+            } else {
+                // Schedule periodic battery optimization check
+                val alarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
+                val checkBatteryIntent = Intent(this, ServiceRestartReceiver::class.java).apply {
+                    action = "${packageName}.RESTART_SERVICE"
+                }
+                val pendingIntent = PendingIntent.getBroadcast(
+                    this,
+                    1,
+                    checkBatteryIntent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                )
+
+                // Check every hour to be more battery efficient
+                alarmManager.setInexactRepeating(
+                    AlarmManager.ELAPSED_REALTIME,
+                    System.currentTimeMillis() + AlarmManager.INTERVAL_HOUR,
+                    AlarmManager.INTERVAL_HOUR,
+                    pendingIntent
+                )
             }
         } catch (e: Exception) {
             Log.e("BatteryOptimization", "Error checking battery optimization: ${e.message}")
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Recheck battery optimization settings when app comes to foreground
+        checkBatteryOptimization()
     }
 
 

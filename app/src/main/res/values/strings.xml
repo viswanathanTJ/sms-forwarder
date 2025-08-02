@@ -1,3 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">SMS Forwarder</string>
+    
+    <!-- Permission Labels -->
+    <string name="permission_receive_sms_label">SMS Reception</string>
+    <string name="permission_read_sms_label">SMS Reading</string>
+    <string name="permission_send_sms_label">SMS Sending</string>
+    
+    <!-- Permission Descriptions -->
+    <string name="permission_receive_sms_description">Needed to receive SMS messages for forwarding to your configured number</string>
+    <string name="permission_read_sms_description">Required to read incoming SMS content for forwarding purposes</string>
+    <string name="permission_send_sms_description">Used to forward received messages to your configured number</string>
+    
+    <!-- Privacy Policy -->
+    <string name="privacy_policy_title">Privacy Policy</string>
+    <string name="privacy_policy_summary">This app only forwards SMS messages to numbers you explicitly configure. No data is collected or shared with third parties. SMS permissions are used solely for message forwarding functionality.</string>
+    
+    <!-- Service Notifications -->
+    <string name="service_notification_title">SMS Forwarding Active</string>
+    <string name="service_notification_text">Forwarding messages as configured</string>
 </resources>

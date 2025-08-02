@@ -3,28 +3,50 @@
 
     <uses-feature
         android:name="android.hardware.telephony"
-        android:required="false" />
+        android:required="true" />
+        
+    <!-- Security declarations -->
+    <uses-permission-sdk-23 android:name="android.permission.INTERNET"/>
+    <uses-permission-sdk-23 android:name="android.permission.RECEIVE_SMS"/>
+    <uses-permission-sdk-23 android:name="android.permission.READ_SMS"/>
+    <uses-permission-sdk-23 android:name="android.permission.SEND_SMS"/>
 
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
-    <uses-permission android:name="android.permission.RECEIVE_SMS"/>
-    <uses-permission android:name="android.permission.READ_SMS"/>
-    <uses-permission android:name="android.permission.SEND_SMS"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_PERSISTENT" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- SMS permissions for message forwarding functionality -->
+    <uses-permission android:name="android.permission.RECEIVE_SMS" android:label="@string/permission_receive_sms_label" android:description="@string/permission_receive_sms_description"/>
+    <uses-permission android:name="android.permission.READ_SMS" android:label="@string/permission_read_sms_label" android:description="@string/permission_read_sms_description"/>
+    <uses-permission android:name="android.permission.SEND_SMS" android:label="@string/permission_send_sms_label" android:description="@string/permission_send_sms_description"/>
     <uses-permission android:name="android.permission.READ_CONTACTS"/>
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/>
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
 
+    <!-- Package visibility for Android 11+ -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.SEND" />
+            <data android:mimeType="text/plain" />
+        </intent>
+    </queries>
+    
     <application
-        android:allowBackup="true"
+        android:allowBackup="false"
+        android:fullBackupContent="false"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:windowSoftInputMode="adjustResize"
-        android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher"
         android:supportsRtl="true"
         android:theme="@style/Theme.SMSForwarder"
+        android:networkSecurityConfig="@xml/network_security_config"
+        android:usesCleartextTraffic="false"
+        android:exported="false"
+        android:requestLegacyExternalStorage="false"
         tools:targetApi="31">
 
         <activity
@@ -40,7 +62,19 @@
         <service
             android:name=".SmsForwarderService"
             android:foregroundServiceType="dataSync"
-            android:exported="false" />
+            android:exported="false"
+            android:enabled="true"
+            android:persistent="true" />
+
+        <receiver
+            android:name=".ServiceRestartReceiver"
+            android:enabled="true"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="${applicationId}.RESTART_SERVICE" />
+            </intent-filter>
+        </receiver>
     </application>
 
 </manifest>

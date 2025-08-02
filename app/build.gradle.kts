@@ -13,16 +13,47 @@ android {
         minSdk = 29
         targetSdk = 34
         versionCode = 1
-        versionName = "1.0"
+        versionName = "1.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        
+        // Security settings
+        ndk.debugSymbolLevel = "FULL"
+        resourceConfigurations.addAll(listOf("en"))
     }
 
     buildTypes {
         release {
-            isMinifyEnabled = true // Enable code shrinking
-            isShrinkResources = true // Enable resource shrinking
-            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            // Enable code optimization but keep it safe
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+            
+            // Security hardening
+            isDebuggable = false
+            proguardFile("proguard-rules.pro")
+        }
+        debug {
+            // Development settings
+            applicationIdSuffix = ".debug"
+            versionNameSuffix = "-debug"
+            isDebuggable = true
+        }
+    }
+
+    packaging {
+        resources {
+            excludes += listOf(
+                "META-INF/DEPENDENCIES",
+                "META-INF/LICENSE",
+                "META-INF/LICENSE.txt",
+                "META-INF/NOTICE",
+                "META-INF/NOTICE.txt",
+                "META-INF/*.kotlin_module"
+            )
         }
     }
 
