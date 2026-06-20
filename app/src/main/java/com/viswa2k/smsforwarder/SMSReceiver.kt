@@ -129,7 +129,7 @@ class SmsReceiver : BroadcastReceiver() {
                 com.viswa2k.smsforwarder.cloud.data.SmsCloudUploader(context)
                     .upload(senderNumber.toString(), messageBody, System.currentTimeMillis())
             } catch (e: Exception) {
-                Log.e("SmsReceiver", "Cloud upload error")
+                Log.e("SmsReceiver", "Cloud upload error", e)
             }
         }
     }
