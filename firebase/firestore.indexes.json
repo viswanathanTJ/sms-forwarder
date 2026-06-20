@@ -1,15 +1,21 @@
 {
-  "indexes": [
+  "indexes": [],
+  "fieldOverrides": [
     {
       "collectionGroup": "messages",
-      "queryScope": "COLLECTION_GROUP",
-      "fields": [{ "fieldPath": "messageId", "order": "ASCENDING" }]
+      "fieldPath": "messageId",
+      "indexes": [
+        { "order": "ASCENDING", "queryScope": "COLLECTION" },
+        { "order": "ASCENDING", "queryScope": "COLLECTION_GROUP" }
+      ]
     },
     {
       "collectionGroup": "messages",
-      "queryScope": "COLLECTION_GROUP",
-      "fields": [{ "fieldPath": "sourceDeviceId", "order": "ASCENDING" }]
+      "fieldPath": "sourceDeviceId",
+      "indexes": [
+        { "order": "ASCENDING", "queryScope": "COLLECTION" },
+        { "order": "ASCENDING", "queryScope": "COLLECTION_GROUP" }
+      ]
     }
-  ],
-  "fieldOverrides": []
+  ]
 }
