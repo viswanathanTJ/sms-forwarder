@@ -1,0 +1,59 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function authed() { return request.auth != null && request.auth.token.email != null; }
+    function isAuthorized() {
+      return authed() && exists(/databases/$(database)/documents/authorized_emails/$(request.auth.token.email));
+    }
+    function isAdmin() {
+      return isAuthorized() &&
+        get(/databases/$(database)/documents/authorized_emails/$(request.auth.token.email)).data.role == 'admin';
+    }
+    function ownsDevice(deviceId) {
+      return isAuthorized() &&
+        get(/databases/$(database)/documents/devices/$(deviceId)).data.ownerEmail == request.auth.token.email;
+    }
+    function isAdminDevice(deviceId) {
+      return isAuthorized() &&
+        get(/databases/$(database)/documents/authorized_emails/$(get(/databases/$(database)/documents/devices/$(deviceId)).data.ownerEmail)).data.role == 'admin';
+    }
+
+    match /authorized_emails/{email} {
+      allow read: if isAuthorized();
+      allow write: if isAdmin();
+    }
+
+    match /devices/{deviceId} {
+      allow read: if isAuthorized();
+      allow create: if isAdmin()
+        || (isAuthorized() && request.resource.data.ownerEmail == request.auth.token.email);
+      allow update: if isAdmin()
+        || (ownsDevice(deviceId) && request.resource.data.ownerEmail == resource.data.ownerEmail);
+      allow delete: if isAdmin();
+    }
+
+    match /access_matrix/{pair} {
+      allow read: if isAuthorized();
+      allow write: if isAdmin();
+    }
+
+    match /subscriptions/{pair} {
+      allow read: if isAuthorized();
+      allow create: if ownsDevice(request.resource.data.readerDeviceId);
+      allow update, delete: if resource != null && ownsDevice(resource.data.readerDeviceId);
+    }
+
+    match /inbox/{deviceId}/messages/{messageId} {
+      allow read: if ownsDevice(deviceId) || isAdmin();
+      allow create: if ownsDevice(request.resource.data.sourceDeviceId)
+        && (
+          deviceId == request.resource.data.sourceDeviceId
+          || exists(/databases/$(database)/documents/access_matrix/$(deviceId + '__' + request.resource.data.sourceDeviceId))
+          || isAdminDevice(deviceId)
+        );
+      allow delete: if isAdmin();
+      allow update: if false;
+    }
+  }
+}

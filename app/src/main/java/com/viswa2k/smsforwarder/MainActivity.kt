@@ -26,6 +26,9 @@ import androidx.lifecycle.lifecycleScope
 import com.viswa2k.smsforwarder.ui.SettingsScreen
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
 
 // Create an extension property for DataStore
 val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
@@ -51,6 +54,11 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch {
             userPreferences.initializeDefaults()
             checkAndStartService()
+            try {
+                if (userPreferences.isCloudChannelEnabled.first()) {
+                    com.viswa2k.smsforwarder.cloud.data.SmsCloudUploader(applicationContext).flushQueue()
+                }
+            } catch (e: Exception) { Log.e("MainActivity", "queue flush failed", e) }
         }
 
         // Check for battery optimization exemption
@@ -61,8 +69,20 @@ class MainActivity : ComponentActivity() {
 
         // Set the content view
         setContent {
-            Surface(color = MaterialTheme.colorScheme.background) {
-                SettingsScreen(userPreferences)
+            MaterialTheme {
+                Surface {
+                    val cloudVm: com.viswa2k.smsforwarder.cloud.ui.CloudViewModel =
+                        androidx.lifecycle.viewmodel.compose.viewModel()
+                    val nav = rememberNavController()
+                    NavHost(nav, startDestination = "settings") {
+                        composable("settings") {
+                            SettingsScreen(userPreferences, onOpenCloud = { nav.navigate("cloud") })
+                        }
+                        composable("cloud") {
+                            com.viswa2k.smsforwarder.cloud.ui.CloudNav(cloudVm)
+                        }
+                    }
+                }
             }
         }
     }
