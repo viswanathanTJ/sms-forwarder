@@ -22,7 +22,7 @@ import com.viswa2k.smsforwarder.ui.screen.SettingsViewModel
 import com.viswa2k.smsforwarder.ui.screen.SettingsViewModelFactory
 
 @Composable
-fun SettingsScreen(userPreferences: UserPreferences, modifier: Modifier = Modifier) {
+fun SettingsScreen(userPreferences: UserPreferences, modifier: Modifier = Modifier, onOpenCloud: () -> Unit = {}) {
     val context = LocalContext.current
     val viewModel: SettingsViewModel = viewModel(factory = SettingsViewModelFactory(userPreferences))
 
@@ -38,6 +38,8 @@ fun SettingsScreen(userPreferences: UserPreferences, modifier: Modifier = Modifi
     val smsToNumber by viewModel.smsToNumber.collectAsState()
     val telegramApiKey by viewModel.telegramApiKey.collectAsState()
     val telegramUserIds by viewModel.telegramUserIds.collectAsState()
+    val isCloudChannelEnabled by viewModel.isCloudChannelEnabled.collectAsState()
+    val isReceiveEnabled by viewModel.isReceiveEnabled.collectAsState()
 
     // Use LazyColumn for scrolling
     LazyColumn(modifier = modifier.padding(16.dp)) {
@@ -196,6 +198,46 @@ fun SettingsScreen(userPreferences: UserPreferences, modifier: Modifier = Modifi
                                     modifier = Modifier.padding(start = 16.dp, top = 4.dp)
                                 )
                             }
+                        }
+                    }
+                }
+            }
+
+            // Cloud SMS Card
+            AnimatedVisibility(smsForwardServiceEnabled) {
+                Card(
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+                    shape = MaterialTheme.shapes.medium
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text("Cloud SMS", style = MaterialTheme.typography.titleMedium)
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            Text("Upload to cloud", modifier = Modifier.weight(1f))
+                            Switch(
+                                checked = isCloudChannelEnabled,
+                                onCheckedChange = { viewModel.setCloudChannelEnabled(it) }
+                            )
+                        }
+
+                        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            Text("Receive cloud messages", modifier = Modifier.weight(1f))
+                            Switch(
+                                checked = isReceiveEnabled,
+                                onCheckedChange = { viewModel.setReceiveEnabled(it) }
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Button(
+                            onClick = { onOpenCloud() },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Open Cloud SMS")
                         }
                     }
                 }

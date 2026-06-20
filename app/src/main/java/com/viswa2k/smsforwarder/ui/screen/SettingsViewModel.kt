@@ -42,6 +42,9 @@ class SettingsViewModel(private val userPreferences: UserPreferences) : ViewMode
     private val _telegramUserIds = MutableStateFlow("")
     val telegramUserIds: StateFlow<String> = _telegramUserIds
 
+    val isCloudChannelEnabled = MutableStateFlow(false)
+    val isReceiveEnabled = MutableStateFlow(false)
+
     init {
         loadPreferences()
     }
@@ -59,6 +62,8 @@ class SettingsViewModel(private val userPreferences: UserPreferences) : ViewMode
             _smsToNumber.value = userPreferences.smsToNumber.first()
             _telegramApiKey.value = userPreferences.telegramApiKey.first()
             _telegramUserIds.value = userPreferences.telegramUserIds.first()
+            isCloudChannelEnabled.value = userPreferences.isCloudChannelEnabled.first()
+            isReceiveEnabled.value = userPreferences.isReceiveEnabled.first()
         }
     }
 
@@ -108,6 +113,9 @@ class SettingsViewModel(private val userPreferences: UserPreferences) : ViewMode
     fun updateTelegramUserIds(userIds: String) {
         _telegramUserIds.value = userIds
     }
+
+    fun setCloudChannelEnabled(v: Boolean) { isCloudChannelEnabled.value = v; viewModelScope.launch { userPreferences.saveCloudChannelEnabled(v) } }
+    fun setReceiveEnabled(v: Boolean) { isReceiveEnabled.value = v; viewModelScope.launch { userPreferences.saveReceiveEnabled(v) } }
 
     fun saveSettings() {
         viewModelScope.launch {
