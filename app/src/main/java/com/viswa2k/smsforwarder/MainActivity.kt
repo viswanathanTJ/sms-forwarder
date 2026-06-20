@@ -58,7 +58,7 @@ class MainActivity : ComponentActivity() {
                 if (userPreferences.isCloudChannelEnabled.first()) {
                     com.viswa2k.smsforwarder.cloud.data.SmsCloudUploader(applicationContext).flushQueue()
                 }
-            } catch (e: Exception) { Log.e("MainActivity", "queue flush failed") }
+            } catch (e: Exception) { Log.e("MainActivity", "queue flush failed", e) }
         }
 
         // Check for battery optimization exemption

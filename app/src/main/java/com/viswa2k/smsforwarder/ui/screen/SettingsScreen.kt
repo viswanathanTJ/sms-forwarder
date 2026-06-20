@@ -203,9 +203,8 @@ fun SettingsScreen(userPreferences: UserPreferences, modifier: Modifier = Modifi
                 }
             }
 
-            // Cloud SMS Card
-            AnimatedVisibility(smsForwardServiceEnabled) {
-                Card(
+            // Cloud SMS Card — always visible so reader-only devices can access cloud features
+            Card(
                     modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
                     elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
                     shape = MaterialTheme.shapes.medium
@@ -241,7 +240,6 @@ fun SettingsScreen(userPreferences: UserPreferences, modifier: Modifier = Modifi
                         }
                     }
                 }
-            }
 
             // Save Settings Button
             Row(
