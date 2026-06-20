@@ -337,7 +337,7 @@ git commit -m "feat(backend): notifyReader Cloud Function + admin bootstrap"
 
 In `gradle/libs.versions.toml` `[versions]` add (use the existing Kotlin version for `kotlin`):
 ```toml
-googleServices = "4.4.2"
+googleServices = "4.5.0"
 ```
 `[plugins]`:
 ```toml
@@ -392,7 +392,7 @@ Replace `compileOptions`/`kotlinOptions`/`buildFeatures`:
 Add to `dependencies { }`:
 ```kotlin
     // Firebase
-    implementation(platform("com.google.firebase:firebase-bom:33.1.2"))
+    implementation(platform("com.google.firebase:firebase-bom:34.15.0"))
     implementation("com.google.firebase:firebase-auth-ktx")
     implementation("com.google.firebase:firebase-firestore-ktx")
     implementation("com.google.firebase:firebase-messaging-ktx")
@@ -414,6 +414,14 @@ Add to `dependencies { }`:
     // JVM crypto for unit tests
     testImplementation("com.google.crypto.tink:tink:1.13.0")
     testImplementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
+```
+
+In `app/build.gradle.kts`, **remove** `applicationIdSuffix = ".debug"` from the `debug { }` build type so the debug build uses `com.viswa2k.smsforwarder` and matches `google-services.json` (which only registers the release package). Keep `versionNameSuffix` and `isDebuggable`:
+```kotlin
+        debug {
+            versionNameSuffix = "-debug"
+            isDebuggable = true
+        }
 ```
 
 In `AndroidManifest.xml` `<manifest>` (add if missing):
