@@ -35,6 +35,10 @@ class SmsCloudUploader(context: Context) {
             Log.e("SmsCloudUploader", "Encrypt failed; cannot queue without recipients")
             return
         }
+        if (fanOut.copies.isEmpty()) {
+            Log.e("SmsCloudUploader", "No resolvable recipient keys (admin/readers not registered?); message NOT uploaded")
+            return
+        }
         try {
             messageRepo.pushFanOut(fanOut)
         } catch (e: Exception) {

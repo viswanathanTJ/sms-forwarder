@@ -1,6 +1,6 @@
 import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import { initializeApp } from "firebase-admin/app";
-import { getFirestore } from "firebase-admin/firestore";
+import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { getMessaging } from "firebase-admin/messaging";
 
 initializeApp();
@@ -28,15 +28,22 @@ export const notifyReader = onDocumentCreated(
     const notify = subSnap.exists ? subSnap.get("notify") !== false : true;
     if (!notify) return;
 
-    await messaging.send({
-      token,
-      data: {
-        type: "new_sms",
-        message_id: String(data.messageId),
-        source_device_id: String(data.sourceDeviceId),
-        device_id: deviceId,
-      },
-      android: { priority: "high" },
-    });
+    try {
+      await messaging.send({
+        token,
+        data: {
+          type: "new_sms",
+          message_id: String(data.messageId),
+          source_device_id: String(data.sourceDeviceId),
+          device_id: deviceId,
+        },
+        android: { priority: "high" },
+      });
+    } catch (e: any) {
+      if (e?.errorInfo?.code === "messaging/registration-token-not-registered") {
+        await db.collection("devices").doc(deviceId).update({ fcmToken: FieldValue.delete() });
+      }
+      console.error("FCM send failed", e);
+    }
   }
 );

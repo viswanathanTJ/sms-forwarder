@@ -14,6 +14,10 @@ service cloud.firestore {
       return isAuthorized() &&
         get(/databases/$(database)/documents/devices/$(deviceId)).data.ownerEmail == request.auth.token.email;
     }
+    function isAdminDevice(deviceId) {
+      return isAuthorized() &&
+        get(/databases/$(database)/documents/authorized_emails/$(get(/databases/$(database)/documents/devices/$(deviceId)).data.ownerEmail)).data.role == 'admin';
+    }
 
     match /authorized_emails/{email} {
       allow read: if isAuthorized();
@@ -22,8 +26,10 @@ service cloud.firestore {
 
     match /devices/{deviceId} {
       allow read: if isAuthorized();
-      allow create, update: if isAdmin()
+      allow create: if isAdmin()
         || (isAuthorized() && request.resource.data.ownerEmail == request.auth.token.email);
+      allow update: if isAdmin()
+        || (ownsDevice(deviceId) && request.resource.data.ownerEmail == resource.data.ownerEmail);
       allow delete: if isAdmin();
     }
 
@@ -40,7 +46,11 @@ service cloud.firestore {
 
     match /inbox/{deviceId}/messages/{messageId} {
       allow read: if ownsDevice(deviceId) || isAdmin();
-      allow create: if isAuthorized();
+      allow create: if ownsDevice(request.resource.data.sourceDeviceId)
+        && (
+          exists(/databases/$(database)/documents/access_matrix/$(deviceId + '__' + request.resource.data.sourceDeviceId))
+          || isAdminDevice(deviceId)
+        );
       allow delete: if isAdmin();
       allow update: if false;
     }
