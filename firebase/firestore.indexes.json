@@ -1,0 +1,15 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "messages",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [{ "fieldPath": "messageId", "order": "ASCENDING" }]
+    },
+    {
+      "collectionGroup": "messages",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [{ "fieldPath": "sourceDeviceId", "order": "ASCENDING" }]
+    }
+  ],
+  "fieldOverrides": []
+}

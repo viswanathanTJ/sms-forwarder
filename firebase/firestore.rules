@@ -1,0 +1,48 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function authed() { return request.auth != null && request.auth.token.email != null; }
+    function isAuthorized() {
+      return authed() && exists(/databases/$(database)/documents/authorized_emails/$(request.auth.token.email));
+    }
+    function isAdmin() {
+      return isAuthorized() &&
+        get(/databases/$(database)/documents/authorized_emails/$(request.auth.token.email)).data.role == 'admin';
+    }
+    function ownsDevice(deviceId) {
+      return isAuthorized() &&
+        get(/databases/$(database)/documents/devices/$(deviceId)).data.ownerEmail == request.auth.token.email;
+    }
+
+    match /authorized_emails/{email} {
+      allow read: if isAuthorized();
+      allow write: if isAdmin();
+    }
+
+    match /devices/{deviceId} {
+      allow read: if isAuthorized();
+      allow create, update: if isAdmin()
+        || request.resource.data.ownerEmail == request.auth.token.email;
+      allow delete: if isAdmin();
+    }
+
+    match /access_matrix/{pair} {
+      allow read: if isAuthorized();
+      allow write: if isAdmin();
+    }
+
+    match /subscriptions/{pair} {
+      allow read: if isAuthorized();
+      allow write: if ownsDevice(request.resource.data.readerDeviceId)
+        || ownsDevice(resource.data.readerDeviceId);
+    }
+
+    match /inbox/{deviceId}/messages/{messageId} {
+      allow read: if ownsDevice(deviceId) || isAdmin();
+      allow create: if isAuthorized();
+      allow delete: if isAdmin();
+      allow update: if false;
+    }
+  }
+}
