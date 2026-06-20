@@ -1,27 +1,35 @@
 # Cloud Encrypted SMS Sync — Design Spec
 
 **Date:** 2026-06-20
-**Status:** Approved design (pending user spec review)
+**Status:** Approved design (Firebase backend; pending user spec review)
 **App:** `com.viswa2k.smsforwarder` (Android, Kotlin + Jetpack Compose, minSdk 29 / target 34)
 
 ## Goal
 
 Add a third forwarding channel (alongside SMS and Telegram): a **family/team
-fleet** of devices that upload incoming SMS to Supabase in **end-to-end
+fleet** of devices that upload incoming SMS to **Firebase** in **end-to-end
 encrypted** form, and let authorized devices **read other devices' SMS** from
-the cloud — live (Supabase Realtime) and/or via push notification (FCM). A
-**super-admin** controls who may sign in and which device may read which.
+the cloud — live (Firestore snapshot listeners) and/or via push notification
+(FCM). A **super-admin** controls who may sign in and which device may read which.
+
+## Backend choice — Firebase (single vendor)
+
+Since FCM (push) is required regardless, the whole backend is Firebase to keep one
+vendor, one auth system, one SDK, and minimal setup: **Firestore** (storage +
+realtime), **Firebase Auth** (email/password + Google), **Cloud Functions**
+(`onCreate` → FCM), **FCM** (push). End-to-end encryption is orthogonal — the
+backend only ever stores ciphertext.
 
 ## Cast & terminology
 
 - **Super-admin (UserX)** — the single master account, identified by an email
   supplied by the user. Administers the email allow-list and the access matrix.
-  Holds a key pair like any reader, and is **always** a recipient of every
-  message (can decrypt everything).
-- **Sender device** — a phone that receives SMS and uploads them encrypted. Holds
-  **no decryption key**.
-- **Reader device** — a phone authorized to view another device's SMS. Holds its
-  own private key (hardware-sealed).
+  Holds a key pair like any reader and is **always** a fan-out recipient (can
+  decrypt everything via its own inbox).
+- **Sender device** — receives SMS and uploads them encrypted. Holds **no
+  decryption key**.
+- **Reader device** — authorized to view another device's SMS. Holds its own
+  private key (hardware-sealed).
 - A single device can be **both** a sender and a reader.
 
 ## Core security model — hybrid envelope encryption
@@ -33,285 +41,224 @@ the only key that opens it** (never leaves the device).
 - Each **reader/admin device** generates an asymmetric **identity key pair** using
   **HPKE (RFC 9180)** — `DHKEM(P-256, HKDF-SHA256)` + `HKDF-SHA256` +
   `AES-256-GCM`. This is a **portable, standards-based wire format** so a future
-  web client (`hpke-js` / Web Crypto) interoperates byte-for-byte with Android
-  (Tink's RFC 9180 HPKE primitive). The **private key is sealed by an Android
-  Keystore master key** (hardware-backed, non-exportable,
-  `setUserAuthenticationRequired(true)` with a short validity window → biometric/PIN
-  re-auth). The **public key is published as raw HPKE public-key bytes**
-  (uncompressed P-256 point) to Supabase — not a proprietary keyset — so any HPKE
-  implementation can import it.
+  web client (`hpke-js` / Web Crypto) interoperates with Android (Tink's RFC 9180
+  HPKE primitive). The **private key is sealed by an Android Keystore master key**
+  (hardware-backed, non-exportable). The **public key is published** to the
+  device's Firestore doc.
 - **Sender devices need no key pair** — they only download recipients' public keys.
 - Plaintext SMS and unwrapped keys exist **only in memory**, never persisted.
 
-### Encrypting (sender)
+### Encrypting an SMS — sender fan-out
 1. Generate a random one-time **Data Key (DEK)** (AES-256-GCM).
 2. Serialize the SMS as JSON `{ sender, body, originalTimestamp, deviceAlias }`
-   and AES-256-GCM-encrypt it with the DEK → `ciphertext` (+ unique nonce). **All
-   metadata is inside the blob.**
-3. Fetch the **authorized recipients' public keys** for this source device
-   (super-admin is always included) from `device_keys` filtered by `access_matrix`.
-4. **HPKE-seal a copy of the DEK to each recipient's public key** (RFC 9180
-   single-shot seal, output `enc || ciphertext`) → one `wrapped_dek` per recipient.
-5. Upload one `messages` row + N `message_keys` rows. **Discard the DEK.** The
-   sender now holds nothing that can decrypt.
+   and encrypt it with the DEK → `ciphertext` (+ unique nonce). **All metadata is
+   inside the blob.**
+3. Determine **authorized recipients** for this source device (super-admin always
+   included) from the access matrix, and read their **public keys**.
+4. For **each recipient**: **HPKE-seal** a copy of the DEK to that recipient's
+   public key, and write one document into **that recipient's inbox**:
+   `inbox/{recipientDeviceId}/messages/{messageId}` = `{ messageId, sourceDeviceId,
+   ciphertext, nonce, wrappedDek, createdAt }`. The same `messageId` is shared
+   across all copies of one logical SMS.
+5. **Discard the DEK.** The sender retains nothing that can decrypt.
 
-### Decrypting (reader/admin)
-1. Sign in → unlock the private key from Keystore (biometric).
-2. Fetch its own `message_keys` row → **HPKE-open** to recover the DEK.
-3. AES-256-GCM-decrypt `ciphertext` → plaintext SMS **in memory only**.
+The ciphertext is duplicated per recipient — SMS are tiny and recipient counts
+small, so this idiomatic Firestore **fan-out-on-write** is the right trade: it
+makes reads, realtime, and security rules trivial.
 
-### Access control = cryptographic + RLS (defense in depth)
-- The super-admin's **access matrix** drives *whose public keys a sender wraps
-  for*. An unauthorized device has **no `wrapped_dek`** → cannot decrypt even if
-  it obtained the row. RLS additionally prevents it from reading the row at all.
+### Decrypting — reader/admin
+- Sign in → unlock the private key from Keystore (biometric gate on the screen) →
+  read **own inbox** docs → for each, HPKE-open `wrappedDek` → AES-GCM-decrypt
+  `ciphertext` → plaintext **in memory only**.
+- The **admin** is always a recipient, so the admin's own inbox contains **every**
+  message → "see any device's SMS" = read the admin inbox.
+
+### Access control = cryptographic + Security Rules (defense in depth)
+- The super-admin's **access matrix** drives *whose inbox a sender fans out to*.
+  A non-authorized device gets **no inbox doc and no wrapped DEK** → cannot decrypt.
+- Firestore **Security Rules** enforce: a reader reads only its own inbox; only
+  admins delete. Because crypto is the primary gate, a rules slip can't leak
+  plaintext (no wrapped DEK exists for an unauthorized device).
 
 ### Key rotation / leak containment
-- **Per-message DEKs** are single-use (inherently short-lived).
-- **Device key pairs rotate every 30 days** (and on-demand). The newest public
-  key is used for new wraps; older private key versions are retained in Keystore
-  only to decrypt historical messages (non-exportable hardware-sealed, so leak
-  risk is low). `device_keys.active` marks the current wrapping key.
-- Super-admin can **revoke** a device → senders stop wrapping for it → it loses
-  access to all future messages immediately; RLS blocks its reads.
+- **Per-message DEKs** are single-use.
+- Device key pairs **rotate** (and on-demand); the newest public key is used for
+  new fan-outs; old private key versions are retained in Keystore to read history.
+- Super-admin can **revoke** a device → senders stop fanning out to it; rules deny
+  its reads. Revocation is **forward-only** (admin re-fan-out is the backfill).
 
 ### Consequence: notifications carry no server-side plaintext
-Because this is true E2E, **Supabase and FCM never see plaintext**. Push is a
-**silent "data" wake-up** with no message text; the app wakes, fetches, decrypts
-locally, then shows a **local notification** with the real content.
+True E2E means Firestore/Cloud Functions/FCM never see plaintext. Push is a
+**silent "data" FCM message** with no text; the app wakes, reads its inbox doc,
+decrypts locally, then shows a **local notification** with real content.
 
 ## Authentication
 
-- **Supabase Auth**: email/password **and** Google sign-in.
-- **Email allow-list**: only emails present in `authorized_emails` may use the
-  app. Enforced server-side via (a) RLS policies that deny all data access when
-  `auth.email()` is not in `authorized_emails`, and (b) a Supabase **auth hook /
-  trigger** that rejects sign-ups from non-listed emails. Client UI also gates,
-  but the server is the source of truth.
-- **Bootstrap**: a migration seeds `authorized_emails` with the super-admin email
-  (role `admin`). The user will supply this email.
+- **Firebase Auth**: email/password **and** Google sign-in (via Credential Manager →
+  `GoogleAuthProvider`).
+- **Email allow-list**: only emails present in the `authorized_emails` Firestore
+  collection may use the app. Enforced by **Security Rules** (deny all data access
+  unless the signed-in email has an `authorized_emails/{email}` doc). The in-app
+  flow also checks this on sign-in and signs out unauthorized accounts.
+- **Bootstrap**: a one-time admin setup writes the super-admin's
+  `authorized_emails/{email}` doc with role `admin` (done via a setup script or the
+  Firebase console). The user supplies this email.
 
-## Supabase schema
+## Firestore data model
 
-```sql
--- who may use the app
-authorized_emails (
-  email        text primary key,
-  role         text not null check (role in ('admin','member')) default 'member',
-  added_by     text,
-  created_at   timestamptz default now()
-)
+```
+authorized_emails/{email}
+  { role: 'admin'|'member', addedBy: string, createdAt: ts }
 
--- a registered fleet device (owned by an authorized email)
-devices (
-  id           uuid primary key default gen_random_uuid(),
-  owner_email  text not null references authorized_emails(email),
-  alias        text not null,
-  fcm_token    text,
-  revoked      boolean not null default false,
-  last_seen    timestamptz,
-  created_at   timestamptz default now()
-)
+devices/{deviceId}
+  { ownerEmail: string, alias: string, fcmToken: string|null,
+    publicKey: string(base64 Tink public keyset), keyVersion: int,
+    revoked: bool, createdAt: ts }
 
--- published public keys (no private material ever)
-device_keys (
-  id           uuid primary key default gen_random_uuid(),
-  device_id    uuid not null references devices(id) on delete cascade,
-  public_key   bytea not null,         -- raw HPKE public key (uncompressed P-256 point)
-  alg          text not null default 'HPKE_P256_HKDF_SHA256_AES256GCM',
-  version      int  not null,
-  active       boolean not null default true,
-  created_at   timestamptz default now()
-)
+access_matrix/{readerDeviceId}__{sourceDeviceId}     // admin-managed
+  { readerDeviceId: string, sourceDeviceId: string, grantedBy: string }
 
--- ADMIN-set: reader_device may read source_device's SMS
-access_matrix (
-  id               uuid primary key default gen_random_uuid(),
-  reader_device_id uuid not null references devices(id) on delete cascade,
-  source_device_id uuid not null references devices(id) on delete cascade,
-  granted_by       text not null,
-  created_at       timestamptz default now(),
-  unique (reader_device_id, source_device_id)
-)
+subscriptions/{readerDeviceId}__{sourceDeviceId}     // reader-managed (notify pref)
+  { readerDeviceId: string, sourceDeviceId: string, notify: bool }
 
--- READER-set: which allowed sources this reader actually watches + notify pref
-subscriptions (
-  id               uuid primary key default gen_random_uuid(),
-  reader_device_id uuid not null references devices(id) on delete cascade,
-  source_device_id uuid not null references devices(id) on delete cascade,
-  notify           boolean not null default true,   -- ON by default
-  created_at       timestamptz default now(),
-  unique (reader_device_id, source_device_id)
-)
-
--- the encrypted SMS (sender/body/timestamp are INSIDE ciphertext)
-messages (
-  id               uuid primary key default gen_random_uuid(),
-  source_device_id uuid not null references devices(id) on delete cascade,
-  ciphertext       bytea not null,
-  nonce            bytea not null,
-  created_at       timestamptz default now()      -- upload time only
-)
-
--- per-recipient wrapped DEK
-message_keys (
-  id                  uuid primary key default gen_random_uuid(),
-  message_id          uuid not null references messages(id) on delete cascade,
-  recipient_device_id uuid not null references devices(id) on delete cascade,
-  wrapped_dek         bytea not null,
-  unique (message_id, recipient_device_id)
-)
+inbox/{recipientDeviceId}/messages/{messageId}       // per-recipient encrypted copy
+  { messageId: string, sourceDeviceId: string, sourceAlias: string,
+    ciphertext: string(base64), nonce: string(base64),
+    wrappedDek: string(base64), createdAt: ts }
 ```
 
-### RLS policy summary
-- **Global gate**: every policy requires `auth.email() in (select email from authorized_emails)`.
-- `authorized_emails`, `access_matrix`: **write = admin only**; readable by authorized users (senders need the matrix to compute recipients).
-- `devices`: a user inserts/updates **their own** devices (`owner_email = auth.email()`); admin can do all.
-- `device_keys`: a device publishes **its own** public keys; everyone authorized can read public keys.
-- `subscriptions`: a reader manages **its own** subscriptions (device owned by `auth.email()`), limited to sources allowed by `access_matrix`.
-- `messages`: **insert** by any authorized non-revoked device; **select** only where a `message_keys` row exists for a device owned by `auth.email()`; **delete = admin only**.
-- `message_keys`: **insert** by the uploading sender; **select** only rows whose `recipient_device_id` is owned by `auth.email()`.
+Notes:
+- Active public key lives on the `devices` doc (senders only need the current key).
+- `messageId` is shared across all recipients' copies so the admin can delete every
+  copy of one logical SMS (collection-group query on `messages` by `messageId`).
+- `subscriptions` only controls the **notify** flag; fan-out to a reader happens
+  whenever the access matrix grants it (so the reader can always see in-app).
+
+## Security Rules summary
+
+Helpers: `isAuthorized()` = signed-in email has an `authorized_emails` doc;
+`isAdmin()` = that doc's `role == 'admin'`; `ownsDevice(id)` = `devices/{id}.ownerEmail == email`.
+
+- `authorized_emails`: read if `isAuthorized()`; write if `isAdmin()`.
+- `devices`: read if `isAuthorized()`; create/update if owner (`ownerEmail == email`) or admin.
+- `access_matrix`: read if `isAuthorized()` (senders need it); write if `isAdmin()`.
+- `subscriptions`: read/write if `ownsDevice(readerDeviceId)`; create requires a
+  matching `access_matrix` doc to exist.
+- `inbox/{deviceId}/messages/{messageId}`:
+  - **read** if `ownsDevice(deviceId)` or `isAdmin()`;
+  - **create** if `isAuthorized()` (a sender fanning out into recipients' inboxes);
+  - **delete** if `isAdmin()`.
 
 ## Delivery / receive paths
 
-1. **Live (Realtime)**: reader subscribes to `messages` (Realtime), filtered by
-   its watched sources; new rows appear in the cloud screen and are decrypted
-   on-device.
-2. **Push (FCM, ON by default)**: a Supabase **Database Webhook** on
-   `messages` INSERT calls an **Edge Function**, which looks up `subscriptions`
-   (notify = true) for that `source_device_id`, then sends a **silent FCM data
-   message** to each reader's `fcm_token`. The app wakes, fetches + decrypts, and
-   posts a **local notification** with the decrypted content.
-3. **Manual**: if a reader turns notify off, it simply sees messages when it
-   opens the cloud screen.
+1. **Live (Realtime):** a reader attaches a Firestore **snapshot listener** to its
+   own `inbox/{deviceId}/messages` → new docs appear and are decrypted on-device.
+2. **Push (FCM, ON by default):** a Cloud Function `onCreate` of
+   `inbox/{deviceId}/messages/{messageId}` reads that device's `fcmToken` and the
+   `subscriptions/{deviceId}__{sourceDeviceId}.notify` flag; if notify (default true)
+   and a token exists, it sends a **silent FCM data message**. The app wakes, reads
+   the inbox doc, decrypts, and posts a **local notification**.
+3. **Manual:** with notify off, the reader simply sees messages when it opens the
+   cloud screen (the snapshot listener / one-shot read).
 
 ## Android app changes
 
 ### New components
-- **`SupabaseClient`** (singleton) — configures supabase-kt (Auth, Postgrest,
-  Realtime, Functions) with project URL + anon key (build config).
-- **`AuthRepository`** — email/password + Google sign-in, session persistence,
-  sign-out; exposes auth state as `Flow`.
-- **`CryptoManager`** — HPKE (RFC 9180) key generation, private key sealed by a
-  Keystore master key (biometric-gated); publish raw public key,
-  `wrapDek(recipientPublicKey)` (HPKE seal), `unwrapDek()` (HPKE open), AES-GCM
-  body encrypt/decrypt, rotation. Wire format is portable (web-ready).
-- **`DeviceRepository`** — register/update this device (alias, fcm_token),
-  publish/rotate public keys, fetch fleet devices.
-- **`AccessRepository`** — admin: read/write `authorized_emails` + `access_matrix`;
-  reader: read allowed sources, manage `subscriptions`.
-- **`CloudMessageRepository`** — sender: build + upload encrypted message + wrapped
-  DEKs; reader: list/stream + decrypt; admin: delete (single/bulk).
-- **`SmsCloudUploader`** — invoked from `SmsReceiver` to encrypt-and-upload (only
-  when cloud channel enabled), reusing the existing skip-contacts/format logic
-  where relevant.
-- **`SmsForwarderFcmService`** (`FirebaseMessagingService`) — handles silent data
-  pushes (fetch + decrypt + local notification) and `onNewToken` (update
-  `devices.fcm_token`).
+- **`FirebaseProvider`** — exposes `FirebaseAuth`, `FirebaseFirestore`, `FirebaseMessaging`.
+- **`AuthRepository`** — email/password + Google sign-in (Firebase Auth), allow-list
+  check, sign-out, auth-state `Flow`.
+- **`CryptoManager`** / **`HpkeCrypto`** / **`CloudSmsPayload`** — Tink HPKE + AES-GCM,
+  Keystore-sealed keyset (unchanged from the crypto design).
+- **`DeviceRepository`** — register/update this device (alias, fcmToken, publicKey,
+  keyVersion), fetch fleet devices, admin device ids, recipients' public keys.
+- **`AccessRepository`** — admin: `authorized_emails` + `access_matrix` + revoke;
+  reader: allowed sources + `subscriptions` (notify).
+- **`CloudMessageRepository`** — sender: build + fan-out encrypted copies to each
+  recipient inbox; reader: list/stream + decrypt own inbox; admin: delete (single
+  by `messageId` across inboxes / all for a source).
+- **`RecipientSelector`** — pure recipient-selection logic (JVM-testable).
+- **`CloudUploadQueue`** — offline retry queue (encrypted artifacts only).
+- **`SmsCloudUploader`** — orchestrates encrypt + fan-out from the receiver.
+- **`SmsForwarderFcmService`** — silent data push → read inbox doc + decrypt → local
+  notification; `onNewToken` updates the device's `fcmToken`.
 
 ### New screens (Compose)
-- **Sign-in screen** — email/password + Google button; shows "not authorized"
-  on rejected emails.
-- **Cloud SMS screen** — lists messages from watched devices (grouped by source
-  device), decrypted on-device; pull-to-refresh + Realtime; per-message and bulk
-  **delete** (visible to super-admin only).
-- **Watch / subscriptions screen** — reader picks which allowed source devices to
-  watch and toggles notify per device ("Which devices do you want me to notify?").
-- **Admin screen** (super-admin only) — manage `authorized_emails`, fleet
-  devices, and the access matrix (which reader may read which source); revoke
-  devices.
-- Settings additions: enable/disable the **cloud channel** (sender), enable
-  **receive messages** (reader), and account/sign-in status.
+- **Sign-in** (email/password + Google; "not authorized" message).
+- **Cloud SMS** — lists own-inbox messages (grouped by source device), decrypted
+  on-device; snapshot-listener live updates; per-message + bulk **delete** (admin only).
+- **Watch / subscriptions** — reader picks which allowed sources to notify on.
+- **Admin** (super-admin only) — manage `authorized_emails`, the access matrix,
+  device revoke.
+- Settings additions: enable **cloud channel** (sender), enable **receive** (reader),
+  account/sign-in status.
 
 ### Existing code touch points
-- `SmsReceiver` — after existing SMS/Telegram forwarding, call `SmsCloudUploader`
-  when the cloud channel is enabled.
+- `SmsReceiver` — after SMS/Telegram forwarding, call `SmsCloudUploader` when the
+  cloud channel is enabled.
 - `UserPreferences` — new keys: `isCloudChannelEnabled`, `isReceiveEnabled`,
-  `deviceId`, `deviceAlias` (reuse existing), `isSuperAdmin` (derived from role),
-  last key-rotation timestamp.
-- `MainActivity` — route to sign-in when no session; initialize Supabase, FCM
-  token, device registration on launch.
+  `cloudDeviceId`.
+- `MainActivity` — route to sign-in when no session; init Firebase, FCM token,
+  device registration; flush offline queue.
 
 ## Dependencies to add
-- supabase-kt: `gotrue-kt`, `postgrest-kt`, `realtime-kt`, `functions-kt`
-- Ktor client engine (`ktor-client-okhttp`) + `kotlinx-serialization-json`
-- Google Tink (`com.google.crypto.tink:tink-android`) — used for its **RFC 9180
-  HPKE** primitive (P-256/HKDF-SHA256/AES-256-GCM) and AES-GCM AEAD; public keys
-  exchanged as raw HPKE bytes for cross-platform interop
-- Firebase: `firebase-bom`, `firebase-messaging`; `google-services` Gradle plugin
-- AndroidX Biometric (`androidx.biometric`) for Keystore auth prompts
-- Credential Manager / Google Identity for Google sign-in
+- Firebase: `firebase-bom`, `firebase-auth-ktx`, `firebase-firestore-ktx`,
+  `firebase-messaging-ktx`; `google-services` Gradle plugin.
+- Google Tink (`com.google.crypto.tink:tink-android`) — RFC 9180 HPKE + AES-GCM.
+- AndroidX Biometric; Credential Manager + Google Identity (`googleid`) for Google sign-in.
+- `kotlinx-serialization-json` (payload), `kotlinx-coroutines-play-services` (await Tasks).
+- Compose Navigation.
+- **No** supabase-kt / Ktor.
 
-(Declared in `gradle/libs.versions.toml` where practical; follow existing
-convention of raw coordinate strings in `app/build.gradle.kts` for new ones.)
-
-## Supabase project assets (out of the app)
-- SQL migrations: tables + RLS policies above; seed super-admin email.
-- Edge Function `notify-readers` (TypeScript) invoked by the Database Webhook on
-  `messages` INSERT → sends FCM data messages via the FCM HTTP v1 API using a
-  service account secret.
-- Database Webhook config on `messages` INSERT → `notify-readers`.
+## Firebase project assets (out of the app)
+- `firestore.rules` — the rules above.
+- `firestore.indexes.json` — composite indexes (e.g., collection-group `messages`
+  by `messageId`; `subscriptions` lookups).
+- Cloud Function `notifyReader` (TypeScript, `firebase-functions` v2) on
+  `inbox/{deviceId}/messages/{messageId}` create → FCM via `firebase-admin`.
+- One-time admin bootstrap (script/console) to seed the super-admin
+  `authorized_emails` doc.
 
 ## Error handling
-- **Offline / upload failure** (sender): queue encrypted messages locally
-  (DataStore/file) and retry with backoff; never store plaintext on disk.
-- **Not signed in / session expired**: reader screens prompt re-auth; sender
-  upload defers until session restored.
-- **Biometric unlock declined**: decryption is skipped; UI shows a locked state
-  with a retry action.
-- **Revoked / unauthorized device**: server returns no rows; UI shows "access
-  revoked / not authorized."
-- **Key mismatch** (e.g., reader rotated before sender wrapped): message shows
-  "cannot decrypt" rather than crashing; admin can re-wrap.
+- **Offline / upload failure** (sender): queue the per-recipient encrypted artifacts
+  locally and retry with backoff; never store plaintext.
+- **Not signed in / expired**: reader screens prompt re-auth; sender defers upload.
+- **Biometric declined**: decryption skipped; UI shows a locked/retry state.
+- **Revoked / unauthorized**: rules deny; UI shows "access revoked / not authorized."
+- **Key mismatch** (reader rotated before sender fanned out): that inbox doc shows
+  "cannot decrypt" instead of crashing; admin re-fan-out fixes it.
 
 ## Testing strategy
-- **Unit (JVM)**: `CryptoManager` round-trip (wrap/unwrap, AEAD encrypt/decrypt),
-  message serialization, recipient-selection logic from the access matrix,
-  rotation picking the active key. Tink runs on JVM for these.
-- **Repository tests**: mock supabase-kt responses; verify a sender wraps for
-  exactly the authorized recipient set (+ admin), and a reader decrypts only its
-  own `message_keys`.
-- **RLS tests** (SQL / Supabase local): unauthorized email blocked; non-authorized
-  reader cannot select another device's messages; non-admin cannot delete.
-- **Instrumented**: Keystore-sealed keyset generation + biometric-gated unlock on
-  device; FCM data message → local notification path.
+- **Unit (JVM):** `HpkeCrypto` round-trips, payload serialization, `RecipientSelector`,
+  `CloudUploadQueue`.
+- **Repository:** fake Firestore (or emulator) — sender fans out to exactly the
+  authorized recipient inboxes (+ admin); reader decrypts only its own inbox.
+- **Rules tests:** `@firebase/rules-unit-testing` — unauthorized email blocked; a
+  non-authorized reader can't read another device's inbox; non-admin can't delete.
+- **Instrumented:** Keystore-sealed keyset seal/open; FCM data message → local
+  notification.
 
 ## Out of scope (YAGNI for v1)
-- Per-pair re-encryption / cryptographic access revocation of *historical*
-  messages (revocation is forward-only; admin re-wrap is the escape hatch).
+- Cryptographic revocation of historical messages (forward-only; admin re-fan-out).
 - Multi-tenant separation between unrelated owners (single trusted fleet only).
-- Web cloud viewer / admin console — **deferred to a later sub-project**, not
-  built in this plan. The crypto wire format (RFC 9180 HPKE, raw public keys),
-  Supabase schema, and RLS are deliberately chosen to be portable so a web
-  reader/admin can be added later with **no crypto migration**. Note: senders
-  remain Android-only (browsers cannot read SMS), and a web reader is a larger
-  attack surface (software-sealed keys, XSS exposure) than the Android app.
+- Web cloud viewer / admin console — **deferred to a later sub-project**. The crypto
+  wire format (RFC 9180 HPKE), Firestore model, and rules are portable so a web
+  reader/admin can be added later with no crypto migration.
 - Attachments/MMS.
 
 ## Web enrollment (future sub-project) — QR pairing driven by Android
 
-Identity stays **per-device** (each client holds its own HPKE key; keys never
-leave the device). A new web client gets full history via **Android-authorized
-QR pairing**, WhatsApp-Web style:
+Identity stays **per-device** (keys never leave the device). A new web client gets
+full history via **Android-authorized QR pairing**, WhatsApp-Web style:
 
 1. **Web** generates its own HPKE key pair (private key non-extractable in the
-   browser / IndexedDB), creates a `pairing` row, and renders a QR encoding
-   `{ pairing_id, web_public_key, nonce }`. The QR carries **only the public key
-   + nonce** — no secret, no decryption capability.
-2. **Android** (already signed in, holds the decryption key) **scans** the QR and
-   shows an explicit **"Approve web login?"** confirmation.
-3. On approval, Android: registers the web as a `devices` row + publishes
-   `web_public_key`; authorizes it in `access_matrix` for the owner's sources;
-   **re-wraps all historical message DEKs** to `web_public_key` (Android decrypts
-   each DEK with its own key and HPKE-seals to the web's key, inserting
-   `message_keys` rows) — the backfill; and mints a short-lived web login session
-   via an Edge Function (authorized by the owner's JWT).
-4. **Web** receives the session over Realtime, signs in, and sees **all history**.
+   browser), shows a QR of `{ webPublicKey, nonce }` (public key + nonce only — no secret).
+2. **Android** (signed in, holds the key) scans → explicit **"Approve web login?"**.
+3. On approval Android: registers the web as a device + publishes `webPublicKey`;
+   authorizes it in the access matrix; **re-fans-out / re-wraps** historical DEKs to
+   the web's key (Android decrypts each from its own inbox and re-seals into the web's
+   inbox); and mints a web session (Firebase custom token via a Cloud Function).
+4. **Web** signs in and sees **all history**.
 
-Security: QR is **single-use and short-lived**; scanning requires explicit
-on-device confirmation; the web private key never leaves the browser; Android
-never transmits a key — it only re-wraps DEKs to the web's public key.
-
-Schema impact (already compatible): adds a `pairing` table for the future web
-work; `devices` / `device_keys` / `message_keys` already model per-device keys and
-per-recipient re-wrap, so **no migration** is needed when web is built.
-```
+Security: QR is single-use/short-lived; scanning requires explicit on-device
+confirmation; the web private key never leaves the browser; Android never transmits
+a key — it only re-seals DEKs to the web's public key. No data-model migration needed.
