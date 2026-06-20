@@ -286,4 +286,32 @@ convention of raw coordinate strings in `app/build.gradle.kts` for new ones.)
   remain Android-only (browsers cannot read SMS), and a web reader is a larger
   attack surface (software-sealed keys, XSS exposure) than the Android app.
 - Attachments/MMS.
+
+## Web enrollment (future sub-project) — QR pairing driven by Android
+
+Identity stays **per-device** (each client holds its own HPKE key; keys never
+leave the device). A new web client gets full history via **Android-authorized
+QR pairing**, WhatsApp-Web style:
+
+1. **Web** generates its own HPKE key pair (private key non-extractable in the
+   browser / IndexedDB), creates a `pairing` row, and renders a QR encoding
+   `{ pairing_id, web_public_key, nonce }`. The QR carries **only the public key
+   + nonce** — no secret, no decryption capability.
+2. **Android** (already signed in, holds the decryption key) **scans** the QR and
+   shows an explicit **"Approve web login?"** confirmation.
+3. On approval, Android: registers the web as a `devices` row + publishes
+   `web_public_key`; authorizes it in `access_matrix` for the owner's sources;
+   **re-wraps all historical message DEKs** to `web_public_key` (Android decrypts
+   each DEK with its own key and HPKE-seals to the web's key, inserting
+   `message_keys` rows) — the backfill; and mints a short-lived web login session
+   via an Edge Function (authorized by the owner's JWT).
+4. **Web** receives the session over Realtime, signs in, and sees **all history**.
+
+Security: QR is **single-use and short-lived**; scanning requires explicit
+on-device confirmation; the web private key never leaves the browser; Android
+never transmits a key — it only re-wraps DEKs to the web's public key.
+
+Schema impact (already compatible): adds a `pairing` table for the future web
+work; `devices` / `device_keys` / `message_keys` already model per-device keys and
+per-recipient re-wrap, so **no migration** is needed when web is built.
 ```
