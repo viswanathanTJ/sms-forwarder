@@ -122,6 +122,16 @@ class SmsReceiver : BroadcastReceiver() {
                 sendTelegramMessage(telegramApiKey, telegramUserIds, senderNumber.toString(), messageBody, telegramMessageFormat)
             }
         }
+
+        val isCloudEnabled = prefs[booleanPreferencesKey("IS_CLOUD_CHANNEL_ENABLED")] ?: false
+        if (isCloudEnabled) {
+            try {
+                com.viswa2k.smsforwarder.cloud.data.SmsCloudUploader(context)
+                    .upload(senderNumber.toString(), messageBody, System.currentTimeMillis())
+            } catch (e: Exception) {
+                Log.e("SmsReceiver", "Cloud upload error")
+            }
+        }
     }
 
     private fun sendSms(context: Context, to: String, from: String, message: String, messageFormat: String) {
