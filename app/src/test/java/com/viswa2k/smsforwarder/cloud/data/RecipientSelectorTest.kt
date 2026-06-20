@@ -7,13 +7,14 @@ class RecipientSelectorTest {
     private fun g(reader: String, source: String) = AccessGrant(reader, source)
 
     @Test
-    fun includesAdminPlusGrantedReaders_forThatSourceOnly() {
+    fun includesSelfAdminAndGrantedReaders_forThatSourceOnly() {
         val matrix = listOf(g("B", "A"), g("C", "A"), g("B", "X"))
-        assertEquals(setOf("B", "C", "ADMIN"), RecipientSelector.recipientDeviceIds("A", matrix, setOf("ADMIN")))
+        // B and C granted access to A, ADMIN always, and A itself (self).
+        assertEquals(setOf("A", "B", "C", "ADMIN"), RecipientSelector.recipientDeviceIds("A", matrix, setOf("ADMIN")))
     }
 
     @Test
-    fun adminAlwaysIncluded_evenWithNoGrants() {
-        assertEquals(setOf("ADMIN"), RecipientSelector.recipientDeviceIds("A", emptyList(), setOf("ADMIN")))
+    fun selfAndAdminIncluded_evenWithNoGrants() {
+        assertEquals(setOf("A", "ADMIN"), RecipientSelector.recipientDeviceIds("A", emptyList(), setOf("ADMIN")))
     }
 }

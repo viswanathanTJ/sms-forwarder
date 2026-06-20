@@ -48,7 +48,8 @@ service cloud.firestore {
       allow read: if ownsDevice(deviceId) || isAdmin();
       allow create: if ownsDevice(request.resource.data.sourceDeviceId)
         && (
-          exists(/databases/$(database)/documents/access_matrix/$(deviceId + '__' + request.resource.data.sourceDeviceId))
+          deviceId == request.resource.data.sourceDeviceId
+          || exists(/databases/$(database)/documents/access_matrix/$(deviceId + '__' + request.resource.data.sourceDeviceId))
           || isAdminDevice(deviceId)
         );
       allow delete: if isAdmin();
