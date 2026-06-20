@@ -22,8 +22,9 @@ android {
         applicationId = "com.viswa2k.smsforwarder"
         minSdk = 29
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.1"
+        // Overridable from CI (e.g. -PVERSION_NAME=1.2.0 -PVERSION_CODE=12 derived from the git tag).
+        versionCode = prop("VERSION_CODE").toIntOrNull() ?: 1
+        versionName = prop("VERSION_NAME").ifBlank { "1.1" }
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"${prop("GOOGLE_WEB_CLIENT_ID")}\"")
@@ -31,6 +32,30 @@ android {
         // Security settings
         ndk.debugSymbolLevel = "FULL"
         resourceConfigurations.addAll(listOf("en"))
+    }
+
+    // Release signing is driven by environment variables (set by CI from secrets).
+    // When they're absent (e.g. local debug-only builds) the release APK is left unsigned.
+    signingConfigs {
+        create("release") {
+            val storePath = System.getenv("RELEASE_KEYSTORE_PATH")
+            if (storePath != null && file(storePath).exists()) {
+                storeFile = file(storePath)
+                storePassword = System.getenv("RELEASE_STORE_PASSWORD")
+                keyAlias = System.getenv("RELEASE_KEY_ALIAS")
+                keyPassword = System.getenv("RELEASE_KEY_PASSWORD")
+            }
+        }
+    }
+
+    // Per-ABI split APKs (arm64-v8a, armeabi-v7a, x86, x86_64) plus a universal APK.
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include("armeabi-v7a", "arm64-v8a", "x86", "x86_64")
+            isUniversalApk = true
+        }
     }
 
     buildTypes {
@@ -42,7 +67,14 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            
+
+            // Sign only when CI provided a keystore; otherwise produce an unsigned release APK.
+            signingConfig = if (System.getenv("RELEASE_KEYSTORE_PATH") != null) {
+                signingConfigs.getByName("release")
+            } else {
+                null
+            }
+
             // Security hardening
             isDebuggable = false
             proguardFile("proguard-rules.pro")
