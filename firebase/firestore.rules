@@ -23,7 +23,7 @@ service cloud.firestore {
     match /devices/{deviceId} {
       allow read: if isAuthorized();
       allow create, update: if isAdmin()
-        || request.resource.data.ownerEmail == request.auth.token.email;
+        || (isAuthorized() && request.resource.data.ownerEmail == request.auth.token.email);
       allow delete: if isAdmin();
     }
 
@@ -34,8 +34,8 @@ service cloud.firestore {
 
     match /subscriptions/{pair} {
       allow read: if isAuthorized();
-      allow write: if ownsDevice(request.resource.data.readerDeviceId)
-        || ownsDevice(resource.data.readerDeviceId);
+      allow create: if ownsDevice(request.resource.data.readerDeviceId);
+      allow update, delete: if resource != null && ownsDevice(resource.data.readerDeviceId);
     }
 
     match /inbox/{deviceId}/messages/{messageId} {

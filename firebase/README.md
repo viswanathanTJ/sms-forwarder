@@ -5,7 +5,7 @@
 2. Add Android apps in the Firebase console for `com.viswa2k.smsforwarder` and
    `com.viswa2k.smsforwarder.debug`; download `google-services.json` to `app/`.
 3. Enable Auth providers: Email/Password and Google.
-4. Seed the super-admin (see `scripts/bootstrap-admin.md`).
+4. Seed the super-admin (see `scripts/bootstrap-admin.md` (created in Task 2)).
 
 ## Deploy
 - Rules + indexes: `firebase deploy --only firestore` (run inside `firebase/`).
