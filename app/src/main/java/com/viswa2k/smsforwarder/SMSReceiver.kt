@@ -6,12 +6,16 @@ import android.content.ContentResolver
 import android.content.Context
 import android.content.Intent
 import android.database.Cursor
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.ContactsContract
 import android.telephony.SmsManager
 import android.telephony.SmsMessage
 import android.util.Log
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -26,37 +30,59 @@ class SmsReceiver : BroadcastReceiver() {
     var deviceAlias = ""
 
     override fun onReceive(context: Context, intent: Intent) {
+        val pendingResult = goAsync()
+        Log.d("Message Receiver", "Received message")
+
+        // Parse PDUs synchronously (fast, no I/O) before handing off to a background coroutine.
+        val messages = mutableListOf<Pair<String?, String>>()
         try {
             val bundle: Bundle? = intent.extras
-            Log.d("Message Receiver", "Received message")
             if (bundle != null) {
                 val pdus = bundle.get("pdus") as Array<*>
                 for (pdu in pdus) {
                     val smsMessage = SmsMessage.createFromPdu(pdu as ByteArray)
-                    val messageBody = smsMessage.messageBody
-                    val senderNumber = smsMessage.displayOriginatingAddress
-                    forwardMessage(context, senderNumber, messageBody)
+                    messages.add(smsMessage.displayOriginatingAddress to smsMessage.messageBody)
                 }
             }
         } catch (e: Exception) {
-            Log.e("SmsReceiver", "Error in onReceive: ${e.message}")
+            Log.e("SmsReceiver", "Error parsing SMS")
         }
+
+        // Forward off the main thread; goAsync() keeps the process alive until finish().
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                for ((senderNumber, messageBody) in messages) {
+                    forwardMessage(context, senderNumber, messageBody)
+                }
+            } catch (e: Exception) {
+                Log.e("SmsReceiver", "Error forwarding SMS")
+            } finally {
+                pendingResult.finish()
+            }
+        }
+    }
+
+    private fun escapeHtml(s: String): String {
+        return s.replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
     }
 
     private fun isSenderInContacts(context: Context, senderNumber: String?): Boolean {
         if (senderNumber.isNullOrEmpty()) return false
 
         val contentResolver: ContentResolver = context.contentResolver
-        val uri = ContactsContract.CommonDataKinds.Phone.CONTENT_URI
-        val projection = arrayOf(ContactsContract.CommonDataKinds.Phone.NUMBER)
-        val selection = "${ContactsContract.CommonDataKinds.Phone.NUMBER} = ?"
-        val selectionArgs = arrayOf(senderNumber)
+        val uri = Uri.withAppendedPath(
+            ContactsContract.PhoneLookup.CONTENT_FILTER_URI,
+            Uri.encode(senderNumber)
+        )
+        val projection = arrayOf(ContactsContract.PhoneLookup._ID)
 
         val cursor: Cursor? = contentResolver.query(
             uri,
             projection,
-            selection,
-            selectionArgs,
+            null,
+            null,
             null
         )
 
@@ -65,45 +91,41 @@ class SmsReceiver : BroadcastReceiver() {
         } ?: false
     }
 
-    private fun forwardMessage(context: Context, senderNumber: String?, messageBody: String) {
-        val userPreferences = UserPreferences(context.dataStore)
+    private suspend fun forwardMessage(context: Context, senderNumber: String?, messageBody: String) {
+        val prefs: Preferences = context.dataStore.data.first()
 
-        CoroutineScope(Dispatchers.IO).launch {
-            Log.e("Process", "in coroutine")
-            val isSkipContacts = userPreferences.isSkipContacts.first()
-            if (isSkipContacts && isSenderInContacts(context, senderNumber)) {
-                return@launch
+        val isSkipContacts = prefs[booleanPreferencesKey("IS_SKIP_CONTACTS")] ?: false
+        if (isSkipContacts && isSenderInContacts(context, senderNumber)) {
+            return
+        }
+
+        globalMessageFormat = prefs[stringPreferencesKey("GLOBAL_MESSAGE_FORMAT")] ?: ""
+        deviceAlias = prefs[stringPreferencesKey("DEVICE_ALIAS")] ?: ""
+        if (globalMessageFormat.isBlank()) globalMessageFormat = "%m"
+        if (deviceAlias.isBlank()) deviceAlias = "${Build.MANUFACTURER} ${Build.MODEL}"
+
+        val isBySmsEnabled = prefs[booleanPreferencesKey("IS_BY_SMS_ENABLED")] ?: false
+        if (isBySmsEnabled) {
+            val smsToNumber = prefs[stringPreferencesKey("SMS_TO_NUMBER")] ?: ""
+            val smsMessageFormat = prefs[stringPreferencesKey("SMS_FORWARD_FORMAT")] ?: ""
+            if (smsToNumber.isNotEmpty()) {
+                sendSms(context, smsToNumber, senderNumber.toString(), messageBody, smsMessageFormat)
             }
+        }
 
-            Log.e("Process", "checking preferences")
-            globalMessageFormat = userPreferences.globalMessageFormat.first()
-            deviceAlias = userPreferences.deviceAlias.first()
-            if (globalMessageFormat.isBlank()) globalMessageFormat = "%m"
-            if (deviceAlias.isBlank()) deviceAlias = "${Build.MANUFACTURER} ${Build.MODEL}"
-
-            if (userPreferences.isBySmsEnabled.first()) {
-                val smsToNumber = userPreferences.smsToNumber.first()
-                val smsMessageFormat = userPreferences.smsForwardMessageFormat.first()
-                if (smsToNumber.isNotEmpty()) {
-                    sendSms(context, smsToNumber, senderNumber.toString(), messageBody, smsMessageFormat)
-                }
-            }
-
-            if (userPreferences.isByTelegramEnabled.first()) {
-                Log.e("Process", "sending in telegram")
-                val telegramMessageFormat = userPreferences.telegramSendMessageFormat.first()
-                val telegramApiKey = userPreferences.telegramApiKey.first()
-                val telegramUserIds = userPreferences.telegramUserIds.first()
-                if (telegramApiKey.isNotEmpty() && telegramUserIds.isNotEmpty()) {
-                    sendTelegramMessage(telegramApiKey, telegramUserIds, senderNumber.toString(), messageBody, telegramMessageFormat)
-                }
+        val isByTelegramEnabled = prefs[booleanPreferencesKey("IS_BY_TELEGRAM_ENABLED")] ?: false
+        if (isByTelegramEnabled) {
+            val telegramMessageFormat = prefs[stringPreferencesKey("TELEGRAM_SEND_FORMAT")] ?: ""
+            val telegramApiKey = prefs[stringPreferencesKey("TELEGRAM_API_KEY")] ?: ""
+            val telegramUserIds = prefs[stringPreferencesKey("TELEGRAM_USER_IDS")] ?: ""
+            if (telegramApiKey.isNotEmpty() && telegramUserIds.isNotEmpty()) {
+                sendTelegramMessage(telegramApiKey, telegramUserIds, senderNumber.toString(), messageBody, telegramMessageFormat)
             }
         }
     }
 
     private fun sendSms(context: Context, to: String, from: String, message: String, messageFormat: String) {
         try {
-            Log.d("SMS activity", "sending to $to message => $message")
             val smsManager = context.getSystemService(SmsManager::class.java)
             // Create PendingIntents for sent and delivery statuses
             val sentIntent = PendingIntent.getBroadcast(
@@ -125,23 +147,33 @@ class SmsReceiver : BroadcastReceiver() {
             }
             val content = format.replace("%s", from).replace("%r", deviceAlias).replace("%m", message)
 
-            // Send SMS
-            smsManager.sendTextMessage(to, null, content, sentIntent, deliveredIntent)
+            // Send SMS, supporting long (multipart) messages
+            val parts = smsManager.divideMessage(content)
+            if (parts.size > 1) {
+                val sentIntents = ArrayList<PendingIntent>()
+                val deliveredIntents = ArrayList<PendingIntent>()
+                for (i in parts.indices) {
+                    sentIntents.add(sentIntent)
+                    deliveredIntents.add(deliveredIntent)
+                }
+                smsManager.sendMultipartTextMessage(to, null, parts, sentIntents, deliveredIntents)
+            } else {
+                smsManager.sendTextMessage(to, null, content, sentIntent, deliveredIntent)
+            }
         } catch (e: Exception) {
-            Log.e("SmsSender", "Failed to send SMS: ${e.message}")
+            Log.e("SmsSender", "Failed to send SMS")
         }
     }
 
     fun sendTelegramMessage(apiKey: String, userIds: String, from: String, message: String, messageFormat: String) {
-        Log.d("Telegram activity", "sending to $userIds message => $message")
         val baseUrl = "https://api.telegram.org/bot$apiKey/sendMessage"
         var format = messageFormat
         if (format.isBlank()) {
             format = globalMessageFormat
         }
-        val content = format.replace("%s", from)
+        val content = format.replace("%s", escapeHtml(from))
             .replace("%r", deviceAlias)
-            .replace("%m", message)
+            .replace("%m", escapeHtml(message))
             .replace("\\n", "\n")
 
         userIds.split(",").forEach { userId ->
@@ -164,12 +196,12 @@ class SmsReceiver : BroadcastReceiver() {
                 // Get the response code
                 val responseCode = connection.responseCode
                 if (responseCode == HttpURLConnection.HTTP_OK) {
-                    Log.d("TelegramAPI", "Message sent to $userId")
+                    Log.d("TelegramAPI", "Message sent")
                 } else {
-                    Log.e("TelegramAPI", "Failed to send message to $userId: HTTP $responseCode")
+                    Log.e("TelegramAPI", "Failed to send message: HTTP $responseCode")
                 }
             } catch (e: Exception) {
-                Log.e("TelegramAPI", "Error sending message to $userId: ${e.message}")
+                Log.e("TelegramAPI", "Error sending message")
             } finally {
                 connection.disconnect()
             }

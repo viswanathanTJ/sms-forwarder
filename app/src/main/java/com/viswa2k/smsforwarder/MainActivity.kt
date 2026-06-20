@@ -8,6 +8,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.util.Log
@@ -90,13 +91,6 @@ class MainActivity : ComponentActivity() {
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 }
                 startActivity(intent)
-
-                // Also open battery optimization settings
-                val batterySettingsIntent = Intent().apply {
-                    action = Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                }
-                startActivity(batterySettingsIntent)
             } else {
                 // Schedule periodic battery optimization check
                 val alarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
@@ -123,13 +117,6 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    override fun onResume() {
-        super.onResume()
-        // Recheck battery optimization settings when app comes to foreground
-        checkBatteryOptimization()
-    }
-
-
     private fun requestPermissions() {
         val permissionsToRequest = mutableListOf<String>()
 
@@ -143,6 +130,11 @@ class MainActivity : ComponentActivity() {
             permissionsToRequest.add(Manifest.permission.SEND_SMS)
             permissionsToRequest.add(Manifest.permission.READ_SMS)
             permissionsToRequest.add(Manifest.permission.RECEIVE_SMS)
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            permissionsToRequest.add(Manifest.permission.POST_NOTIFICATIONS)
         }
 
         if (permissionsToRequest.isNotEmpty()) {
