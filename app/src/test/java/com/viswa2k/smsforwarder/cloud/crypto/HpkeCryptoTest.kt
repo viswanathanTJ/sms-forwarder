@@ -21,7 +21,7 @@ class HpkeCryptoTest {
         val b = HpkeCrypto.generatePrivateKeyset()
         val sealed = HpkeCrypto.seal(HpkeCrypto.serializePublicKeyset(a), "secret".toByteArray(), ByteArray(0))
         var failed = false
-        try { HpkeCrypto.open(b, sealed, ByteArray(0)) } catch (e: Exception) { failed = true }
+        try { HpkeCrypto.open(b, sealed, ByteArray(0)) } catch (e: java.security.GeneralSecurityException) { failed = true }
         assertTrue("device B must not decrypt A's envelope", failed)
     }
 

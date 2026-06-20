@@ -20,12 +20,14 @@ object HpkeCrypto {
     const val HPKE_TEMPLATE = "DHKEM_P256_HKDF_SHA256_HKDF_SHA256_AES_256_GCM"
     private const val GCM_IV_BYTES = 12
     private const val GCM_TAG_BITS = 128
-    private val rng = SecureRandom()
+    private val rng = SecureRandom() // thread-safe: SecureRandom.nextBytes is synchronized
 
     init { HybridConfig.register() }
 
     fun generatePrivateKeyset(): KeysetHandle = KeysetHandle.generateNew(KeyTemplates.get(HPKE_TEMPLATE))
 
+    /** WARNING: returns UNENCRYPTED private key bytes. Callers must seal it (e.g. via
+     *  Android Keystore in CryptoManager) before persisting or transmitting. */
     fun serializePrivateKeyset(handle: KeysetHandle): ByteArray {
         val out = ByteArrayOutputStream()
         CleartextKeysetHandle.write(handle, BinaryKeysetWriter.withOutputStream(out))
@@ -51,7 +53,14 @@ object HpkeCrypto {
 
     fun newDek(): ByteArray = ByteArray(32).also { rng.nextBytes(it) }
 
-    data class EncryptedBody(val ciphertext: ByteArray, val nonce: ByteArray)
+    data class EncryptedBody(val ciphertext: ByteArray, val nonce: ByteArray) {
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (other !is EncryptedBody) return false
+            return ciphertext.contentEquals(other.ciphertext) && nonce.contentEquals(other.nonce)
+        }
+        override fun hashCode(): Int = 31 * ciphertext.contentHashCode() + nonce.contentHashCode()
+    }
 
     fun encryptBody(dek: ByteArray, plaintext: ByteArray): EncryptedBody {
         val iv = ByteArray(GCM_IV_BYTES).also { rng.nextBytes(it) }
