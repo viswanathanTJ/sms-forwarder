@@ -117,17 +117,19 @@ class CloudMessageRepository(
         null // cannot decrypt (e.g., sealed before this device's key) — skip, don't crash
     }
 
+    private suspend fun deleteAll(docs: List<DocumentSnapshot>) {
+        docs.chunked(450).forEach { chunk ->
+            val batch = db.batch()
+            chunk.forEach { batch.delete(it.reference) }
+            batch.commit().await()
+        }
+    }
+
     suspend fun deleteMessage(messageId: String) {
-        val docs = db.collectionGroup("messages").whereEqualTo("messageId", messageId).get().await().documents
-        val batch = db.batch()
-        docs.forEach { batch.delete(it.reference) }
-        batch.commit().await()
+        deleteAll(db.collectionGroup("messages").whereEqualTo("messageId", messageId).get().await().documents)
     }
 
     suspend fun deleteAllForSource(sourceDeviceId: String) {
-        val docs = db.collectionGroup("messages").whereEqualTo("sourceDeviceId", sourceDeviceId).get().await().documents
-        val batch = db.batch()
-        docs.forEach { batch.delete(it.reference) }
-        batch.commit().await()
+        deleteAll(db.collectionGroup("messages").whereEqualTo("sourceDeviceId", sourceDeviceId).get().await().documents)
     }
 }

@@ -40,7 +40,7 @@ class AccessRepository(private val db: FirebaseFirestore = FirebaseProvider.db) 
     // --- reader ---
     suspend fun allowedSources(readerDeviceId: String): List<String> =
         db.collection("access_matrix").whereEqualTo("readerDeviceId", readerDeviceId)
-            .get().await().documents.map { it.getString("sourceDeviceId") ?: "" }
+            .get().await().documents.mapNotNull { it.getString("sourceDeviceId") }
 
     suspend fun listSubscriptions(readerDeviceId: String): List<Subscription> =
         db.collection("subscriptions").whereEqualTo("readerDeviceId", readerDeviceId)

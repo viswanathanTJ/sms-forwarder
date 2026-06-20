@@ -25,7 +25,6 @@ class DeviceRepository(
                 "alias" to alias,
                 "publicKey" to pub,
                 "keyVersion" to crypto.currentVersion(),
-                "revoked" to false,
             ),
             SetOptions.merge(),
         ).await()
