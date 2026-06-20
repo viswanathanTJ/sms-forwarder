@@ -14,6 +14,7 @@ import android.os.IBinder
 import android.os.SystemClock
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 
 class SmsForwarderService : Service() {
 
@@ -126,7 +127,7 @@ class SmsForwarderService : Service() {
     private fun startListeningForSms() {
         if (!isReceiverRegistered) {
             val intentFilter = IntentFilter("android.provider.Telephony.SMS_RECEIVED")
-            registerReceiver(smsReceiver, intentFilter)
+            ContextCompat.registerReceiver(this, smsReceiver, intentFilter, ContextCompat.RECEIVER_NOT_EXPORTED)
             isReceiverRegistered = true // Update the registration status
             Log.d("SmsForwarderService", "Started listening for SMS.")
         }

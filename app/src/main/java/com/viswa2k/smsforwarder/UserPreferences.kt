@@ -1,6 +1,5 @@
 package com.viswa2k.smsforwarder
 
-import android.util.Log
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
@@ -106,28 +105,24 @@ class UserPreferences(private val dataStore: DataStore<Preferences>) {
     }
 
     suspend fun saveSmsToNumber(number: String) {
-        Log.d("UserPreferences", "Saving SMS number: $number")
         dataStore.edit { preferences ->
             preferences[SMS_TO_NUMBER_KEY] = number
         }
     }
 
     suspend fun saveTelegramApiKey(apiKey: String) {
-        Log.d("UserPreferences", "Saving Telegram API key: $apiKey")
         dataStore.edit { preferences ->
             preferences[TELEGRAM_API_KEY_KEY] = apiKey
         }
     }
 
     suspend fun saveTelegramSendFormat(format: String) {
-        Log.d("UserPreferences", "Saving Telegram send format: $format")
         dataStore.edit { preferences ->
             preferences[TELEGRAM_SEND_FORMAT] = format
         }
     }
 
     suspend fun saveSmsForwardFormat(format: String) {
-        Log.d("UserPreferences", "Saving SMS forward format: $format")
         dataStore.edit { preferences ->
             preferences[SMS_FORWARD_FORMAT] = format
         }
@@ -140,14 +135,12 @@ class UserPreferences(private val dataStore: DataStore<Preferences>) {
     }
 
     suspend fun saveGlobalMessageFormat(format: String) {
-        Log.d("UserPreferences", "Saving global message format: $format")
         dataStore.edit { preferences ->
             preferences[GLOBAL_MESSAGE_FORMAT] = format
         }
     }
 
     suspend fun saveTelegramUserIds(userIds: String) {
-        Log.d("UserPreferences", "Saving Telegram user IDs: $userIds")
         dataStore.edit { preferences ->
             preferences[TELEGRAM_USER_IDS_KEY] = userIds
         }
