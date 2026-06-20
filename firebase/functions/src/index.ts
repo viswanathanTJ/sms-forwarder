@@ -5,6 +5,9 @@ import { getMessaging } from "firebase-admin/messaging";
 
 initializeApp();
 
+const db = getFirestore();
+const messaging = getMessaging();
+
 // On each per-recipient inbox write, push a silent FCM data message to that
 // recipient if they have a token and notify is not disabled (default ON).
 export const notifyReader = onDocumentCreated(
@@ -13,19 +16,19 @@ export const notifyReader = onDocumentCreated(
     const snap = event.data;
     if (!snap) return;
     const data = snap.data();
+    if (!data.sourceDeviceId) return;
     const deviceId = event.params.deviceId as string;
-    const db = getFirestore();
 
     const deviceSnap = await db.collection("devices").doc(deviceId).get();
-    const token = deviceSnap.get("fcmToken") as string | undefined;
-    if (!token) return;
+    const token = deviceSnap.get("fcmToken");
+    if (!token || typeof token !== "string") return;
 
     const subId = `${deviceId}__${data.sourceDeviceId}`;
     const subSnap = await db.collection("subscriptions").doc(subId).get();
     const notify = subSnap.exists ? subSnap.get("notify") !== false : true;
     if (!notify) return;
 
-    await getMessaging().send({
+    await messaging.send({
       token,
       data: {
         type: "new_sms",
