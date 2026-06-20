@@ -15,10 +15,17 @@ class ServiceRestartReceiver : BroadcastReceiver() {
                 val serviceIntent = Intent(context, SmsForwarderService::class.java).apply {
                     putExtra("SMS_FORWARD_SERVICE_ENABLED", true)
                 }
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    ContextCompat.startForegroundService(context, serviceIntent)
-                } else {
-                    context.startService(serviceIntent)
+                try {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        ContextCompat.startForegroundService(context, serviceIntent)
+                    } else {
+                        context.startService(serviceIntent)
+                    }
+                } catch (e: Exception) {
+                    // API 31+ throws ForegroundServiceStartNotAllowedException when a background
+                    // broadcast tries to start a foreground service. Swallow it — the service is
+                    // (re)started when the app is next foregrounded via MainActivity.checkAndStartService.
+                    android.util.Log.w("ServiceRestartReceiver", "FGS start from background not allowed", e)
                 }
             }
         }

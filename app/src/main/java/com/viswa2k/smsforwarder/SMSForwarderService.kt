@@ -72,19 +72,31 @@ class SmsForwarderService : Service() {
         val retryCount = getRetryCount()
         val delayMillis = calculateBackoffDelay(retryCount)
         
-        // Use setAlarmClock for API 23+ to ensure precise delivery
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            alarmManager.setExactAndAllowWhileIdle(
-                AlarmManager.ELAPSED_REALTIME_WAKEUP,
-                delayMillis,
-                pendingIntent
-            )
-        } else {
-            alarmManager.setExact(
-                AlarmManager.ELAPSED_REALTIME_WAKEUP,
-                delayMillis,
-                pendingIntent
-            )
+        // Exact alarms require SCHEDULE_EXACT_ALARM/USE_EXACT_ALARM on API 31+ and throw
+        // SecurityException otherwise. Use exact when permitted, else fall back to an
+        // inexact (but idle-tolerant) alarm so the service-restart heartbeat never crashes.
+        when {
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
+                if (alarmManager.canScheduleExactAlarms()) {
+                    alarmManager.setExactAndAllowWhileIdle(
+                        AlarmManager.ELAPSED_REALTIME_WAKEUP, delayMillis, pendingIntent
+                    )
+                } else {
+                    alarmManager.setAndAllowWhileIdle(
+                        AlarmManager.ELAPSED_REALTIME_WAKEUP, delayMillis, pendingIntent
+                    )
+                }
+            }
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.M -> {
+                alarmManager.setExactAndAllowWhileIdle(
+                    AlarmManager.ELAPSED_REALTIME_WAKEUP, delayMillis, pendingIntent
+                )
+            }
+            else -> {
+                alarmManager.setExact(
+                    AlarmManager.ELAPSED_REALTIME_WAKEUP, delayMillis, pendingIntent
+                )
+            }
         }
         
         // Increment retry count
