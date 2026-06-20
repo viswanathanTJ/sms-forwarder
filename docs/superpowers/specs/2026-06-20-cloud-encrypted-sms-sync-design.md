@@ -31,29 +31,34 @@ the only key that opens it** (never leaves the device).
 
 ### Keys
 - Each **reader/admin device** generates an asymmetric **identity key pair** using
-  **Google Tink hybrid encryption** (ECIES P-256 / HPKE). The **private keyset is
-  sealed by an Android Keystore master key** (hardware-backed, non-exportable,
+  **HPKE (RFC 9180)** — `DHKEM(P-256, HKDF-SHA256)` + `HKDF-SHA256` +
+  `AES-256-GCM`. This is a **portable, standards-based wire format** so a future
+  web client (`hpke-js` / Web Crypto) interoperates byte-for-byte with Android
+  (Tink's RFC 9180 HPKE primitive). The **private key is sealed by an Android
+  Keystore master key** (hardware-backed, non-exportable,
   `setUserAuthenticationRequired(true)` with a short validity window → biometric/PIN
-  re-auth). The **public key** is published to Supabase.
+  re-auth). The **public key is published as raw HPKE public-key bytes**
+  (uncompressed P-256 point) to Supabase — not a proprietary keyset — so any HPKE
+  implementation can import it.
 - **Sender devices need no key pair** — they only download recipients' public keys.
 - Plaintext SMS and unwrapped keys exist **only in memory**, never persisted.
 
 ### Encrypting (sender)
-1. Generate a random one-time **Data Key (DEK)** (Tink AES-256-GCM AEAD).
+1. Generate a random one-time **Data Key (DEK)** (AES-256-GCM).
 2. Serialize the SMS as JSON `{ sender, body, originalTimestamp, deviceAlias }`
-   and AEAD-encrypt it with the DEK → `ciphertext` (+ unique nonce). **All
+   and AES-256-GCM-encrypt it with the DEK → `ciphertext` (+ unique nonce). **All
    metadata is inside the blob.**
 3. Fetch the **authorized recipients' public keys** for this source device
    (super-admin is always included) from `device_keys` filtered by `access_matrix`.
-4. **Hybrid-wrap a copy of the DEK to each recipient's public key** (Tink
-   `HybridEncrypt`) → one `wrapped_dek` per recipient.
+4. **HPKE-seal a copy of the DEK to each recipient's public key** (RFC 9180
+   single-shot seal, output `enc || ciphertext`) → one `wrapped_dek` per recipient.
 5. Upload one `messages` row + N `message_keys` rows. **Discard the DEK.** The
    sender now holds nothing that can decrypt.
 
 ### Decrypting (reader/admin)
-1. Sign in → unlock the private keyset from Keystore (biometric).
-2. Fetch its own `message_keys` row → `HybridDecrypt` to recover the DEK.
-3. AEAD-decrypt `ciphertext` → plaintext SMS **in memory only**.
+1. Sign in → unlock the private key from Keystore (biometric).
+2. Fetch its own `message_keys` row → **HPKE-open** to recover the DEK.
+3. AES-256-GCM-decrypt `ciphertext` → plaintext SMS **in memory only**.
 
 ### Access control = cryptographic + RLS (defense in depth)
 - The super-admin's **access matrix** drives *whose public keys a sender wraps
@@ -111,8 +116,8 @@ devices (
 device_keys (
   id           uuid primary key default gen_random_uuid(),
   device_id    uuid not null references devices(id) on delete cascade,
-  public_key   bytea not null,         -- Tink public keyset (serialized)
-  alg          text not null default 'TINK_HYBRID_ECIES_P256',
+  public_key   bytea not null,         -- raw HPKE public key (uncompressed P-256 point)
+  alg          text not null default 'HPKE_P256_HKDF_SHA256_AES256GCM',
   version      int  not null,
   active       boolean not null default true,
   created_at   timestamptz default now()
@@ -186,9 +191,10 @@ message_keys (
   Realtime, Functions) with project URL + anon key (build config).
 - **`AuthRepository`** — email/password + Google sign-in, session persistence,
   sign-out; exposes auth state as `Flow`.
-- **`CryptoManager`** — Tink-based: keyset generation sealed by Keystore master
-  key (biometric-gated), publish public key, `wrapDek(publicKey)`,
-  `unwrapDek()`, AEAD encrypt/decrypt, rotation.
+- **`CryptoManager`** — HPKE (RFC 9180) key generation, private key sealed by a
+  Keystore master key (biometric-gated); publish raw public key,
+  `wrapDek(recipientPublicKey)` (HPKE seal), `unwrapDek()` (HPKE open), AES-GCM
+  body encrypt/decrypt, rotation. Wire format is portable (web-ready).
 - **`DeviceRepository`** — register/update this device (alias, fcm_token),
   publish/rotate public keys, fetch fleet devices.
 - **`AccessRepository`** — admin: read/write `authorized_emails` + `access_matrix`;
@@ -228,7 +234,9 @@ message_keys (
 ## Dependencies to add
 - supabase-kt: `gotrue-kt`, `postgrest-kt`, `realtime-kt`, `functions-kt`
 - Ktor client engine (`ktor-client-okhttp`) + `kotlinx-serialization-json`
-- Google Tink (`com.google.crypto.tink:tink-android`)
+- Google Tink (`com.google.crypto.tink:tink-android`) — used for its **RFC 9180
+  HPKE** primitive (P-256/HKDF-SHA256/AES-256-GCM) and AES-GCM AEAD; public keys
+  exchanged as raw HPKE bytes for cross-platform interop
 - Firebase: `firebase-bom`, `firebase-messaging`; `google-services` Gradle plugin
 - AndroidX Biometric (`androidx.biometric`) for Keystore auth prompts
 - Credential Manager / Google Identity for Google sign-in
@@ -271,6 +279,11 @@ convention of raw coordinate strings in `app/build.gradle.kts` for new ones.)
 - Per-pair re-encryption / cryptographic access revocation of *historical*
   messages (revocation is forward-only; admin re-wrap is the escape hatch).
 - Multi-tenant separation between unrelated owners (single trusted fleet only).
-- Web cloud viewer (cloud screen is in the Android app, where Keystore exists).
+- Web cloud viewer / admin console — **deferred to a later sub-project**, not
+  built in this plan. The crypto wire format (RFC 9180 HPKE, raw public keys),
+  Supabase schema, and RLS are deliberately chosen to be portable so a web
+  reader/admin can be added later with **no crypto migration**. Note: senders
+  remain Android-only (browsers cannot read SMS), and a web reader is a larger
+  attack surface (software-sealed keys, XSS exposure) than the Android app.
 - Attachments/MMS.
 ```
