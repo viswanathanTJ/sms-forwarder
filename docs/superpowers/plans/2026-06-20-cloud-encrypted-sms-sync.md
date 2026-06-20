@@ -361,9 +361,9 @@ In `app/build.gradle.kts` `plugins { }`:
     alias(libs.plugins.google.services)
 ```
 
-Near the top of `app/build.gradle.kts` (before `android {}`):
+At the very top of `app/build.gradle.kts` (imports must precede the `plugins {}` block) add `import java.util.Properties` — qualifying as `java.util.Properties()` fails because Gradle's `java` plugin accessor shadows the package. Then, before `android {}`:
 ```kotlin
-val localProps = java.util.Properties().apply {
+val localProps = Properties().apply {
     val f = rootProject.file("local.properties")
     if (f.exists()) f.inputStream().use { load(it) }
 }
@@ -392,10 +392,13 @@ Replace `compileOptions`/`kotlinOptions`/`buildFeatures`:
 Add to `dependencies { }`:
 ```kotlin
     // Firebase
-    implementation(platform("com.google.firebase:firebase-bom:34.15.0"))
-    implementation("com.google.firebase:firebase-auth-ktx")
-    implementation("com.google.firebase:firebase-firestore-ktx")
-    implementation("com.google.firebase:firebase-messaging-ktx")
+    // BOM 33.1.2 (NOT 34.x): 34.x firebase-auth is compiled with a newer Kotlin
+    // (metadata 2.3.0) than this project's Kotlin 2.0.0 can read. Use non-ktx
+    // artifacts — KTX was merged into the main modules and 34.x dropped the -ktx jars.
+    implementation(platform("com.google.firebase:firebase-bom:33.1.2"))
+    implementation("com.google.firebase:firebase-auth")
+    implementation("com.google.firebase:firebase-firestore")
+    implementation("com.google.firebase:firebase-messaging")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.8.1")
 
     // Crypto
