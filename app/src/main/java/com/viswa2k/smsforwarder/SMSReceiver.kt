@@ -126,7 +126,7 @@ class SmsReceiver : BroadcastReceiver() {
         val isCloudEnabled = prefs[booleanPreferencesKey("IS_CLOUD_CHANNEL_ENABLED")] ?: false
         if (isCloudEnabled) {
             try {
-                com.viswa2k.smsforwarder.cloud.data.SmsCloudUploader(context)
+                com.viswa2k.smsforwarder.cloud.data.SmsCloudUploader.get(context)
                     .upload(senderNumber.toString(), messageBody, System.currentTimeMillis())
             } catch (e: Exception) {
                 Log.e("SmsReceiver", "Cloud upload error", e)

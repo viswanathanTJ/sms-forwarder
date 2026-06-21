@@ -10,7 +10,7 @@ import com.viswa2k.smsforwarder.dataStore
 import kotlinx.coroutines.flow.first
 import java.io.File
 
-class SmsCloudUploader(context: Context) {
+class SmsCloudUploader private constructor(context: Context) {
     private val appContext = context.applicationContext
     private val prefs = UserPreferences(appContext.dataStore)
     private val crypto = CryptoManager(appContext)
@@ -63,5 +63,15 @@ class SmsCloudUploader(context: Context) {
                 if (consecutiveFailures >= 3) break
             }
         }
+    }
+
+    companion object {
+        @Volatile private var instance: SmsCloudUploader? = null
+
+        /** App-scoped singleton: the encryption/repository stack is built once and reused. */
+        fun get(context: Context): SmsCloudUploader =
+            instance ?: synchronized(this) {
+                instance ?: SmsCloudUploader(context.applicationContext).also { instance = it }
+            }
     }
 }

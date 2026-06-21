@@ -1,15 +1,23 @@
-# Firestore rules tests (@firebase/rules-unit-testing)
+# Firestore rules tests
 
-Run against the emulator (`firebase emulators:start --only firestore`). Assert:
-1. A user whose email has no `authorized_emails` doc is DENIED reads on every collection.
-2. An authorized member can read `devices`, `access_matrix`; cannot write `access_matrix`.
-3. A member CANNOT read another device's `inbox/{otherDeviceId}/messages`.
-4. A member CAN read `inbox/{ownDeviceId}/messages`.
-5. A non-admin CANNOT delete an inbox message; an admin CAN.
-6. Any authorized device CAN create a doc in another device's inbox (fan-out).
+Runnable suite: [`firestore.rules.test.js`](./firestore.rules.test.js) (Jest + `@firebase/rules-unit-testing`).
 
-Skeleton:
-```js
-import { initializeTestEnvironment, assertFails, assertSucceeds } from "@firebase/rules-unit-testing";
-// load firestore.rules, seed authorized_emails, run the assertions above.
+## Run
+
+```bash
+cd firebase/test && npm install
+cd .. && firebase emulators:exec --only firestore --project demo-smsforwarder \
+    "cd test && npx jest --runInBand"
 ```
+
+(Or, with the Firestore emulator already running and `FIRESTORE_EMULATOR_HOST` exported, just `npm test`.)
+
+## Coverage
+
+- Unauthenticated and non-allow-listed users are denied reads on every collection.
+- Members can read `devices` / `access_matrix` but cannot write `access_matrix` (admin-only).
+- Inbox isolation: a member reads only its own device's inbox, never another's.
+- Inbox messages are delete-admin-only and update-never (immutable).
+- Fan-out create: an owner may write into its own inbox, or into an admin device's inbox, but cannot claim a `sourceDeviceId` it does not own.
+- Device-takeover prevention: an owner may rename but cannot reassign `ownerEmail`, and may create only devices it owns.
+- `access_requests` self-service: a signed-in user may create/read only their own `pending` request; the admin reviews and deletes.

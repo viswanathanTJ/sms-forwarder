@@ -96,7 +96,7 @@ class CloudViewModel(app: Application) : AndroidViewModel(app) {
         runCatching { deviceRepo.registerThisDevice(email, alias) }
         _isAdmin.value = runCatching { auth.isAdmin() }.getOrDefault(false)
         runCatching { deviceRepo.updateFcmToken(FirebaseMessaging.getInstance().token.await()) }
-        runCatching { SmsCloudUploader(getApplication()).flushQueue() }
+        runCatching { SmsCloudUploader.get(getApplication()).flushQueue() }
         refreshMessages()
     }
 
