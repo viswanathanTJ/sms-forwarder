@@ -118,7 +118,11 @@
   <h2>Changelog</h2>
   <p class="muted">What each version does and what changed — newest first.</p>
   <div class="card">
-    <h3>v1.1.7 <span class="muted">— current</span></h3>
+    <h3>v1.1.8 <span class="muted">— current</span></h3>
+    <p><b>What's new:</b> Email/password <b>account creation</b>. The Cloud SMS sign‑in screen now has a <b>“New here? Create an account”</b> mode — useful when Google sign‑in isn't available. On first sign‑up the access request is <b>submitted automatically</b>, so you land directly on a <b>“Waiting for approval”</b> screen instead of a separate request step. Creating an account grants no data access on its own — an administrator still has to approve your email before you can read messages.</p>
+  </div>
+  <div class="card">
+    <h3>v1.1.7</h3>
     <p><b>What's new:</b> Reliability. Queued offline messages now upload <b>the moment the network returns</b> (a connectivity watcher in the forwarding service flushes the retry queue), instead of waiting for the next app launch or sign‑in. The forwarding service now starts with an <b>explicit <code>dataSync</code> foreground‑service type</b> (required on Android 14+), so the system associates the declared type correctly. Internals: the cloud uploader is now an <b>app‑scoped singleton</b> so the encryption stack is built once and reused. Quality: added a runnable <b>Firestore security‑rules test suite</b> (16 emulator tests covering allow‑list gating, inbox isolation, fan‑out authorization, device‑takeover prevention, and access‑request self‑service) plus a bounded‑queue eviction test.</p>
   </div>
   <div class="card">
