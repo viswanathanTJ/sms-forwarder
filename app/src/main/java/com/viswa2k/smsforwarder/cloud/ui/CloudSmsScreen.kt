@@ -25,12 +25,27 @@ fun CloudSmsScreen(vm: CloudViewModel, onOpenWatch: () -> Unit, onOpenAdmin: () 
                 actions = {
                     TextButton(onClick = onOpenWatch) { Text("Watch") }
                     if (isAdmin) TextButton(onClick = onOpenAdmin) { Text("Admin") }
+                    TextButton(onClick = { vm.signOut() }) { Text("Sign out") }
                 },
             )
         },
     ) { padding ->
         if (messages.isEmpty()) {
-            Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) { Text("No messages yet") }
+            Column(
+                Modifier.fillMaxSize().padding(padding).padding(32.dp),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text("No cloud messages yet", style = MaterialTheme.typography.titleMedium)
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    "Cloud SMS shows incoming texts from your other devices, end-to-end encrypted. " +
+                        "Enable \"Upload to cloud\" on a device to send its SMS here, and use Watch to follow " +
+                        "the devices you're allowed to read.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                )
+            }
         } else {
             LazyColumn(Modifier.fillMaxSize().padding(padding).padding(horizontal = 12.dp)) {
                 items(messages, key = { it.id }) { m ->

@@ -25,8 +25,10 @@ fun AdminScreen(vm: CloudViewModel, onBack: () -> Unit) {
     var readerSel by remember { mutableStateOf<String?>(null) }
     var sourceSel by remember { mutableStateOf<String?>(null) }
     var requests by remember { mutableStateOf<List<AccessRequest>>(emptyList()) }
+    var myDeviceId by remember { mutableStateOf("") }
 
     suspend fun reload() {
+        myDeviceId = vm.myDeviceId()
         emails = access.listAuthorizedEmails()
         devices = vm.fleetDevices()
         requests = access.listAccessRequests()
@@ -37,6 +39,45 @@ fun AdminScreen(vm: CloudViewModel, onBack: () -> Unit) {
         topBar = { TopAppBar(title = { Text("Admin") }, navigationIcon = { TextButton(onClick = onBack) { Text("Back") } }) },
     ) { padding ->
         LazyColumn(Modifier.fillMaxSize().padding(padding).padding(12.dp)) {
+            // Overview
+            item {
+                ElevatedCard(Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
+                    Column(Modifier.padding(16.dp)) {
+                        Text("Cloud SMS", style = MaterialTheme.typography.titleLarge)
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            "Cloud SMS securely syncs incoming text messages between your devices. " +
+                                "Each message is end-to-end encrypted on the sending device and can only be read " +
+                                "by devices you authorize — the server never sees the plaintext. As administrator " +
+                                "you control who can sign in and which device may read which.",
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    }
+                }
+            }
+            // Status
+            item {
+                val thisAlias = devices.firstOrNull { it.id == myDeviceId }?.alias
+                    ?: myDeviceId.take(8).ifBlank { "—" }
+                ElevatedCard(Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
+                    Column(Modifier.padding(16.dp)) {
+                        Text("Status", style = MaterialTheme.typography.titleMedium)
+                        Spacer(Modifier.height(6.dp))
+                        Text("Signed in: $adminEmail  ·  Administrator", style = MaterialTheme.typography.bodyMedium)
+                        Text("This device: $thisAlias", style = MaterialTheme.typography.bodySmall)
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            "Devices: ${devices.size}   ·   Authorized: ${emails.size}   ·   Pending: ${requests.size}",
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    }
+                }
+            }
+            item {
+                Text("Manage", style = MaterialTheme.typography.titleMedium)
+                Spacer(Modifier.height(8.dp))
+            }
+
             if (requests.isNotEmpty()) {
                 item { Text("Pending access requests", style = MaterialTheme.typography.titleMedium) }
                 items(requests, key = { it.email }) { req ->

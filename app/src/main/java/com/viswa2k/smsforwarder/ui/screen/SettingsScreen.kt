@@ -19,12 +19,10 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.viswa2k.smsforwarder.BuildConfig
 import com.viswa2k.smsforwarder.SmsForwarderService
 import com.viswa2k.smsforwarder.UserPreferences
-import com.viswa2k.smsforwarder.cloud.update.UpdateChecker
-import com.viswa2k.smsforwarder.cloud.update.UpdateInfo
-import com.viswa2k.smsforwarder.cloud.update.UpdatePromptDialog
+import com.viswa2k.smsforwarder.cloud.update.UpdateInstaller
+import com.viswa2k.smsforwarder.cloud.update.UpdateManager
 import com.viswa2k.smsforwarder.ui.screen.SettingsViewModel
 import com.viswa2k.smsforwarder.ui.screen.SettingsViewModelFactory
-import kotlinx.coroutines.launch
 
 @Composable
 fun SettingsScreen(userPreferences: UserPreferences, modifier: Modifier = Modifier, onOpenCloud: () -> Unit = {}) {
@@ -46,10 +44,9 @@ fun SettingsScreen(userPreferences: UserPreferences, modifier: Modifier = Modifi
     val isCloudChannelEnabled by viewModel.isCloudChannelEnabled.collectAsState()
     val isReceiveEnabled by viewModel.isReceiveEnabled.collectAsState()
 
-    // Manual "check for updates" state
-    val scope = rememberCoroutineScope()
-    var checkingUpdate by remember { mutableStateOf(false) }
-    var manualUpdate by remember { mutableStateOf<UpdateInfo?>(null) }
+    // Persistent update state: refreshed once on open, surfaced as an indicator (no manual button).
+    val updateInfo by UpdateManager.available(userPreferences).collectAsState(initial = null)
+    LaunchedEffect(Unit) { runCatching { UpdateManager.refresh(userPreferences) } }
 
     // Use LazyColumn for scrolling
     LazyColumn(modifier = modifier.padding(16.dp)) {
@@ -264,34 +261,27 @@ fun SettingsScreen(userPreferences: UserPreferences, modifier: Modifier = Modifi
                         text = "Version ${BuildConfig.VERSION_NAME}",
                         style = MaterialTheme.typography.bodyMedium
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    OutlinedButton(
-                        onClick = {
-                            checkingUpdate = true
-                            scope.launch {
-                                val found = UpdateChecker.checkForUpdate(BuildConfig.VERSION_NAME)
-                                checkingUpdate = false
-                                if (found != null) {
-                                    manualUpdate = found
-                                } else {
-                                    Toast.makeText(
-                                        context,
-                                        "You're on the latest version (${BuildConfig.VERSION_NAME})",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
-                                }
-                            }
-                        },
-                        enabled = !checkingUpdate,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(if (checkingUpdate) "Checking…" else "Check for updates")
+                    val u = updateInfo
+                    if (u != null) {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text(
+                            text = "Update available: ${u.version}",
+                            color = MaterialTheme.colorScheme.primary,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Button(
+                            onClick = { UpdateInstaller.startUpdate(context, u) },
+                            modifier = Modifier.fillMaxWidth()
+                        ) { Text("Update to ${u.version}") }
+                    } else {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "You're on the latest version.",
+                            style = MaterialTheme.typography.bodySmall
+                        )
                     }
                 }
-            }
-
-            manualUpdate?.let { update ->
-                UpdatePromptDialog(update = update, onDismiss = { manualUpdate = null })
             }
 
             // Save Settings Button
