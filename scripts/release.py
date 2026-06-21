@@ -129,20 +129,38 @@ def cmd_changelog(args: argparse.Namespace) -> None:
     sys.stdout.write(build_changelog(prev, to))
 
 
+def tag_exists(tag: str) -> bool:
+    return subprocess.run(
+        ["git", "rev-parse", "-q", "--verify", f"refs/tags/{tag}"],
+        capture_output=True, text=True,
+    ).returncode == 0
+
+
+def commits_since(prev: str | None) -> int:
+    if prev is None:
+        return int(git("rev-list", "--count", "HEAD"))
+    return int(git("rev-list", "--count", f"{prev}..HEAD"))
+
+
+def confirm(prompt: str) -> bool:
+    try:
+        return input(f"{prompt} [y/N] ").strip().lower() in ("y", "yes")
+    except EOFError:
+        return False  # non-interactive without -y → treat as "no"
+
+
 def cmd_tag(args: argparse.Namespace) -> None:
     prev = last_tag()
-    if args.version:
-        new = args.version if args.version.startswith("v") else f"v{args.version}"
-    else:
-        new = bump(prev, args.bump)
 
-    existing = subprocess.run(
-        ["git", "rev-parse", "-q", "--verify", f"refs/tags/{new}"],
-        capture_output=True,
-        text=True,
-    )
-    if existing.returncode == 0:
-        sys.exit(f"Tag {new} already exists.")
+    # Nothing to release if HEAD is already the latest tag (no new commits since).
+    if prev is not None and commits_since(prev) == 0:
+        print(f"Already on the latest tag {prev} — no new commits since it. Nothing to release.")
+        return
+
+    new = (args.version if args.version.startswith("v") else f"v{args.version}") if args.version \
+        else bump(prev, args.bump)
+    if tag_exists(new):
+        sys.exit(f"Tag {new} already exists. Pass an explicit higher version, e.g. tag v9.9.9.")
 
     changelog = build_changelog(prev, "HEAD")
     print(f"Previous tag : {prev or '(none)'}")
@@ -155,24 +173,30 @@ def cmd_tag(args: argparse.Namespace) -> None:
         print("Dry run — no tag created.")
         return
 
+    # -y / --yes / --push → create + push with no prompts. Otherwise confirm each step.
+    if not args.yes and not confirm(f"Create annotated tag {new}?"):
+        print("Aborted — no tag created.")
+        return
+
     git("tag", "-a", new, "-m", changelog)
     print(f"Created annotated tag {new}.")
-    if args.push:
-        remote = args.remote
-        git("push", remote, new)
-        print(f"Pushed {new} to {remote} — the release workflow will now build and publish APKs.")
+
+    if args.yes or confirm(f"Push {new} to {args.remote} now (this triggers the release build)?"):
+        git("push", args.remote, new)
+        print(f"Pushed {new} to {args.remote} — the release workflow will build and publish the APK.")
     else:
-        print(f"Not pushed. Run: git push {args.remote} {new}")
+        print(f"Not pushed. When ready: git push {args.remote} {new}")
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="SMS Forwarder release helper")
-    sub = parser.add_subparsers(dest="command", required=True)
+    sub = parser.add_subparsers(dest="command")
 
     t = sub.add_parser("tag", help="create (and optionally push) a release tag")
     t.add_argument("version", nargs="?", help="explicit version, e.g. v1.4.0 (default: bump last tag)")
     t.add_argument("--bump", choices=["major", "minor", "patch"], default="patch")
-    t.add_argument("--push", action="store_true", help="push the tag to the remote")
+    t.add_argument("-y", "--yes", "--push", dest="yes", action="store_true",
+                   help="create AND push without prompting (otherwise confirm each step)")
     t.add_argument("--remote", default="origin")
     t.add_argument("--dry-run", action="store_true", help="print the changelog without tagging")
     t.set_defaults(func=cmd_tag)
@@ -182,7 +206,12 @@ def main() -> None:
     c.add_argument("--to", help="end ref (default: HEAD)")
     c.set_defaults(func=cmd_changelog)
 
-    args = parser.parse_args()
+    # Default to the auto-bump `tag` flow when no subcommand is given, so a bare
+    # `uv run scripts/release.py [--push]` just works. Flags pass through to `tag`.
+    argv = sys.argv[1:]
+    if not argv or argv[0] not in ("tag", "changelog", "-h", "--help"):
+        argv = ["tag", *argv]
+    args = parser.parse_args(argv)
     args.func(args)
 
 
