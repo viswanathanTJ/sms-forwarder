@@ -19,8 +19,8 @@ class SmsCloudUploader private constructor(context: Context) {
     private val messageRepo = CloudMessageRepository(crypto = crypto, deviceRepo = deviceRepo, accessRepo = accessRepo)
     private val queue = CloudUploadQueue(File(appContext.filesDir, "cloud_upload_queue"))
 
-    suspend fun upload(senderNumber: String, body: String, timestamp: Long) {
-        if (!prefs.isCloudChannelEnabled.first()) return
+    suspend fun upload(senderNumber: String, body: String, timestamp: Long, force: Boolean = false) {
+        if (!force && !prefs.isCloudChannelEnabled.first()) return
         val deviceId = prefs.cloudDeviceId.first()
         if (deviceId.isBlank()) {
             Log.w("SmsCloudUploader", "Cloud enabled but device not registered; skipping")

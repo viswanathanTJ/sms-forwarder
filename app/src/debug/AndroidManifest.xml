@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Debug-only overrides. Permits cleartext HTTP so debug builds can talk to the local
+  Firebase emulator suite (auth/firestore over http on loopback via `adb reverse`).
+  Release builds keep usesCleartextTraffic=false from the main manifest.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <application
+        android:usesCleartextTraffic="true"
+        android:networkSecurityConfig="@xml/network_security_config"
+        tools:replace="android:usesCleartextTraffic,android:networkSecurityConfig" />
+</manifest>

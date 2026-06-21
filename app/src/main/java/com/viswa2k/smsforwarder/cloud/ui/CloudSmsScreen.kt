@@ -38,6 +38,12 @@ fun CloudSmsScreen(vm: CloudViewModel, onOpenWatch: () -> Unit, onOpenAdmin: () 
                             text = { Text(if (vm.hasPasswordProvider()) "Change password" else "Set password") },
                             onClick = { menuOpen = false; showPasswordDialog = true },
                         )
+                        if (com.viswa2k.smsforwarder.BuildConfig.DEBUG) {
+                            DropdownMenuItem(
+                                text = { Text("Send test message") },
+                                onClick = { menuOpen = false; vm.sendTestMessage {} },
+                            )
+                        }
                         DropdownMenuItem(
                             text = { Text("Sign out") },
                             onClick = { menuOpen = false; vm.signOut() },

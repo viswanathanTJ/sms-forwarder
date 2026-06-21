@@ -95,7 +95,7 @@ fun AdminScreen(vm: CloudViewModel, onBack: () -> Unit) {
 
             if (requests.isNotEmpty()) {
                 item { Text("Pending access requests", style = MaterialTheme.typography.titleMedium) }
-                items(requests, key = { it.email }) { req ->
+                items(requests, key = { "req-${it.email}" }) { req ->
                     Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
                             Text(req.email)
@@ -117,7 +117,7 @@ fun AdminScreen(vm: CloudViewModel, onBack: () -> Unit) {
                     TextButton(onClick = { act { access.addAuthorizedEmail(newEmail.trim(), "member", adminEmail); newEmail = "" } }) { Text("Add") }
                 }
             }
-            items(emails, key = { it.email }) { e ->
+            items(emails, key = { "email-${it.email}" }) { e ->
                 Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text("${e.email} (${e.role})", Modifier.weight(1f))
                     if (e.role != "admin") TextButton(onClick = { act { access.removeAuthorizedEmail(e.email) } }) { Text("Remove") }
@@ -146,7 +146,7 @@ fun AdminScreen(vm: CloudViewModel, onBack: () -> Unit) {
                     style = MaterialTheme.typography.bodySmall,
                 )
             }
-            items(devices, key = { it.id }) { d ->
+            items(devices, key = { "dev-${it.id}" }) { d ->
                 val isThis = d.id == myDeviceId
                 Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
