@@ -1,6 +1,7 @@
 package com.viswa2k.smsforwarder.cloud.data
 
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.SetOptions
 import kotlinx.coroutines.tasks.await
 
@@ -50,6 +51,26 @@ class AccessRepository(private val db: FirebaseFirestore = FirebaseProvider.db) 
 
     suspend fun setDeviceRevoked(deviceId: String, revoked: Boolean) {
         db.collection("devices").document(deviceId).set(mapOf("revoked" to revoked), SetOptions.merge()).await()
+    }
+
+    /** Permanently remove a device and ALL of its cloud data (admin-only cleanup). */
+    suspend fun removeDeviceAndData(deviceId: String) {
+        deleteQuery(db.collection("inbox").document(deviceId).collection("messages")) // messages it received
+        deleteQuery(db.collectionGroup("messages").whereEqualTo("sourceDeviceId", deviceId)) // messages it sent
+        for (field in listOf("readerDeviceId", "sourceDeviceId")) {
+            deleteQuery(db.collection("access_matrix").whereEqualTo(field, deviceId))
+            deleteQuery(db.collection("subscriptions").whereEqualTo(field, deviceId))
+        }
+        db.collection("devices").document(deviceId).delete().await()
+    }
+
+    private suspend fun deleteQuery(query: Query) {
+        val docs = query.get().await().documents
+        docs.chunked(450).forEach { chunk ->
+            val batch = db.batch()
+            chunk.forEach { batch.delete(it.reference) }
+            batch.commit().await()
+        }
     }
 
     // --- reader ---

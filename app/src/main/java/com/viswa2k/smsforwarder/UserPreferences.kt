@@ -4,6 +4,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -29,6 +30,7 @@ class UserPreferences(private val dataStore: DataStore<Preferences>) {
     private val IS_RECEIVE_ENABLED = booleanPreferencesKey("IS_RECEIVE_ENABLED")
     private val CLOUD_DEVICE_ID = stringPreferencesKey("CLOUD_DEVICE_ID")
     private val STORED_UPDATE = stringPreferencesKey("STORED_UPDATE") // last-known newer release (JSON) or ""
+    private val LAST_KEY_ROTATION = longPreferencesKey("LAST_KEY_ROTATION") // epoch ms of last identity-key rotation
 
     // Initialize defaults
     suspend fun initializeDefaults() {
@@ -97,6 +99,7 @@ class UserPreferences(private val dataStore: DataStore<Preferences>) {
     val isReceiveEnabled: Flow<Boolean> = dataStore.data.map { it[IS_RECEIVE_ENABLED] ?: false }
     val cloudDeviceId: Flow<String> = dataStore.data.map { it[CLOUD_DEVICE_ID] ?: "" }
     val storedUpdate: Flow<String> = dataStore.data.map { it[STORED_UPDATE] ?: "" }
+    val lastKeyRotation: Flow<Long> = dataStore.data.map { it[LAST_KEY_ROTATION] ?: 0L }
 
     // Save preferences
     suspend fun saveSmsServiceEnabled(enabled: Boolean) {
@@ -186,6 +189,12 @@ class UserPreferences(private val dataStore: DataStore<Preferences>) {
     suspend fun saveStoredUpdate(json: String) {
         dataStore.edit { preferences ->
             preferences[STORED_UPDATE] = json
+        }
+    }
+
+    suspend fun saveLastKeyRotation(epochMs: Long) {
+        dataStore.edit { preferences ->
+            preferences[LAST_KEY_ROTATION] = epochMs
         }
     }
 }

@@ -49,9 +49,19 @@ class SmsCloudUploader(context: Context) {
 
     suspend fun flushQueue() {
         if (!prefs.isCloudChannelEnabled.first()) return
+        var consecutiveFailures = 0
         for (f in queue.pending()) {
-            try { messageRepo.pushFanOut(f); queue.remove(f) }
-            catch (e: Exception) { Log.w("SmsCloudUploader", "Retry failed; will try later"); break }
+            try {
+                messageRepo.pushFanOut(f)
+                queue.remove(f)
+                consecutiveFailures = 0
+            } catch (e: Exception) {
+                // Skip a single bad item (don't head-of-line block), but stop after a few
+                // failures in a row — that means we're offline; retry on the next flush.
+                consecutiveFailures++
+                Log.w("SmsCloudUploader", "Retry failed; will try later")
+                if (consecutiveFailures >= 3) break
+            }
         }
     }
 }

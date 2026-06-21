@@ -62,16 +62,23 @@ object HpkeCrypto {
         override fun hashCode(): Int = 31 * ciphertext.contentHashCode() + nonce.contentHashCode()
     }
 
-    fun encryptBody(dek: ByteArray, plaintext: ByteArray): EncryptedBody {
+    fun encryptBody(dek: ByteArray, plaintext: ByteArray, aad: ByteArray = ByteArray(0)): EncryptedBody {
         val iv = ByteArray(GCM_IV_BYTES).also { rng.nextBytes(it) }
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
         cipher.init(Cipher.ENCRYPT_MODE, SecretKeySpec(dek, "AES"), GCMParameterSpec(GCM_TAG_BITS, iv))
+        if (aad.isNotEmpty()) cipher.updateAAD(aad)
         return EncryptedBody(cipher.doFinal(plaintext), iv)
     }
 
-    fun decryptBody(dek: ByteArray, ciphertext: ByteArray, nonce: ByteArray): ByteArray {
+    fun decryptBody(dek: ByteArray, ciphertext: ByteArray, nonce: ByteArray, aad: ByteArray = ByteArray(0)): ByteArray {
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
         cipher.init(Cipher.DECRYPT_MODE, SecretKeySpec(dek, "AES"), GCMParameterSpec(GCM_TAG_BITS, nonce))
+        if (aad.isNotEmpty()) cipher.updateAAD(aad)
         return cipher.doFinal(ciphertext)
+    }
+
+    /** Best-effort wipe of sensitive key bytes from memory. */
+    fun wipe(vararg secrets: ByteArray) {
+        for (s in secrets) s.fill(0)
     }
 }

@@ -129,6 +129,9 @@ fun AdminScreen(vm: CloudViewModel, onBack: () -> Unit) {
                 Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text("${d.alias}${if (d.revoked) " (revoked)" else ""}", Modifier.weight(1f))
                     TextButton(onClick = { scope.launch { access.setDeviceRevoked(d.id, !d.revoked); reload() } }) { Text(if (d.revoked) "Un-revoke" else "Revoke") }
+                    if (d.id != myDeviceId) {
+                        TextButton(onClick = { scope.launch { access.removeDeviceAndData(d.id); reload() } }) { Text("Remove") }
+                    }
                 }
             }
         }

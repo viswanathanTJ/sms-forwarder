@@ -82,6 +82,16 @@ class CloudViewModel(app: Application) : AndroidViewModel(app) {
             return
         }
         val email = auth.currentEmail() ?: return
+        // Rotate the identity key every ~30 days (seed the clock on first sign-in); old key
+        // versions are retained in the keyset so historical messages still decrypt.
+        runCatching {
+            val now = System.currentTimeMillis()
+            val last = prefs.lastKeyRotation.first()
+            when {
+                last == 0L -> prefs.saveLastKeyRotation(now)
+                now - last > ROTATION_INTERVAL_MS -> { crypto.rotateIdentityKey(); prefs.saveLastKeyRotation(now) }
+            }
+        }
         var alias = prefs.deviceAlias.first(); if (alias.isBlank()) alias = android.os.Build.MODEL
         runCatching { deviceRepo.registerThisDevice(email, alias) }
         _isAdmin.value = runCatching { auth.isAdmin() }.getOrDefault(false)
@@ -125,4 +135,8 @@ class CloudViewModel(app: Application) : AndroidViewModel(app) {
     fun accessRepository() = accessRepo
 
     override fun onCleared() { stopRealtime() }
+
+    companion object {
+        private const val ROTATION_INTERVAL_MS = 30L * 24 * 60 * 60 * 1000 // ~30 days
+    }
 }

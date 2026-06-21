@@ -34,6 +34,21 @@ class HpkeCryptoTest {
     }
 
     @Test
+    fun body_aad_roundTripsAndRejectsMismatch() {
+        val dek = HpkeCrypto.newDek()
+        val plain = "OTP 4471".toByteArray()
+        val aad = "src|msg123".toByteArray()
+        val enc = HpkeCrypto.encryptBody(dek, plain, aad)
+        // Correct AAD decrypts.
+        assertArrayEquals(plain, HpkeCrypto.decryptBody(dek, enc.ciphertext, enc.nonce, aad))
+        // Tampered AAD (e.g. re-attributing the message) must fail the GCM tag check.
+        var failed = false
+        try { HpkeCrypto.decryptBody(dek, enc.ciphertext, enc.nonce, "src|other".toByteArray()) }
+        catch (e: Exception) { failed = true }
+        assertTrue("decrypt must reject a different AAD", failed)
+    }
+
+    @Test
     fun privateKeyset_serializeRoundTrips() {
         val handle = HpkeCrypto.generatePrivateKeyset()
         val restored = HpkeCrypto.deserializePrivateKeyset(HpkeCrypto.serializePrivateKeyset(handle))

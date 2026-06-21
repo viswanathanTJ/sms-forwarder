@@ -35,14 +35,15 @@ class CryptoManager(context: Context) {
     }
 
     fun newDek(): ByteArray = HpkeCrypto.newDek()
-    fun sealDekTo(recipientPublicKeyset: ByteArray, dek: ByteArray): ByteArray =
-        HpkeCrypto.seal(recipientPublicKeyset, dek, ByteArray(0))
-    fun openWrappedDek(wrappedDek: ByteArray): ByteArray =
-        HpkeCrypto.open(handle(), wrappedDek, ByteArray(0))
-    fun encryptBody(dek: ByteArray, plaintext: ByteArray): HpkeCrypto.EncryptedBody =
-        HpkeCrypto.encryptBody(dek, plaintext)
-    fun decryptBody(dek: ByteArray, ciphertext: ByteArray, nonce: ByteArray): ByteArray =
-        HpkeCrypto.decryptBody(dek, ciphertext, nonce)
+    fun sealDekTo(recipientPublicKeyset: ByteArray, dek: ByteArray, context: ByteArray = ByteArray(0)): ByteArray =
+        HpkeCrypto.seal(recipientPublicKeyset, dek, context)
+    fun openWrappedDek(wrappedDek: ByteArray, context: ByteArray = ByteArray(0)): ByteArray =
+        HpkeCrypto.open(handle(), wrappedDek, context)
+    fun encryptBody(dek: ByteArray, plaintext: ByteArray, aad: ByteArray = ByteArray(0)): HpkeCrypto.EncryptedBody =
+        HpkeCrypto.encryptBody(dek, plaintext, aad)
+    fun decryptBody(dek: ByteArray, ciphertext: ByteArray, nonce: ByteArray, aad: ByteArray = ByteArray(0)): ByteArray =
+        HpkeCrypto.decryptBody(dek, ciphertext, nonce, aad)
+    fun wipe(vararg secrets: ByteArray) = HpkeCrypto.wipe(*secrets)
 
     companion object {
         private const val KEYSET_NAME = "cloud_identity_keyset"
