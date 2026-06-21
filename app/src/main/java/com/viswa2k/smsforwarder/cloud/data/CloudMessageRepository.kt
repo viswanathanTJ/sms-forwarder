@@ -48,15 +48,19 @@ class CloudMessageRepository(
             .filter { !it.revoked && it.publicKey.isNotBlank() }
             .associate { it.id to it.publicKey }
 
+        // Bind the ciphertext + each wrapped key to this exact (source, message[, recipient])
+        // via AEAD/HPKE associated data, so a message can't be replayed/re-attributed.
+        val messageId = UUID.randomUUID().toString()
         val dek = crypto.newDek()
-        val body = crypto.encryptBody(dek, payload.toJsonBytes())
+        val body = crypto.encryptBody(dek, payload.toJsonBytes(), bodyAad(sourceDeviceId, messageId))
         val copies = recipientIds.mapNotNull { id ->
             keyByDevice[id]?.let { pub ->
-                RecipientCopy(id, enc.encodeToString(crypto.sealDekTo(dec.decode(pub), dek)))
+                RecipientCopy(id, enc.encodeToString(crypto.sealDekTo(dec.decode(pub), dek, dekContext(sourceDeviceId, messageId, id))))
             }
         }
+        crypto.wipe(dek)
         return FanOut(
-            messageId = UUID.randomUUID().toString(),
+            messageId = messageId,
             sourceDeviceId = sourceDeviceId,
             sourceAlias = sourceAlias,
             ciphertextB64 = enc.encodeToString(body.ciphertext),
@@ -64,6 +68,12 @@ class CloudMessageRepository(
             copies = copies,
         )
     }
+
+    private fun bodyAad(source: String, messageId: String): ByteArray =
+        "$source|$messageId".toByteArray(Charsets.UTF_8)
+
+    private fun dekContext(source: String, messageId: String, recipient: String): ByteArray =
+        "$source|$messageId|$recipient".toByteArray(Charsets.UTF_8)
 
     suspend fun pushFanOut(fanOut: FanOut) {
         if (fanOut.copies.isEmpty()) return
@@ -89,21 +99,25 @@ class CloudMessageRepository(
 
     suspend fun listForReader(readerDeviceId: String, aliases: Map<String, String>): List<DecryptedMessage> =
         db.collection("inbox").document(readerDeviceId).collection("messages")
-            .get().await().documents.mapNotNull { decrypt(it, aliases) }
+            .get().await().documents.mapNotNull { decrypt(it, readerDeviceId, aliases) }
             .sortedByDescending { it.originalTimestamp }
 
     suspend fun decryptOne(readerDeviceId: String, messageId: String, aliases: Map<String, String>): DecryptedMessage? {
         val doc = db.collection("inbox").document(readerDeviceId).collection("messages")
             .document(messageId).get().await()
         if (!doc.exists()) return null
-        return decrypt(doc, aliases)
+        return decrypt(doc, readerDeviceId, aliases)
     }
 
-    private fun decrypt(doc: DocumentSnapshot, aliases: Map<String, String>): DecryptedMessage? = try {
-        val dek = crypto.openWrappedDek(dec.decode(doc.getString("wrappedDek")!!))
-        val plain = crypto.decryptBody(dek, dec.decode(doc.getString("ciphertext")!!), dec.decode(doc.getString("nonce")!!))
-        val payload = CloudSmsPayload.fromJsonBytes(plain)
+    private fun decrypt(doc: DocumentSnapshot, readerDeviceId: String, aliases: Map<String, String>): DecryptedMessage? = try {
         val source = doc.getString("sourceDeviceId") ?: ""
+        val messageId = doc.getString("messageId") ?: doc.id
+        val dek = crypto.openWrappedDek(dec.decode(doc.getString("wrappedDek")!!), dekContext(source, messageId, readerDeviceId))
+        val plain = crypto.decryptBody(
+            dek, dec.decode(doc.getString("ciphertext")!!), dec.decode(doc.getString("nonce")!!), bodyAad(source, messageId)
+        )
+        crypto.wipe(dek)
+        val payload = CloudSmsPayload.fromJsonBytes(plain)
         DecryptedMessage(
             id = doc.getString("messageId") ?: doc.id,
             sourceDeviceId = source,
