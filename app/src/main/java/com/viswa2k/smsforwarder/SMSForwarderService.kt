@@ -9,6 +9,7 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.ServiceInfo
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
@@ -71,8 +72,10 @@ class SmsForwarderService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        // Create a notification for the foreground service
-        startForeground(NOTIFICATION_ID, createNotification())
+        // Promote to foreground. On API 29+ we MUST pass the service type that matches the
+        // manifest (dataSync); omitting it makes the platform log "FGS stop call ... has no
+        // types!" and tear the service down almost immediately (observed on Android 15).
+        startForegroundCompat(createNotification())
 
         val smsForwardServiceEnabled = intent?.getBooleanExtra("SMS_FORWARD_SERVICE_ENABLED", false) ?: false
 
@@ -86,6 +89,19 @@ class SmsForwarderService : Service() {
         scheduleServiceRestart()
 
         return START_STICKY
+    }
+
+    /**
+     * Calls startForeground with the dataSync FGS type on API 29+ (required so the platform
+     * associates the manifest-declared type and does not immediately stop the service). Falls
+     * back to the untyped overload on older APIs.
+     */
+    private fun startForegroundCompat(notification: Notification) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+        } else {
+            startForeground(NOTIFICATION_ID, notification)
+        }
     }
 
     override fun onTaskRemoved(rootIntent: Intent?) {
