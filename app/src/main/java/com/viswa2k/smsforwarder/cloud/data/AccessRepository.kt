@@ -20,6 +20,21 @@ class AccessRepository(private val db: FirebaseFirestore = FirebaseProvider.db) 
         db.collection("authorized_emails").document(email).delete().await()
     }
 
+    // --- access requests (admin review of self-service signups) ---
+    suspend fun listAccessRequests(): List<AccessRequest> =
+        db.collection("access_requests").get().await().documents
+            .map { AccessRequest(it.id, it.getString("displayName") ?: "") }
+
+    suspend fun approveRequest(email: String, approvedBy: String) {
+        db.collection("authorized_emails").document(email)
+            .set(mapOf("role" to "member", "addedBy" to approvedBy)).await()
+        db.collection("access_requests").document(email).delete().await()
+    }
+
+    suspend fun denyRequest(email: String) {
+        db.collection("access_requests").document(email).delete().await()
+    }
+
     suspend fun listAccessMatrix(): List<AccessGrant> =
         db.collection("access_matrix").get().await().documents
             .map { AccessGrant(it.getString("readerDeviceId") ?: "", it.getString("sourceDeviceId") ?: "") }

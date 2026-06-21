@@ -8,6 +8,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.viswa2k.smsforwarder.cloud.data.AccessRequest
 import com.viswa2k.smsforwarder.cloud.data.AuthorizedEmail
 import com.viswa2k.smsforwarder.cloud.data.Device
 import kotlinx.coroutines.launch
@@ -23,14 +24,36 @@ fun AdminScreen(vm: CloudViewModel, onBack: () -> Unit) {
     var newEmail by remember { mutableStateOf("") }
     var readerSel by remember { mutableStateOf<String?>(null) }
     var sourceSel by remember { mutableStateOf<String?>(null) }
+    var requests by remember { mutableStateOf<List<AccessRequest>>(emptyList()) }
 
-    suspend fun reload() { emails = access.listAuthorizedEmails(); devices = vm.fleetDevices() }
+    suspend fun reload() {
+        emails = access.listAuthorizedEmails()
+        devices = vm.fleetDevices()
+        requests = access.listAccessRequests()
+    }
     LaunchedEffect(Unit) { reload() }
 
     Scaffold(
         topBar = { TopAppBar(title = { Text("Admin") }, navigationIcon = { TextButton(onClick = onBack) { Text("Back") } }) },
     ) { padding ->
         LazyColumn(Modifier.fillMaxSize().padding(padding).padding(12.dp)) {
+            if (requests.isNotEmpty()) {
+                item { Text("Pending access requests", style = MaterialTheme.typography.titleMedium) }
+                items(requests, key = { it.email }) { req ->
+                    Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text(req.email)
+                            if (req.displayName.isNotBlank()) {
+                                Text(req.displayName, style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
+                        TextButton(onClick = { scope.launch { access.approveRequest(req.email, adminEmail); reload() } }) { Text("Approve") }
+                        TextButton(onClick = { scope.launch { access.denyRequest(req.email); reload() } }) { Text("Deny") }
+                    }
+                }
+                item { Spacer(Modifier.height(16.dp)) }
+            }
+
             item { Text("Authorized emails", style = MaterialTheme.typography.titleMedium) }
             item {
                 Row(verticalAlignment = Alignment.CenterVertically) {

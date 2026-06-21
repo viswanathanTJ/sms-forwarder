@@ -31,6 +31,10 @@ class CloudViewModel(app: Application) : AndroidViewModel(app) {
 
     private val _signedIn = MutableStateFlow(auth.currentEmail() != null)
     val signedIn: StateFlow<Boolean> = _signedIn
+    private val _authorized = MutableStateFlow(false)
+    val authorized: StateFlow<Boolean> = _authorized          // signed in AND on the allow-list
+    private val _pendingRequest = MutableStateFlow(false)
+    val pendingRequest: StateFlow<Boolean> = _pendingRequest  // an access request is awaiting admin approval
     private val _isAdmin = MutableStateFlow(false)
     val isAdmin: StateFlow<Boolean> = _isAdmin
     private val _email = MutableStateFlow(auth.currentEmail())
@@ -41,24 +45,42 @@ class CloudViewModel(app: Application) : AndroidViewModel(app) {
     private var registration: ListenerRegistration? = null
     private var aliasCache: Map<String, String> = emptyMap()
 
-    init { viewModelScope.launch { auth.authState.collect { _signedIn.value = it; _email.value = auth.currentEmail() } } }
+    init {
+        viewModelScope.launch {
+            auth.authState.collect { authed ->
+                _signedIn.value = authed
+                _email.value = auth.currentEmail()
+                if (authed) onAuthenticatedInternal() else resetAuthState()
+            }
+        }
+    }
+
+    private fun resetAuthState() {
+        _authorized.value = false
+        _pendingRequest.value = false
+        _isAdmin.value = false
+    }
 
     fun signInEmail(email: String, password: String, onError: (String) -> Unit) = viewModelScope.launch {
+        // On success the authState collector runs authorization + setup.
         runCatching { auth.signInEmail(email, password) }
-            .onSuccess { onAuthenticatedInternal(onError) }
             .onFailure { onError(it.message ?: "Sign-in failed") }
     }
 
     fun signInGoogle(idToken: String, onError: (String) -> Unit) = viewModelScope.launch {
         runCatching { auth.signInGoogle(idToken) }
-            .onSuccess { onAuthenticatedInternal(onError) }
             .onFailure { onError(it.message ?: "Google sign-in failed") }
     }
 
-    fun onAuthenticated(onError: (String) -> Unit = {}) = viewModelScope.launch { onAuthenticatedInternal(onError) }
-
-    private suspend fun onAuthenticatedInternal(onError: (String) -> Unit) {
-        if (!auth.isAuthorized()) { auth.signOut(); _signedIn.value = false; onError("This email is not authorized."); return }
+    /** Runs whenever a Firebase session becomes active (fresh sign-in or app relaunch). */
+    private suspend fun onAuthenticatedInternal() {
+        val authorized = runCatching { auth.isAuthorized() }.getOrDefault(false)
+        _authorized.value = authorized
+        if (!authorized) {
+            // Not approved: stay signed in so the user can submit an access request.
+            _pendingRequest.value = runCatching { auth.hasPendingRequest() }.getOrDefault(false)
+            return
+        }
         val email = auth.currentEmail() ?: return
         var alias = prefs.deviceAlias.first(); if (alias.isBlank()) alias = android.os.Build.MODEL
         runCatching { deviceRepo.registerThisDevice(email, alias) }
@@ -68,7 +90,17 @@ class CloudViewModel(app: Application) : AndroidViewModel(app) {
         refreshMessages()
     }
 
-    fun signOut() = viewModelScope.launch { runCatching { auth.signOut() }; _signedIn.value = false }
+    fun requestAccess(onDone: () -> Unit = {}) = viewModelScope.launch {
+        runCatching { auth.requestAccess() }
+        _pendingRequest.value = true
+        onDone()
+    }
+
+    fun signOut() = viewModelScope.launch {
+        runCatching { auth.signOut() }
+        _signedIn.value = false
+        resetAuthState()
+    }
 
     fun refreshMessages() = viewModelScope.launch {
         val readerId = prefs.cloudDeviceId.first(); if (readerId.isBlank()) return@launch
