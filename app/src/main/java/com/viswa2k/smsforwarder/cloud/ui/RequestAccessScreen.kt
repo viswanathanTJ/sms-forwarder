@@ -33,7 +33,11 @@ fun RequestAccessScreen(vm: CloudViewModel) {
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text("Account not approved", style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
+        Text(
+            if (pending) "Waiting for approval" else "Account not approved",
+            style = MaterialTheme.typography.headlineSmall,
+            textAlign = TextAlign.Center,
+        )
         Spacer(Modifier.height(12.dp))
         Text(
             text = email ?: "",
@@ -44,8 +48,8 @@ fun RequestAccessScreen(vm: CloudViewModel) {
 
         if (pending) {
             Text(
-                "This email is not available for login yet. Your request has been sent — " +
-                    "an administrator will review it. You'll be able to sign in once approved.",
+                "Your request has been sent. An administrator will review it, and you'll " +
+                    "get access automatically once it's approved.",
                 textAlign = TextAlign.Center,
             )
         } else {
