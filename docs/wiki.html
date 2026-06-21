@@ -1,0 +1,282 @@
+<title>SMS Forwarder — Wiki</title>
+<style>
+  :root{
+    --bg:#0f1216; --panel:#171b22; --panel2:#1e242d; --line:#2a313c;
+    --ink:#e8edf4; --muted:#97a3b4; --accent:#7c5cff; --accent2:#22c55e;
+    --code:#0b0e12; --chip:#222a36; --warn:#f59e0b;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.55;margin:0;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:980px;margin:0 auto;padding:0 20px 80px}
+  header.top{position:sticky;top:0;z-index:10;background:rgba(15,18,22,.86);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);padding:14px 0;margin-bottom:8px}
+  .top .wrap{display:flex;align-items:center;gap:16px;justify-content:space-between;flex-wrap:wrap;padding-bottom:0;padding-top:0}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:18px}
+  .brand .dot{width:10px;height:10px;border-radius:50%;background:var(--accent)}
+  .toggle{display:flex;background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:3px}
+  .mode-btn{border:0;background:transparent;color:var(--muted);font:600 13px/1 var(--sans);padding:8px 16px;border-radius:999px;cursor:pointer}
+  .mode-btn.active{background:var(--accent);color:#fff}
+  h1{font-size:30px;margin:26px 0 6px}
+  h2{font-size:21px;margin:36px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--line)}
+  h3{font-size:16px;margin:22px 0 6px;color:#d4dbe6}
+  p{margin:8px 0;color:#cdd6e2}
+  .lead{color:var(--muted);font-size:15px}
+  ul,ol{margin:8px 0 8px 2px;padding-left:20px}
+  li{margin:4px 0;color:#cdd6e2}
+  code{font-family:var(--mono);font-size:12.5px;background:var(--chip);padding:2px 6px;border-radius:5px;color:#dfe6f0}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin:12px 0}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px}
+  .pill{display:inline-block;font:600 11px/1 var(--sans);padding:4px 9px;border-radius:999px;border:1px solid var(--line);color:var(--muted);background:var(--panel2)}
+  .pill.dev{background:rgba(124,92,255,.14);border-color:rgba(124,92,255,.4);color:#c9bcff}
+  .pill.user{background:rgba(34,197,94,.12);border-color:rgba(34,197,94,.4);color:#9be7b4}
+  .flow{font-family:var(--mono);font-size:12.5px;background:var(--code);border:1px solid var(--line);border-radius:10px;padding:14px 16px;overflow-x:auto;white-space:pre;color:#bcd}
+  table{width:100%;border-collapse:collapse;margin:10px 0;font-size:13.5px}
+  th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--muted);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.04em}
+  td .ref{font-family:var(--mono);font-size:11.5px;color:#a8b6ff;white-space:nowrap}
+  .tablewrap{overflow-x:auto}
+  .note{border-left:3px solid var(--accent);background:var(--panel2);padding:10px 14px;border-radius:0 8px 8px 0;margin:12px 0}
+  .warn{border-left-color:var(--warn)}
+  .ok{border-left-color:var(--accent2)}
+  /* mode gating */
+  body[data-mode="user"] .dev-only{display:none!important}
+  body[data-mode="dev"]  .user-hint{opacity:.6}
+  .devbadge{display:none}
+  body[data-mode="dev"] .devbadge{display:inline-block}
+  .muted{color:var(--muted)}
+  a{color:#a8b6ff}
+  footer{margin-top:50px;color:var(--muted);font-size:12.5px;border-top:1px solid var(--line);padding-top:16px}
+</style>
+
+<header class="top">
+  <div class="wrap">
+    <div class="brand"><span class="dot"></span> SMS Forwarder · Wiki</div>
+    <div class="toggle" role="tablist" aria-label="Audience mode">
+      <button class="mode-btn" data-m="user" onclick="setMode('user')">User</button>
+      <button class="mode-btn" data-m="dev" onclick="setMode('dev')">Developer</button>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <h1>SMS Forwarder</h1>
+  <p class="lead">An Android app (<code>com.viswa2k.smsforwarder</code>) that forwards incoming SMS to another phone, to Telegram, and to an end‑to‑end‑encrypted cloud so your other devices can read them. Use the <b>User / Developer</b> switch above — Developer mode reveals the architecture and the exact <code>file:line</code> behind every action.</p>
+
+  <div class="card">
+    <span class="pill user">User mode</span> how to use the app, step by step.
+    &nbsp; <span class="pill dev">Developer mode</span> adds architecture, data flow, source locations, backend & release internals.
+  </div>
+
+  <h2>1 · What it does</h2>
+  <div class="grid">
+    <div class="card"><h3>📩 Forward</h3><p>Every incoming SMS can be re‑sent as an SMS to another number and/or posted to Telegram chats, using a custom message format.</p></div>
+    <div class="card"><h3>🔐 Cloud (E2E)</h3><p>SMS are encrypted on‑device and uploaded to Firebase. Only authorized devices can decrypt and read them — the server only ever sees ciphertext.</p></div>
+    <div class="card"><h3>👀 Read anywhere</h3><p>Approved devices view another device's messages live, with optional push notifications.</p></div>
+    <div class="card"><h3>⬆️ Self‑update</h3><p>The app checks GitHub Releases and offers to install a newer version.</p></div>
+  </div>
+
+  <!-- ============================ USER GUIDE ============================ -->
+  <h2>2 · User guide</h2>
+
+  <h3>Turn on forwarding</h3>
+  <ol>
+    <li>Open the app → grant the SMS, contacts and notification permissions it asks for.</li>
+    <li>Toggle <b>Enable Service</b>. A persistent notification shows it's running.</li>
+    <li>Pick channels: <b>Forward as SMS</b> (enter a destination number) and/or <b>Send in Telegram</b> (bot API key + chat IDs).</li>
+    <li>Optional: set a <b>Device alias</b> and a <b>message format</b> — <code>%s</code> sender, <code>%m</code> message, <code>%r</code> device alias.</li>
+    <li>Tap <b>Save Settings</b>.</li>
+  </ol>
+  <div class="note user-hint">Tip: <b>Skip Contacts</b> stops forwarding messages from people already in your contacts (useful to forward only OTPs/automated texts).</div>
+
+  <h3>Cloud SMS — sign in</h3>
+  <ol>
+    <li>Settings → <b>Open Cloud SMS</b>.</li>
+    <li><b>Sign in with Google</b> (recommended) or email/password.</li>
+    <li>If your account is approved you go straight to the cloud inbox. If not, you'll see <b>“Account not approved”</b> → tap <b>Request access</b>; an administrator approves you, then you can sign in.</li>
+  </ol>
+
+  <h3>Share & read other devices' SMS</h3>
+  <ul>
+    <li><b>Upload to cloud</b> (Settings) makes this device a <i>sender</i> — its incoming SMS are encrypted and uploaded.</li>
+    <li><b>Receive cloud messages</b> + the <b>Watch</b> screen let you pick which permitted devices to follow and whether to get push notifications.</li>
+    <li>The <b>Cloud SMS</b> screen lists decrypted messages live. The administrator controls which device may read which.</li>
+  </ul>
+
+  <h3>Administrator</h3>
+  <ul>
+    <li>The super‑admin sees an <b>Admin</b> button: manage the allow‑list, approve/deny <b>access requests</b>, grant “reader → source” access, revoke devices, and delete cloud messages.</li>
+  </ul>
+
+  <h3>Updates</h3>
+  <p>The app checks for a newer release automatically. When one is available, an <b>Update available: vX</b> indicator appears under Settings → About (and a launch prompt) with an <b>Update</b> button that downloads + installs it — no manual checking, and the indicator clears itself once you're on the latest version.</p>
+
+  <h3>Sign out</h3>
+  <p>Use <b>Sign out</b> in the Cloud SMS screen's top bar to switch accounts. If your account isn't approved, the “Account not approved” screen also offers <b>Use a different account</b>.</p>
+
+  <!-- ============================ CHANGELOG (both modes) ============================ -->
+  <h2>Changelog</h2>
+  <p class="muted">What each version does and what changed — newest first.</p>
+  <div class="card">
+    <h3>v1.1.5 <span class="muted">— current</span></h3>
+    <p><b>What's new:</b> <b>Sign out</b> action on the Cloud SMS screen. <b>Admin page revamp</b> — a clear Cloud SMS overview plus a status dashboard (account &amp; role, this device, device/authorized/pending counts) above the management tools. <b>Smarter updates</b> — the manual “Check for updates” button is replaced by a persistent <b>Update available</b> indicator: the check runs automatically, the result is stored, and the prompt auto‑clears once the installed version matches the latest.</p>
+  </div>
+  <div class="card">
+    <h3>v1.1.4</h3>
+    <p><b>What's new:</b> <b>Google Sign‑In fixed</b> — explicit "Sign in with Google" button flow plus the app's signing SHA registered in Firebase (was failing with “credentials do not exist”). New self‑service <b>Request access</b>: an unapproved account stays signed in and can request access; the admin approves/denies in the Admin screen. Release script (<code>scripts/release.py</code>) is now interactive — preview tag + changelog, confirm create, confirm push — with a <code>-y</code> fully‑automatic mode and an “already on the latest tag” guard.</p>
+  </div>
+  <div class="card">
+    <h3>v1.1.3</h3>
+    <p><b>What's new:</b> Ships a <b>single universal APK</b> (dropped the redundant per‑ABI splits — the app has no meaningful native libraries). Added the <b>in‑app updater</b>: checks GitHub Releases on launch and via Settings → About → “Check for updates”, then downloads + installs a newer version.</p>
+  </div>
+  <div class="card">
+    <h3>v1.1.2</h3>
+    <p><b>What's new:</b> <b>Cloud Encrypted SMS Sync</b> — end‑to‑end‑encrypted upload and cross‑device reading via Firebase (HPKE envelope, per‑recipient inbox fan‑out, admin‑controlled access matrix, FCM push). Added the <b>CI release pipeline</b> (push a tag → signed APK → GitHub Release with an auto‑generated changelog).</p>
+  </div>
+  <div class="card">
+    <h3>v1.1.1</h3>
+    <p>Security &amp; performance fixes across the SMS‑forwarding flow; activity/state persistence.</p>
+  </div>
+  <div class="card">
+    <h3>v1.1.0</h3>
+    <p>UI refresh; configurable message format (<code>%s</code> sender / <code>%m</code> message / <code>%r</code> device alias); “Skip Contacts” option.</p>
+  </div>
+  <div class="card">
+    <h3>v1.0.0</h3>
+    <p>Initial release: forward incoming SMS to another number and/or Telegram chats via a persistent foreground service.</p>
+  </div>
+
+  <!-- ============================ DEV: ARCHITECTURE ============================ -->
+  <div class="dev-only">
+    <h2>3 · Architecture <span class="pill dev">dev</span></h2>
+    <p>Single‑module Kotlin + Jetpack Compose app (minSdk 29 / target 34). No DI framework; state flows through DataStore preferences, a foreground service, and a set of repositories over Firebase. New cloud code lives under <code>app/src/main/java/com/viswa2k/smsforwarder/cloud/**</code> (<code>crypto</code>, <code>data</code>, <code>ui</code>, <code>fcm</code>, <code>update</code>).</p>
+    <div class="flow">incoming SMS
+  └─ SmsForwarderService (foreground) ──registers──▶ SmsReceiver
+       └─ forwardMessage()
+            ├─ sendSms()            → SmsManager
+            ├─ sendTelegramMessage()→ Telegram Bot API (HTTPS)
+            └─ SmsCloudUploader.upload()
+                 ├─ CryptoManager (HPKE keyset, Android Keystore-sealed)
+                 ├─ CloudMessageRepository.buildFanOut()  → encrypt + wrap DEK per recipient
+                 └─ pushFanOut() → Firestore  inbox/{recipientDeviceId}/messages/{id}
+                                      │
+   Firebase Cloud Function notifyReader ◀──onCreate──┘
+        └─ silent FCM data push ▶ SmsForwarderFcmService → decrypt → local notification
+
+reader device: CloudSmsScreen ──snapshot listener──▶ inbox/{me}/messages
+        └─ CloudMessageRepository.decrypt() → CryptoManager.openWrappedDek + decryptBody</div>
+
+    <h3>Module map</h3>
+    <div class="tablewrap"><table>
+      <tr><th>Area</th><th>Files</th></tr>
+      <tr><td>Forwarding core</td><td><code>SMSReceiver.kt</code>, <code>SMSForwarderService.kt</code>, <code>ServiceRestartReceiver.kt</code>, <code>UserPreferences.kt</code>, <code>MainActivity.kt</code></td></tr>
+      <tr><td>Crypto</td><td><code>cloud/crypto/HpkeCrypto.kt</code>, <code>CryptoManager.kt</code>, <code>CloudSmsPayload.kt</code></td></tr>
+      <tr><td>Data / repos</td><td><code>cloud/data/</code>: <code>FirebaseProvider</code>, <code>AuthRepository</code>, <code>DeviceRepository</code>, <code>AccessRepository</code>, <code>CloudMessageRepository</code>, <code>RecipientSelector</code>, <code>CloudUploadQueue</code>, <code>SmsCloudUploader</code></td></tr>
+      <tr><td>UI</td><td><code>cloud/ui/</code>: <code>CloudViewModel</code>, <code>CloudNav</code>, <code>SignInScreen</code>, <code>RequestAccessScreen</code>, <code>CloudSmsScreen</code>, <code>WatchScreen</code>, <code>AdminScreen</code></td></tr>
+      <tr><td>Push</td><td><code>cloud/fcm/SmsForwarderFcmService.kt</code> + backend <code>firebase/functions/src/index.ts</code></td></tr>
+      <tr><td>Updates</td><td><code>cloud/update/</code>: <code>UpdateChecker</code>, <code>UpdateInstaller</code>, <code>UpdateDialog</code></td></tr>
+      <tr><td>Backend</td><td><code>firebase/firestore.rules</code>, <code>firestore.indexes.json</code>, <code>functions/src/index.ts</code></td></tr>
+      <tr><td>Release</td><td><code>scripts/release.py</code>, <code>.github/workflows/release.yml</code></td></tr>
+    </table></div>
+
+    <!-- ============================ DEV: CORE ACTIONS ============================ -->
+    <h2>4 · Core actions → source <span class="pill dev">dev</span></h2>
+    <p class="muted">Exact locations as of v1.1.4. Line numbers drift; the function names are stable anchors.</p>
+    <div class="tablewrap"><table>
+      <tr><th>Action</th><th>Where it happens</th></tr>
+      <tr><td>SMS arrives, PDUs parsed, work dispatched off‑thread</td><td><span class="ref">SMSReceiver.kt:32</span> <code>onReceive()</code></td></tr>
+      <tr><td>Per‑message routing (skip‑contacts, then channels)</td><td><span class="ref">SMSReceiver.kt:94</span> <code>forwardMessage()</code></td></tr>
+      <tr><td>Forward as SMS (multipart aware)</td><td><span class="ref">SMSReceiver.kt:137</span> <code>sendSms()</code></td></tr>
+      <tr><td>Forward to Telegram</td><td><span class="ref">SMSReceiver.kt:178</span> <code>sendTelegramMessage()</code></td></tr>
+      <tr><td>Cloud upload hook (gated by pref)</td><td><span class="ref">SMSReceiver.kt:126</span> <code>IS_CLOUD_CHANNEL_ENABLED</code> → <code>SmsCloudUploader</code></td></tr>
+      <tr><td>Foreground service start / self‑heal alarm</td><td><span class="ref">SMSForwarderService.kt:36</span> <code>onStartCommand()</code>, <span class="ref">:60</span> <code>scheduleServiceRestart()</code></td></tr>
+      <tr><td>Runtime receiver registration</td><td><span class="ref">SMSForwarderService.kt:139</span> <code>startListeningForSms()</code></td></tr>
+      <tr><td>Restart on boot / killed</td><td><span class="ref">ServiceRestartReceiver.kt:10</span> <code>onReceive()</code></td></tr>
+      <tr><td>Build encrypted SMS payload</td><td><span class="ref">CloudSmsPayload.kt</span> <code>@Serializable</code></td></tr>
+      <tr><td>HPKE template + seal / open (RFC 9180)</td><td><span class="ref">HpkeCrypto.kt:20</span> <code>HPKE_TEMPLATE</code>, <span class="ref">:46</span> <code>seal()</code>, <span class="ref">:51</span> <code>open()</code></td></tr>
+      <tr><td>AES‑256‑GCM body encrypt / decrypt</td><td><span class="ref">HpkeCrypto.kt:65</span> <code>encryptBody()</code>, <span class="ref">:72</span> <code>decryptBody()</code></td></tr>
+      <tr><td>Keystore‑sealed identity key; wrap/unwrap DEK</td><td><span class="ref">CryptoManager.kt:22</span> <code>ensureIdentityKey()</code>, <span class="ref">:38</span> <code>sealDekTo()</code>, <span class="ref">:40</span> <code>openWrappedDek()</code></td></tr>
+      <tr><td>Choose recipients (admin + granted readers + self)</td><td><span class="ref">RecipientSelector.kt:4</span> <code>recipientDeviceIds()</code></td></tr>
+      <tr><td>Encrypt + fan‑out one copy per recipient inbox</td><td><span class="ref">CloudMessageRepository.kt:43</span> <code>buildFanOut()</code>, <span class="ref">:68</span> <code>pushFanOut()</code></td></tr>
+      <tr><td>Upload orchestration + offline queue</td><td><span class="ref">SmsCloudUploader.kt:22</span> <code>upload()</code>, <span class="ref">:50</span> <code>flushQueue()</code></td></tr>
+      <tr><td>Read own inbox + decrypt</td><td><span class="ref">CloudMessageRepository.kt:90</span> <code>listForReader()</code>, <span class="ref">:102</span> <code>decrypt()</code></td></tr>
+      <tr><td>Live updates (Firestore snapshot listener)</td><td><span class="ref">CloudViewModel.kt:111</span> <code>startRealtime()</code></td></tr>
+      <tr><td>Device registration + key publish on sign‑in</td><td><span class="ref">CloudViewModel.kt:76</span> <code>onAuthenticatedInternal()</code> → <span class="ref">DeviceRepository.kt:17</span> <code>registerThisDevice()</code></td></tr>
+      <tr><td>Google sign‑in (button flow)</td><td><span class="ref">SignInScreen.kt</span> <code>GetSignInWithGoogleOption</code> → <span class="ref">AuthRepository.kt:33</span> <code>signInGoogle()</code></td></tr>
+      <tr><td>Allow‑list check / request access</td><td><span class="ref">AuthRepository.kt:39</span> <code>isAuthorized()</code>, <span class="ref">:51</span> <code>requestAccess()</code></td></tr>
+      <tr><td>Auth gate (sign‑in → request‑access → cloud)</td><td><span class="ref">CloudNav.kt:21‑22</span> <code>!signedIn / !authorized</code></td></tr>
+      <tr><td>Admin: grant access / approve request</td><td><span class="ref">AccessRepository.kt:42</span> <code>grantAccess()</code>, <span class="ref">:28</span> <code>approveRequest()</code></td></tr>
+      <tr><td>Push: decrypt + local notification</td><td><span class="ref">SmsForwarderFcmService.kt:31</span> <code>onMessageReceived()</code>, <span class="ref">:25</span> <code>onNewToken()</code></td></tr>
+      <tr><td>Update check + version compare</td><td><span class="ref">UpdateChecker.kt:61</span> <code>checkForUpdate()</code>, <span class="ref">:45</span> <code>isNewer()</code></td></tr>
+      <tr><td>Persisted update state (indicator, auto‑clear)</td><td><span class="ref">UpdateManager.kt</span> <code>refresh()</code> / <code>available()</code> · pref <code>STORED_UPDATE</code></td></tr>
+      <tr><td>Download + install update</td><td><span class="ref">UpdateInstaller.kt:45</span> <code>startUpdate()</code> · <span class="ref">UpdateDialog.kt:27</span> <code>UpdateDialogHost()</code></td></tr>
+      <tr><td>App entry / nav / launch update check</td><td><span class="ref">MainActivity.kt:71</span> <code>setContent</code>, <span class="ref">:86</span> <code>UpdateDialogHost()</code>, <span class="ref">:175</span> <code>checkAndStartService()</code></td></tr>
+    </table></div>
+
+    <!-- ============================ DEV: CRYPTO ============================ -->
+    <h2>5 · End‑to‑end encryption <span class="pill dev">dev</span></h2>
+    <p>Envelope (hybrid) crypto. The server never holds a usable key.</p>
+    <ul>
+      <li><b>Identity keys:</b> each reader/admin device has an HPKE key pair (Tink, <code>DHKEM(P‑256)+HKDF‑SHA256+AES‑256‑GCM</code>). The private keyset is sealed at rest by an Android Keystore master key; the public key is published on the device's Firestore doc. Senders hold <i>no</i> private key.</li>
+      <li><b>Per message:</b> a random AES‑256‑GCM Data Key (DEK) encrypts the SMS JSON; the DEK is HPKE‑sealed to each authorized recipient's public key.</li>
+      <li><b>Fan‑out:</b> one copy per recipient at <code>inbox/{recipientDeviceId}/messages/{messageId}</code> (shared <code>messageId</code>). Admin + the source device itself are always recipients.</li>
+      <li><b>Access control = crypto + rules:</b> an unauthorized device gets no wrapped DEK <i>and</i> Firestore rules deny the read.</li>
+    </ul>
+
+    <!-- ============================ DEV: BACKEND ============================ -->
+    <h2>6 · Backend (Firebase) <span class="pill dev">dev</span></h2>
+    <p>Project <code>v2k-sms-sync</code>. Firestore (storage + realtime), Firebase Auth (email + Google), Cloud Functions (FCM), all under <code>firebase/</code>.</p>
+    <h3>Firestore collections</h3>
+    <div class="flow">authorized_emails/{email}            { role: admin|member }
+devices/{deviceId}                   { ownerEmail, alias, publicKey, keyVersion, fcmToken, revoked }
+access_matrix/{reader__source}       (admin-set: who may read whom)
+subscriptions/{reader__source}       { notify }            (reader-set)
+inbox/{deviceId}/messages/{msgId}    { sourceDeviceId, ciphertext, nonce, wrappedDek, createdAt }
+access_requests/{email}              { status:'pending', displayName }  (self-service signup)</div>
+    <h3>Security rules — key gates</h3>
+    <div class="tablewrap"><table>
+      <tr><th>Rule</th><th>Location</th></tr>
+      <tr><td>Allow‑list gates everything (<code>isAuthorized()</code>, <code>isAdmin()</code>)</td><td><span class="ref">firestore.rules:5‑20</span></td></tr>
+      <tr><td>Device owner can't be hijacked (owner immutable on update)</td><td><span class="ref">firestore.rules:29</span></td></tr>
+      <tr><td>Inbox create only by the genuine source, to admin/granted reader</td><td><span class="ref">firestore.rules:47‑49</span></td></tr>
+      <tr><td>Self‑service access request (own pending doc only)</td><td><span class="ref">firestore.rules:61‑62</span></td></tr>
+    </table></div>
+    <h3>Cloud Function</h3>
+    <p><span class="ref">functions/src/index.ts:13</span> <code>notifyReader</code> — triggers on inbox <code>onDocumentCreated</code>, reads the recipient's <code>fcmToken</code> + <code>notify</code> flag, and sends a <b>silent FCM data message</b> (no plaintext). The app decrypts locally.</p>
+
+    <!-- ============================ DEV: RELEASE ============================ -->
+    <h2>7 · Release &amp; CI <span class="pill dev">dev</span></h2>
+    <ul>
+      <li><b>Cut a release:</b> <code>uv run scripts/release.py</code> (interactive: confirm tag+changelog → confirm push) or <code>-y</code> for automatic. It refuses if HEAD is already the latest tag.</li>
+      <li><b>Pipeline:</b> pushing a <code>v*</code> tag runs <code>.github/workflows/release.yml</code> → decodes <code>google-services.json</code> + keystore from secrets → builds a <b>single signed</b> <code>sms-forwarder-&lt;version&gt;.apk</code> → publishes a GitHub Release with the generated changelog.</li>
+      <li><b>Signing:</b> the shared keystore <code>viswa2k.jks</code> (alias <code>viswa2k</code>); its SHA‑1/256 are registered in Firebase so Google sign‑in works.</li>
+      <li><b>Secrets:</b> <code>GOOGLE_SERVICES_JSON</code>, <code>GOOGLE_WEB_CLIENT_ID</code>, <code>RELEASE_KEYSTORE_BASE64</code>, <code>RELEASE_STORE_PASSWORD</code>, <code>RELEASE_KEY_ALIAS</code>, <code>RELEASE_KEY_PASSWORD</code>.</li>
+      <li><b>In‑app updater</b> consumes these releases via the public <code>releases/latest</code> API.</li>
+    </ul>
+
+    <!-- ============================ DEV: OPS LOG ============================ -->
+    <h2>8 · Operations log <span class="pill dev">dev</span></h2>
+    <div class="note ok"><b>Build offload:</b> heavy builds/tests run on the remote Mac Studio (<code>ssh studio</code>, alias is lowercase). Android SDK at <code>/opt/homebrew/share/android-commandlinetools</code>; Java = Android Studio JBR 21. Repo synced via <code>rsync</code> to <code>~/sms-forwarder</code>; <code>local.properties</code> there points at the Studio SDK. (Genymotion not used — not supported on Apple Silicon; use the native AVD.)</div>
+    <div class="note"><b>Deployed:</b> Firestore rules + indexes to <code>v2k-sms-sync</code> (incl. <code>access_requests</code>). Cloud Function <code>notifyReader</code> requires the Blaze plan to deploy.</div>
+    <div class="note"><b>Auth setup:</b> signing SHA‑1/256 registered in Firebase; <code>GOOGLE_SERVICES_JSON</code> secret refreshed with the OAuth‑client config (updated 09:14Z, before the v1.1.4 build at 09:26Z).</div>
+    <div class="note"><b>Releases:</b> v1.1.2/v1.1.3 (ABI‑split → then single APK), <b>v1.1.4</b> = current (sign‑in fix + request‑access + correct config, single signed APK).</div>
+    <div class="note warn"><b>Known quirk:</b> the <code>v1.1.4</code> tag points at a squash‑merged branch commit, so <code>last_tag()</code> from <code>main</code> resolves to v1.1.3 — the next release should be cut as an explicit <code>v1.1.5</code>.</div>
+  </div>
+
+  <footer>
+    SMS Forwarder wiki · generated for <code>com.viswa2k.smsforwarder</code> · toggle <b>User / Developer</b> at the top. Source references reflect v1.1.4.
+  </footer>
+</div>
+
+<script>
+  function setMode(m){
+    document.body.dataset.mode=m;
+    try{localStorage.setItem('wikiMode',m)}catch(e){}
+    document.querySelectorAll('.mode-btn').forEach(function(b){b.classList.toggle('active',b.dataset.m===m)});
+  }
+  (function(){
+    var saved='user';
+    try{saved=localStorage.getItem('wikiMode')||'user'}catch(e){}
+    setMode(saved);
+  })();
+</script>
