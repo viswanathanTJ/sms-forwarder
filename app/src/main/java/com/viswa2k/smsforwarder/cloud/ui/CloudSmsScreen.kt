@@ -7,6 +7,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -14,9 +15,15 @@ import androidx.compose.ui.unit.dp
 fun CloudSmsScreen(vm: CloudViewModel, onOpenWatch: () -> Unit, onOpenAdmin: () -> Unit) {
     val messages by vm.messages.collectAsState()
     val isAdmin by vm.isAdmin.collectAsState()
+    var menuOpen by remember { mutableStateOf(false) }
+    var showPasswordDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) { vm.refreshMessages(); vm.startRealtime() }
     DisposableEffect(Unit) { onDispose { vm.stopRealtime() } }
+
+    if (showPasswordDialog) {
+        SetPasswordDialog(vm) { showPasswordDialog = false }
+    }
 
     Scaffold(
         topBar = {
@@ -25,7 +32,17 @@ fun CloudSmsScreen(vm: CloudViewModel, onOpenWatch: () -> Unit, onOpenAdmin: () 
                 actions = {
                     TextButton(onClick = onOpenWatch) { Text("Watch") }
                     if (isAdmin) TextButton(onClick = onOpenAdmin) { Text("Admin") }
-                    TextButton(onClick = { vm.signOut() }) { Text("Sign out") }
+                    TextButton(onClick = { menuOpen = true }) { Text("More") }
+                    DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                        DropdownMenuItem(
+                            text = { Text(if (vm.hasPasswordProvider()) "Change password" else "Set password") },
+                            onClick = { menuOpen = false; showPasswordDialog = true },
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Sign out") },
+                            onClick = { menuOpen = false; vm.signOut() },
+                        )
+                    }
                 },
             )
         },
@@ -64,4 +81,43 @@ fun CloudSmsScreen(vm: CloudViewModel, onOpenWatch: () -> Unit, onOpenAdmin: () 
             }
         }
     }
+}
+
+@Composable
+private fun SetPasswordDialog(vm: CloudViewModel, onDismiss: () -> Unit) {
+    var pw1 by remember { mutableStateOf("") }
+    var pw2 by remember { mutableStateOf("") }
+    var busy by remember { mutableStateOf(false) }
+    var msg by remember { mutableStateOf<String?>(null) }
+    var done by remember { mutableStateOf(false) }
+    val email = vm.email.collectAsState().value ?: ""
+    val mismatch = pw2.isNotEmpty() && pw1 != pw2
+
+    AlertDialog(
+        onDismissRequest = { if (!busy) onDismiss() },
+        title = { Text(if (vm.hasPasswordProvider()) "Change password" else "Set password") },
+        text = {
+            Column {
+                Text("For $email", style = MaterialTheme.typography.bodyMedium)
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(pw1, { pw1 = it }, label = { Text("New password (6+)") }, singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth())
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(pw2, { pw2 = it }, label = { Text("Confirm password") }, singleLine = true,
+                    isError = mismatch, visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth())
+                msg?.let { Spacer(Modifier.height(8.dp)); Text(it, color = if (done) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error) }
+            }
+        },
+        confirmButton = {
+            if (done) {
+                TextButton(onClick = onDismiss) { Text("Done") }
+            } else {
+                TextButton(
+                    enabled = !busy && pw1.length >= 6 && pw1 == pw2,
+                    onClick = { busy = true; msg = null; vm.setPassword(pw1) { ok, m -> busy = false; msg = m; done = ok } },
+                ) { Text("Save") }
+            }
+        },
+        dismissButton = { if (!done) TextButton(onClick = onDismiss, enabled = !busy) { Text("Cancel") } },
+    )
 }
