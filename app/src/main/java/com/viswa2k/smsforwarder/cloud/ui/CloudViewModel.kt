@@ -138,13 +138,20 @@ class CloudViewModel(app: Application) : AndroidViewModel(app) {
         resetAuthState()
     }
 
-    /** Debug-only: upload a synthetic SMS to exercise the full encrypt→fan-out→inbox→decrypt path. */
+    /** Debug-only: upload a few synthetic SMS to exercise the full encrypt→fan-out→inbox→decrypt path. */
     fun sendTestMessage(onResult: (String) -> Unit) = viewModelScope.launch {
-        val r = runCatching {
-            SmsCloudUploader.get(getApplication())
-                .upload("+10000000000", "Test message ${System.currentTimeMillis() % 100000}", System.currentTimeMillis(), force = true)
+        val samples = listOf(
+            "VM-BANK" to "Your OTP is 482913. Valid for 10 minutes. Do not share it with anyone.",
+            "+14155550101" to "Hey! Are we still on for dinner tonight at 8?",
+            "DELIVERY" to "Your package has been delivered to your doorstep. Thanks for shopping!",
+            "+919876543210" to "Rs.2,500 debited from a/c **1234 on 22-Jun. Avl bal: Rs.18,200.",
+        )
+        val uploader = SmsCloudUploader.get(getApplication())
+        var ok = 0
+        for ((from, body) in samples) {
+            runCatching { uploader.upload(from, body, System.currentTimeMillis(), force = true) }.onSuccess { ok++ }
         }
-        onResult(if (r.isSuccess) "Test message uploaded" else "Failed: ${r.exceptionOrNull()?.message}")
+        onResult("Uploaded $ok/${samples.size} sample messages")
         refreshMessages()
     }
 
