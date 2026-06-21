@@ -35,26 +35,33 @@ fun UpdateDialogHost() {
 
     val update = info
     if (update != null && !dismissed) {
-        AlertDialog(
-            onDismissRequest = { dismissed = true },
-            title = { Text("Update available: ${update.version}") },
-            text = {
-                Text(
-                    text = update.notes.ifBlank { "A new version is available." },
-                    modifier = Modifier
-                        .heightIn(max = 280.dp)
-                        .verticalScroll(rememberScrollState()),
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    dismissed = true
-                    UpdateInstaller.startUpdate(context, update)
-                }) { Text("Install") }
-            },
-            dismissButton = {
-                TextButton(onClick = { dismissed = true }) { Text("Later") }
-            },
-        )
+        UpdatePromptDialog(update = update, onDismiss = { dismissed = true })
     }
+}
+
+/** The "update available" dialog, reused by the launch check and the manual Settings check. */
+@Composable
+fun UpdatePromptDialog(update: UpdateInfo, onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Update available: ${update.version}") },
+        text = {
+            Text(
+                text = update.notes.ifBlank { "A new version is available." },
+                modifier = Modifier
+                    .heightIn(max = 280.dp)
+                    .verticalScroll(rememberScrollState()),
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                onDismiss()
+                UpdateInstaller.startUpdate(context, update)
+            }) { Text("Install") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Later") }
+        },
+    )
 }

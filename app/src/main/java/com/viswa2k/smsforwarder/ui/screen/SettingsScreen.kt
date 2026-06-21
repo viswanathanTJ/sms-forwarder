@@ -16,10 +16,15 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.viswa2k.smsforwarder.BuildConfig
 import com.viswa2k.smsforwarder.SmsForwarderService
 import com.viswa2k.smsforwarder.UserPreferences
+import com.viswa2k.smsforwarder.cloud.update.UpdateChecker
+import com.viswa2k.smsforwarder.cloud.update.UpdateInfo
+import com.viswa2k.smsforwarder.cloud.update.UpdatePromptDialog
 import com.viswa2k.smsforwarder.ui.screen.SettingsViewModel
 import com.viswa2k.smsforwarder.ui.screen.SettingsViewModelFactory
+import kotlinx.coroutines.launch
 
 @Composable
 fun SettingsScreen(userPreferences: UserPreferences, modifier: Modifier = Modifier, onOpenCloud: () -> Unit = {}) {
@@ -40,6 +45,11 @@ fun SettingsScreen(userPreferences: UserPreferences, modifier: Modifier = Modifi
     val telegramUserIds by viewModel.telegramUserIds.collectAsState()
     val isCloudChannelEnabled by viewModel.isCloudChannelEnabled.collectAsState()
     val isReceiveEnabled by viewModel.isReceiveEnabled.collectAsState()
+
+    // Manual "check for updates" state
+    val scope = rememberCoroutineScope()
+    var checkingUpdate by remember { mutableStateOf(false) }
+    var manualUpdate by remember { mutableStateOf<UpdateInfo?>(null) }
 
     // Use LazyColumn for scrolling
     LazyColumn(modifier = modifier.padding(16.dp)) {
@@ -240,6 +250,49 @@ fun SettingsScreen(userPreferences: UserPreferences, modifier: Modifier = Modifi
                         }
                     }
                 }
+
+            // About / Updates Card
+            Card(
+                modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+                shape = MaterialTheme.shapes.medium
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text("About", style = MaterialTheme.typography.titleMedium)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Version ${BuildConfig.VERSION_NAME}",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedButton(
+                        onClick = {
+                            checkingUpdate = true
+                            scope.launch {
+                                val found = UpdateChecker.checkForUpdate(BuildConfig.VERSION_NAME)
+                                checkingUpdate = false
+                                if (found != null) {
+                                    manualUpdate = found
+                                } else {
+                                    Toast.makeText(
+                                        context,
+                                        "You're on the latest version (${BuildConfig.VERSION_NAME})",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                            }
+                        },
+                        enabled = !checkingUpdate,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(if (checkingUpdate) "Checking…" else "Check for updates")
+                    }
+                }
+            }
+
+            manualUpdate?.let { update ->
+                UpdatePromptDialog(update = update, onDismiss = { manualUpdate = null })
+            }
 
             // Save Settings Button
             Row(
