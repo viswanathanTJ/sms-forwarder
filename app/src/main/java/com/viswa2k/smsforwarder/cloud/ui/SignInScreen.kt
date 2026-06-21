@@ -26,6 +26,7 @@ fun SignInScreen(vm: CloudViewModel) {
     var password by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
     var busy by remember { mutableStateOf(false) }
+    var signUpMode by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
@@ -33,19 +34,35 @@ fun SignInScreen(vm: CloudViewModel) {
         Modifier.fillMaxSize().padding(24.dp),
         verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text("Cloud SMS Sign-in", style = MaterialTheme.typography.headlineSmall)
+        Text(if (signUpMode) "Create Cloud SMS account" else "Cloud SMS Sign-in", style = MaterialTheme.typography.headlineSmall)
         Spacer(Modifier.height(16.dp))
         OutlinedTextField(email, { email = it }, label = { Text("Email") }, singleLine = true, modifier = Modifier.fillMaxWidth())
         Spacer(Modifier.height(8.dp))
         OutlinedTextField(password, { password = it }, label = { Text("Password") }, singleLine = true,
             visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth())
+        if (signUpMode) {
+            Spacer(Modifier.height(4.dp))
+            Text(
+                "After creating your account you'll request access; an admin must approve it before you can read messages.",
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
         error?.let { Spacer(Modifier.height(8.dp)); Text(it, color = MaterialTheme.colorScheme.error) }
         Spacer(Modifier.height(16.dp))
         Button(
-            onClick = { busy = true; error = null; vm.signInEmail(email.trim(), password) { busy = false; error = it } },
-            enabled = !busy && email.isNotBlank() && password.isNotBlank(),
+            onClick = {
+                busy = true; error = null
+                val onErr: (String) -> Unit = { busy = false; error = it }
+                if (signUpMode) vm.signUpEmail(email.trim(), password, onErr)
+                else vm.signInEmail(email.trim(), password, onErr)
+            },
+            enabled = !busy && email.isNotBlank() && password.length >= 6,
             modifier = Modifier.fillMaxWidth(),
-        ) { Text("Sign in") }
+        ) { Text(if (signUpMode) "Create account" else "Sign in") }
+        Spacer(Modifier.height(4.dp))
+        TextButton(onClick = { error = null; signUpMode = !signUpMode }, enabled = !busy) {
+            Text(if (signUpMode) "Have an account? Sign in" else "New here? Create an account")
+        }
         Spacer(Modifier.height(8.dp))
         OutlinedButton(
             onClick = {

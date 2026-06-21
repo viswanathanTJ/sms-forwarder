@@ -67,6 +67,18 @@ class CloudViewModel(app: Application) : AndroidViewModel(app) {
             .onFailure { onError(it.message ?: "Sign-in failed") }
     }
 
+    fun signUpEmail(email: String, password: String, onError: (String) -> Unit) = viewModelScope.launch {
+        // Creating the auth account grants no access on its own — the authorized_emails
+        // allow-list (admin approval) still gates all data. We auto-submit the access
+        // request on first sign-up so the user lands directly on "waiting for approval"
+        // instead of a separate "request access" step.
+        runCatching {
+            auth.signUpEmail(email, password)
+            auth.requestAccess()
+        }.onFailure { onError(it.message ?: "Sign-up failed"); return@launch }
+        _pendingRequest.value = true
+    }
+
     fun signInGoogle(idToken: String, onError: (String) -> Unit) = viewModelScope.launch {
         runCatching { auth.signInGoogle(idToken) }
             .onFailure { onError(it.message ?: "Google sign-in failed") }
