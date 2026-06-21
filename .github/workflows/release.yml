@@ -61,14 +61,11 @@ jobs:
             -PVERSION_CODE="${{ steps.ver.outputs.code }}" \
             -PGOOGLE_WEB_CLIENT_ID="${{ secrets.GOOGLE_WEB_CLIENT_ID }}"
 
-      - name: Stage APKs with version in filename
+      - name: Stage APK with version in filename
         run: |
           mkdir -p dist
-          for f in app/build/outputs/apk/release/*.apk; do
-            base=$(basename "$f" .apk)            # e.g. app-arm64-v8a-release
-            abi=${base#app-}; abi=${abi%-release} # e.g. arm64-v8a / universal
-            cp "$f" "dist/sms-forwarder-${{ steps.ver.outputs.name }}-${abi}.apk"
-          done
+          cp app/build/outputs/apk/release/app-release.apk \
+            "dist/sms-forwarder-${{ steps.ver.outputs.name }}.apk"
           ls -lh dist
 
       - name: Create GitHub Release

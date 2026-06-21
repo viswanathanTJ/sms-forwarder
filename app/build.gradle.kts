@@ -48,15 +48,9 @@ android {
         }
     }
 
-    // Per-ABI split APKs (arm64-v8a, armeabi-v7a, x86, x86_64) plus a universal APK.
-    splits {
-        abi {
-            isEnable = true
-            reset()
-            include("armeabi-v7a", "arm64-v8a", "x86", "x86_64")
-            isUniversalApk = true
-        }
-    }
+    // No ABI splits: the only native lib is AndroidX DataStore's ~7 KB shared-counter
+    // .so, so per-ABI APKs differ from the universal by only ~21 KB. A single APK that
+    // works on every device is simpler for sideloading.
 
     buildTypes {
         release {
