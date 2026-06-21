@@ -41,3 +41,18 @@
 # Keep source file names and line numbers
 -keepattributes SourceFile,LineNumberTable
 -renamesourcefileattribute SourceFile
+
+# kotlinx.serialization — keep generated serializers for our @Serializable models
+# (CloudSmsPayload, CloudMessageRepository.FanOut/RecipientCopy used for the offline queue)
+-keepattributes *Annotation*, InnerClasses
+-keepclassmembers @kotlinx.serialization.Serializable class com.viswa2k.smsforwarder.** {
+    *** Companion;
+    *** INSTANCE;
+    kotlinx.serialization.KSerializer serializer(...);
+}
+-keep,includedescriptorclasses class com.viswa2k.smsforwarder.**$$serializer { *; }
+
+# Google Tink (HPKE/AEAD) registers primitives reflectively
+-keep class com.google.crypto.tink.** { *; }
+-keep class com.google.crypto.tink.shaded.protobuf.** { *; }
+-dontwarn com.google.crypto.tink.**
