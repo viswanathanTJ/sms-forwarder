@@ -9,28 +9,65 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
+import android.net.NetworkRequest
 import android.os.Build
 import android.os.IBinder
 import android.os.SystemClock
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
+import com.viswa2k.smsforwarder.cloud.data.SmsCloudUploader
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 
 class SmsForwarderService : Service() {
 
     private lateinit var smsReceiver: SmsReceiver
     private var isReceiverRegistered = false // Track receiver registration status
 
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private var connectivityManager: ConnectivityManager? = null
+    private var networkCallback: ConnectivityManager.NetworkCallback? = null
+
     override fun onCreate() {
         super.onCreate()
         Log.d("SmsForwarderService", "Service created.")
         smsReceiver = SmsReceiver()
-        
+
+        // Flush any queued cloud uploads as soon as the network comes back, instead of
+        // waiting for the next app launch / sign-in.
+        registerConnectivityFlush()
+
         // Reset retry count on successful service creation
         getSharedPreferences("service_prefs", Context.MODE_PRIVATE)
             .edit()
             .putInt("retry_count", 0)
             .apply()
+    }
+
+    private fun registerConnectivityFlush() {
+        val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager ?: return
+        connectivityManager = cm
+        val request = NetworkRequest.Builder()
+            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            .build()
+        val callback = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                serviceScope.launch {
+                    runCatching { SmsCloudUploader.get(applicationContext).flushQueue() }
+                        .onFailure { Log.w("SmsForwarderService", "Connectivity flush failed", it) }
+                }
+            }
+        }
+        networkCallback = callback
+        runCatching { cm.registerNetworkCallback(request, callback) }
+            .onFailure { Log.w("SmsForwarderService", "registerNetworkCallback failed", it) }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -133,6 +170,9 @@ class SmsForwarderService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         stopListeningForSms()
+        networkCallback?.let { cb -> runCatching { connectivityManager?.unregisterNetworkCallback(cb) } }
+        networkCallback = null
+        serviceScope.cancel()
         Log.d("SmsForwarderService", "Service destroyed.")
     }
 

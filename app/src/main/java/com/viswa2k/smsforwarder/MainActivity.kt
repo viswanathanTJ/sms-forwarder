@@ -56,7 +56,7 @@ class MainActivity : ComponentActivity() {
             checkAndStartService()
             try {
                 if (userPreferences.isCloudChannelEnabled.first()) {
-                    com.viswa2k.smsforwarder.cloud.data.SmsCloudUploader(applicationContext).flushQueue()
+                    com.viswa2k.smsforwarder.cloud.data.SmsCloudUploader.get(applicationContext).flushQueue()
                 }
             } catch (e: Exception) { Log.e("MainActivity", "queue flush failed", e) }
         }

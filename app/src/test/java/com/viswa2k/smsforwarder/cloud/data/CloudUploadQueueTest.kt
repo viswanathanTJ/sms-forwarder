@@ -23,4 +23,18 @@ class CloudUploadQueueTest {
         q.remove(a)
         assertEquals(listOf("b"), q.pending().map { it.messageId })
     }
+
+    @Test
+    fun enqueue_beyondCap_evictsOldest() {
+        val q = CloudUploadQueue(tmp.newFolder("queue"), maxItems = 3)
+        listOf("a", "b", "c", "d", "e").forEach {
+            q.enqueue(fanOut(it))
+            // ensure distinct lastModified ordering across filesystems
+            Thread.sleep(2)
+        }
+        val ids = q.pending().map { it.messageId }
+        assertEquals(3, ids.size)
+        // oldest ("a","b") evicted, newest retained
+        assertEquals(listOf("c", "d", "e"), ids)
+    }
 }
