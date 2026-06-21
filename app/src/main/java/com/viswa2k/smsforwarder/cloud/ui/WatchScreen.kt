@@ -20,10 +20,12 @@ fun WatchScreen(vm: CloudViewModel, onBack: () -> Unit) {
     var watchedNotify by remember { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
 
     LaunchedEffect(Unit) {
-        myDeviceId = vm.myDeviceId()
-        val sources = vm.accessRepository().allowedSources(myDeviceId).toSet()
-        allowed = vm.fleetDevices().filter { it.id in sources }
-        watchedNotify = vm.accessRepository().listSubscriptions(myDeviceId).associate { it.sourceDeviceId to it.notify }
+        runCatching {
+            myDeviceId = vm.myDeviceId()
+            val sources = vm.accessRepository().allowedSources(myDeviceId).toSet()
+            allowed = vm.fleetDevices().filter { it.id in sources }
+            watchedNotify = vm.accessRepository().listSubscriptions(myDeviceId).associate { it.sourceDeviceId to it.notify }
+        }
     }
 
     Scaffold(
@@ -40,9 +42,12 @@ fun WatchScreen(vm: CloudViewModel, onBack: () -> Unit) {
                             Text(dev.alias, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
                             Switch(checked = watched, onCheckedChange = { on ->
                                 scope.launch {
-                                    if (on) vm.accessRepository().subscribe(myDeviceId, sourceId, true)
-                                    else vm.accessRepository().unsubscribe(myDeviceId, sourceId)
-                                    watchedNotify = if (on) watchedNotify + (sourceId to true) else watchedNotify - sourceId
+                                    runCatching {
+                                        if (on) vm.accessRepository().subscribe(myDeviceId, sourceId, true)
+                                        else vm.accessRepository().unsubscribe(myDeviceId, sourceId)
+                                    }.onSuccess {
+                                        watchedNotify = if (on) watchedNotify + (sourceId to true) else watchedNotify - sourceId
+                                    }
                                 }
                             })
                         }
@@ -51,8 +56,8 @@ fun WatchScreen(vm: CloudViewModel, onBack: () -> Unit) {
                                 Text("Notify", Modifier.weight(1f))
                                 Switch(checked = notify, onCheckedChange = { on ->
                                     scope.launch {
-                                        vm.accessRepository().setNotify(myDeviceId, sourceId, on)
-                                        watchedNotify = watchedNotify + (sourceId to on)
+                                        runCatching { vm.accessRepository().setNotify(myDeviceId, sourceId, on) }
+                                            .onSuccess { watchedNotify = watchedNotify + (sourceId to on) }
                                     }
                                 })
                             }

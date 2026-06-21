@@ -69,8 +69,8 @@ class MainActivity : ComponentActivity() {
 
         // Set the content view
         setContent {
-            MaterialTheme {
-                Surface {
+            com.viswa2k.smsforwarder.ui.theme.SMSForwarderTheme {
+                Surface(color = MaterialTheme.colorScheme.background) {
                     val cloudVm: com.viswa2k.smsforwarder.cloud.ui.CloudViewModel =
                         androidx.lifecycle.viewmodel.compose.viewModel()
                     val nav = rememberNavController()
