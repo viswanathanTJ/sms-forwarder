@@ -13,6 +13,10 @@ import com.viswa2k.smsforwarder.cloud.data.AuthorizedEmail
 import com.viswa2k.smsforwarder.cloud.data.Device
 import kotlinx.coroutines.launch
 
+/** Disambiguates same-named devices with a short id, and tags the current device. */
+private fun chipLabel(d: Device, myDeviceId: String): String =
+    d.alias.ifBlank { "(unnamed)" } + " ·" + d.id.take(4) + if (d.id == myDeviceId) " ★" else ""
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AdminScreen(vm: CloudViewModel, onBack: () -> Unit) {
@@ -113,10 +117,10 @@ fun AdminScreen(vm: CloudViewModel, onBack: () -> Unit) {
             item {
                 Column {
                     Text("Reader device:")
-                    devices.forEach { d -> FilterChip(selected = readerSel == d.id, onClick = { readerSel = d.id }, label = { Text(d.alias) }) }
+                    devices.forEach { d -> FilterChip(selected = readerSel == d.id, onClick = { readerSel = d.id }, label = { Text(chipLabel(d, myDeviceId)) }) }
                     Spacer(Modifier.height(8.dp))
                     Text("Source device:")
-                    devices.forEach { d -> FilterChip(selected = sourceSel == d.id, onClick = { sourceSel = d.id }, label = { Text(d.alias) }) }
+                    devices.forEach { d -> FilterChip(selected = sourceSel == d.id, onClick = { sourceSel = d.id }, label = { Text(chipLabel(d, myDeviceId)) }) }
                     Button(
                         enabled = readerSel != null && sourceSel != null && readerSel != sourceSel,
                         onClick = { scope.launch { access.grantAccess(readerSel!!, sourceSel!!, adminEmail) } },
@@ -124,12 +128,29 @@ fun AdminScreen(vm: CloudViewModel, onBack: () -> Unit) {
                 }
             }
 
-            item { Spacer(Modifier.height(16.dp)); Text("Devices", style = MaterialTheme.typography.titleMedium) }
+            item {
+                Spacer(Modifier.height(16.dp)); Text("Devices", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    "Each install is a separate device. Same name with a different id = a different/old install — remove stale ones.",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
             items(devices, key = { it.id }) { d ->
+                val isThis = d.id == myDeviceId
                 Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text("${d.alias}${if (d.revoked) " (revoked)" else ""}", Modifier.weight(1f))
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            buildString {
+                                append(d.alias.ifBlank { "(unnamed)" })
+                                if (isThis) append("  •  This device")
+                                if (d.revoked) append("  •  revoked")
+                            },
+                            style = MaterialTheme.typography.bodyLarge,
+                        )
+                        Text("id ${d.id.take(8)}  ·  ${d.ownerEmail}", style = MaterialTheme.typography.bodySmall)
+                    }
                     TextButton(onClick = { scope.launch { access.setDeviceRevoked(d.id, !d.revoked); reload() } }) { Text(if (d.revoked) "Un-revoke" else "Revoke") }
-                    if (d.id != myDeviceId) {
+                    if (!isThis) {
                         TextButton(onClick = { scope.launch { access.removeDeviceAndData(d.id); reload() } }) { Text("Remove") }
                     }
                 }

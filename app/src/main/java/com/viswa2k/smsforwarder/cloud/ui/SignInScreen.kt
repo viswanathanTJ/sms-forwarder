@@ -25,6 +25,7 @@ fun SignInScreen(vm: CloudViewModel) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
+    var info by remember { mutableStateOf<String?>(null) }
     var busy by remember { mutableStateOf(false) }
     var signUpMode by remember { mutableStateOf(false) }
     val context = LocalContext.current
@@ -48,10 +49,11 @@ fun SignInScreen(vm: CloudViewModel) {
             )
         }
         error?.let { Spacer(Modifier.height(8.dp)); Text(it, color = MaterialTheme.colorScheme.error) }
+        info?.let { Spacer(Modifier.height(8.dp)); Text(it, color = MaterialTheme.colorScheme.primary) }
         Spacer(Modifier.height(16.dp))
         Button(
             onClick = {
-                busy = true; error = null
+                busy = true; error = null; info = null
                 val onErr: (String) -> Unit = { busy = false; error = it }
                 if (signUpMode) vm.signUpEmail(email.trim(), password, onErr)
                 else vm.signInEmail(email.trim(), password, onErr)
@@ -60,8 +62,18 @@ fun SignInScreen(vm: CloudViewModel) {
             modifier = Modifier.fillMaxWidth(),
         ) { Text(if (signUpMode) "Create account" else "Sign in") }
         Spacer(Modifier.height(4.dp))
-        TextButton(onClick = { error = null; signUpMode = !signUpMode }, enabled = !busy) {
+        TextButton(onClick = { error = null; info = null; signUpMode = !signUpMode }, enabled = !busy) {
             Text(if (signUpMode) "Have an account? Sign in" else "New here? Create an account")
+        }
+        if (!signUpMode) {
+            TextButton(
+                onClick = {
+                    error = null; info = null
+                    if (email.isBlank()) { error = "Enter your email first, then tap Forgot password." }
+                    else { busy = true; vm.sendPasswordReset(email.trim()) { ok, msg -> busy = false; if (ok) info = msg else error = msg } }
+                },
+                enabled = !busy,
+            ) { Text("Forgot password? / Set a password") }
         }
         Spacer(Modifier.height(8.dp))
         OutlinedButton(

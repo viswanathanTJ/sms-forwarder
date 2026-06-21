@@ -79,6 +79,20 @@ class CloudViewModel(app: Application) : AndroidViewModel(app) {
         _pendingRequest.value = true
     }
 
+    fun hasPasswordProvider(): Boolean = auth.hasPasswordProvider()
+
+    fun setPassword(newPassword: String, onResult: (Boolean, String) -> Unit) = viewModelScope.launch {
+        runCatching { auth.setPassword(newPassword) }
+            .onSuccess { onResult(true, "Password set. You can now sign in with your email and this password.") }
+            .onFailure { onResult(false, it.message ?: "Could not set password") }
+    }
+
+    fun sendPasswordReset(email: String, onResult: (Boolean, String) -> Unit) = viewModelScope.launch {
+        runCatching { auth.sendPasswordReset(email) }
+            .onSuccess { onResult(true, "Password-reset email sent to $email. Open it to set a password, then sign in.") }
+            .onFailure { onResult(false, it.message ?: "Could not send reset email") }
+    }
+
     fun signInGoogle(idToken: String, onError: (String) -> Unit) = viewModelScope.launch {
         runCatching { auth.signInGoogle(idToken) }
             .onFailure { onError(it.message ?: "Google sign-in failed") }
