@@ -118,7 +118,11 @@
   <h2>Changelog</h2>
   <p class="muted">What each version does and what changed — newest first.</p>
   <div class="card">
-    <h3>v1.1.5 <span class="muted">— current</span></h3>
+    <h3>v1.1.6 <span class="muted">— current</span></h3>
+    <p><b>What's new:</b> Security &amp; robustness hardening. Each message is now cryptographically <b>bound to its source and recipient</b> (AAD/HPKE context), so a stored message can't be replayed or re‑attributed. Data keys are <b>zeroed</b> after use and the device's identity key <b>auto‑rotates ~every 30 days</b> (old keys kept so history still decrypts). The offline upload queue is <b>bounded</b> (capped + no head‑of‑line blocking). Admins can <b>Remove</b> a device and purge all its cloud data.</p>
+  </div>
+  <div class="card">
+    <h3>v1.1.5</h3>
     <p><b>What's new:</b> <b>Sign out</b> action on the Cloud SMS screen. <b>Admin page revamp</b> — a clear Cloud SMS overview plus a status dashboard (account &amp; role, this device, device/authorized/pending counts) above the management tools. <b>Smarter updates</b> — the manual “Check for updates” button is replaced by a persistent <b>Update available</b> indicator: the check runs automatically, the result is stored, and the prompt auto‑clears once the installed version matches the latest.</p>
   </div>
   <div class="card">
@@ -221,6 +225,8 @@ reader device: CloudSmsScreen ──snapshot listener──▶ inbox/{me}/messag
       <li><b>Per message:</b> a random AES‑256‑GCM Data Key (DEK) encrypts the SMS JSON; the DEK is HPKE‑sealed to each authorized recipient's public key.</li>
       <li><b>Fan‑out:</b> one copy per recipient at <code>inbox/{recipientDeviceId}/messages/{messageId}</code> (shared <code>messageId</code>). Admin + the source device itself are always recipients.</li>
       <li><b>Access control = crypto + rules:</b> an unauthorized device gets no wrapped DEK <i>and</i> Firestore rules deny the read.</li>
+      <li><b>Associated data (v1.1.6+):</b> the body AEAD binds <code>source|messageId</code> and each wrapped DEK binds <code>source|messageId|recipient</code>, so a stored message can't be replayed or re‑attributed. DEKs are zeroed after use.</li>
+      <li><b>Key rotation:</b> identity key auto‑rotates ~every 30 days on launch (<code>CloudViewModel.onAuthenticatedInternal</code> → <code>CryptoManager.rotateIdentityKey()</code>); old key versions stay in the keyset so historical messages still decrypt.</li>
     </ul>
 
     <!-- ============================ DEV: BACKEND ============================ -->
