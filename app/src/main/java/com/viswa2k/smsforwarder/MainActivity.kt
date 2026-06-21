@@ -82,6 +82,8 @@ class MainActivity : ComponentActivity() {
                             com.viswa2k.smsforwarder.cloud.ui.CloudNav(cloudVm)
                         }
                     }
+                    // Checks GitHub Releases on launch; prompts to install if a newer APK exists.
+                    com.viswa2k.smsforwarder.cloud.update.UpdateDialogHost()
                 }
             }
         }
