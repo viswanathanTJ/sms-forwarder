@@ -8,6 +8,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -16,30 +17,30 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import com.viswa2k.smsforwarder.BuildConfig
+import com.viswa2k.smsforwarder.UserPreferences
+import com.viswa2k.smsforwarder.dataStore
 
 /**
- * On first composition, checks GitHub Releases for a newer version and, if found,
- * shows a dismissible dialog offering to download + install it. No-op when the
- * app is up to date or the check fails (offline, etc.).
+ * Refreshes the update check on launch and, if a newer version is available
+ * (from the persisted [UpdateManager] state), shows a dismissible prompt.
+ * The persistent indicator lives in Settings → About; this is just the launch nudge.
  */
 @Composable
 fun UpdateDialogHost() {
     val context = LocalContext.current
-    var info by remember { mutableStateOf<UpdateInfo?>(null) }
+    val prefs = remember { UserPreferences(context.dataStore) }
+    val update by UpdateManager.available(prefs).collectAsState(initial = null)
     var dismissed by rememberSaveable { mutableStateOf(false) }
 
-    LaunchedEffect(Unit) {
-        info = UpdateChecker.checkForUpdate(BuildConfig.VERSION_NAME)
-    }
+    LaunchedEffect(Unit) { runCatching { UpdateManager.refresh(prefs) } }
 
-    val update = info
-    if (update != null && !dismissed) {
-        UpdatePromptDialog(update = update, onDismiss = { dismissed = true })
+    val u = update
+    if (u != null && !dismissed) {
+        UpdatePromptDialog(update = u, onDismiss = { dismissed = true })
     }
 }
 
-/** The "update available" dialog, reused by the launch check and the manual Settings check. */
+/** The "update available" dialog, reused by the launch nudge and the Settings indicator. */
 @Composable
 fun UpdatePromptDialog(update: UpdateInfo, onDismiss: () -> Unit) {
     val context = LocalContext.current

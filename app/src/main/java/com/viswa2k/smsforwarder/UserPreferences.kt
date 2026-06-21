@@ -28,6 +28,7 @@ class UserPreferences(private val dataStore: DataStore<Preferences>) {
     private val IS_CLOUD_CHANNEL_ENABLED = booleanPreferencesKey("IS_CLOUD_CHANNEL_ENABLED")
     private val IS_RECEIVE_ENABLED = booleanPreferencesKey("IS_RECEIVE_ENABLED")
     private val CLOUD_DEVICE_ID = stringPreferencesKey("CLOUD_DEVICE_ID")
+    private val STORED_UPDATE = stringPreferencesKey("STORED_UPDATE") // last-known newer release (JSON) or ""
 
     // Initialize defaults
     suspend fun initializeDefaults() {
@@ -95,6 +96,7 @@ class UserPreferences(private val dataStore: DataStore<Preferences>) {
     val isCloudChannelEnabled: Flow<Boolean> = dataStore.data.map { it[IS_CLOUD_CHANNEL_ENABLED] ?: false }
     val isReceiveEnabled: Flow<Boolean> = dataStore.data.map { it[IS_RECEIVE_ENABLED] ?: false }
     val cloudDeviceId: Flow<String> = dataStore.data.map { it[CLOUD_DEVICE_ID] ?: "" }
+    val storedUpdate: Flow<String> = dataStore.data.map { it[STORED_UPDATE] ?: "" }
 
     // Save preferences
     suspend fun saveSmsServiceEnabled(enabled: Boolean) {
@@ -178,6 +180,12 @@ class UserPreferences(private val dataStore: DataStore<Preferences>) {
     suspend fun saveCloudDeviceId(id: String) {
         dataStore.edit { preferences ->
             preferences[CLOUD_DEVICE_ID] = id
+        }
+    }
+
+    suspend fun saveStoredUpdate(json: String) {
+        dataStore.edit { preferences ->
+            preferences[STORED_UPDATE] = json
         }
     }
 }

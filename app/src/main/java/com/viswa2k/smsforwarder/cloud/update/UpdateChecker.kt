@@ -10,6 +10,7 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 /** A newer GitHub release than the running build. */
+@Serializable
 data class UpdateInfo(
     val version: String,      // e.g. "1.2.0" (tag without the leading 'v')
     val notes: String,        // release body / changelog
@@ -25,6 +26,12 @@ object UpdateChecker {
     private const val LATEST_RELEASE_API =
         "https://api.github.com/repos/viswanathanTJ/sms-forwarder/releases/latest"
     private val json = Json { ignoreUnknownKeys = true }
+
+    /** Serialize a stored update for DataStore, and parse it back (null if blank/invalid). */
+    fun serialize(info: UpdateInfo): String = json.encodeToString(UpdateInfo.serializer(), info)
+    fun deserialize(stored: String): UpdateInfo? =
+        if (stored.isBlank()) null
+        else runCatching { json.decodeFromString(UpdateInfo.serializer(), stored) }.getOrNull()
 
     @Serializable
     private data class GhRelease(
