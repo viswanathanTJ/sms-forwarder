@@ -30,17 +30,28 @@ fun AdminScreen(vm: CloudViewModel, onBack: () -> Unit) {
     var sourceSel by remember { mutableStateOf<String?>(null) }
     var requests by remember { mutableStateOf<List<AccessRequest>>(emptyList()) }
     var myDeviceId by remember { mutableStateOf("") }
+    val snackbar = remember { SnackbarHostState() }
 
+    // Reads never throw out of the coroutine — a Firestore/permission error shows a snackbar
+    // instead of crashing the screen.
     suspend fun reload() {
-        myDeviceId = vm.myDeviceId()
-        emails = access.listAuthorizedEmails()
-        devices = vm.fleetDevices()
-        requests = access.listAccessRequests()
+        runCatching {
+            myDeviceId = vm.myDeviceId()
+            emails = access.listAuthorizedEmails()
+            devices = vm.fleetDevices()
+            requests = access.listAccessRequests()
+        }.onFailure { snackbar.showSnackbar("Couldn't load admin data: ${it.message ?: "error"}") }
+    }
+    // Runs an admin action safely, then refreshes; surfaces any failure as a snackbar.
+    fun act(block: suspend () -> Unit) = scope.launch {
+        runCatching { block() }.onFailure { snackbar.showSnackbar(it.message ?: "Action failed") }
+        reload()
     }
     LaunchedEffect(Unit) { reload() }
 
     Scaffold(
         topBar = { TopAppBar(title = { Text("Admin") }, navigationIcon = { TextButton(onClick = onBack) { Text("Back") } }) },
+        snackbarHost = { SnackbarHost(snackbar) },
     ) { padding ->
         LazyColumn(Modifier.fillMaxSize().padding(padding).padding(12.dp)) {
             // Overview
@@ -84,7 +95,7 @@ fun AdminScreen(vm: CloudViewModel, onBack: () -> Unit) {
 
             if (requests.isNotEmpty()) {
                 item { Text("Pending access requests", style = MaterialTheme.typography.titleMedium) }
-                items(requests, key = { it.email }) { req ->
+                items(requests, key = { "req-${it.email}" }) { req ->
                     Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
                             Text(req.email)
@@ -92,8 +103,8 @@ fun AdminScreen(vm: CloudViewModel, onBack: () -> Unit) {
                                 Text(req.displayName, style = MaterialTheme.typography.bodySmall)
                             }
                         }
-                        TextButton(onClick = { scope.launch { access.approveRequest(req.email, adminEmail); reload() } }) { Text("Approve") }
-                        TextButton(onClick = { scope.launch { access.denyRequest(req.email); reload() } }) { Text("Deny") }
+                        TextButton(onClick = { act { access.approveRequest(req.email, adminEmail) } }) { Text("Approve") }
+                        TextButton(onClick = { act { access.denyRequest(req.email) } }) { Text("Deny") }
                     }
                 }
                 item { Spacer(Modifier.height(16.dp)) }
@@ -103,13 +114,13 @@ fun AdminScreen(vm: CloudViewModel, onBack: () -> Unit) {
             item {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     OutlinedTextField(newEmail, { newEmail = it }, label = { Text("email") }, modifier = Modifier.weight(1f))
-                    TextButton(onClick = { scope.launch { access.addAuthorizedEmail(newEmail.trim(), "member", adminEmail); newEmail = ""; reload() } }) { Text("Add") }
+                    TextButton(onClick = { act { access.addAuthorizedEmail(newEmail.trim(), "member", adminEmail); newEmail = "" } }) { Text("Add") }
                 }
             }
-            items(emails, key = { it.email }) { e ->
+            items(emails, key = { "email-${it.email}" }) { e ->
                 Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text("${e.email} (${e.role})", Modifier.weight(1f))
-                    if (e.role != "admin") TextButton(onClick = { scope.launch { access.removeAuthorizedEmail(e.email); reload() } }) { Text("Remove") }
+                    if (e.role != "admin") TextButton(onClick = { act { access.removeAuthorizedEmail(e.email) } }) { Text("Remove") }
                 }
             }
 
@@ -123,7 +134,7 @@ fun AdminScreen(vm: CloudViewModel, onBack: () -> Unit) {
                     devices.forEach { d -> FilterChip(selected = sourceSel == d.id, onClick = { sourceSel = d.id }, label = { Text(chipLabel(d, myDeviceId)) }) }
                     Button(
                         enabled = readerSel != null && sourceSel != null && readerSel != sourceSel,
-                        onClick = { scope.launch { access.grantAccess(readerSel!!, sourceSel!!, adminEmail) } },
+                        onClick = { act { access.grantAccess(readerSel!!, sourceSel!!, adminEmail); snackbar.showSnackbar("Access granted") } },
                     ) { Text("Grant") }
                 }
             }
@@ -135,7 +146,7 @@ fun AdminScreen(vm: CloudViewModel, onBack: () -> Unit) {
                     style = MaterialTheme.typography.bodySmall,
                 )
             }
-            items(devices, key = { it.id }) { d ->
+            items(devices, key = { "dev-${it.id}" }) { d ->
                 val isThis = d.id == myDeviceId
                 Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
@@ -149,9 +160,9 @@ fun AdminScreen(vm: CloudViewModel, onBack: () -> Unit) {
                         )
                         Text("id ${d.id.take(8)}  ·  ${d.ownerEmail}", style = MaterialTheme.typography.bodySmall)
                     }
-                    TextButton(onClick = { scope.launch { access.setDeviceRevoked(d.id, !d.revoked); reload() } }) { Text(if (d.revoked) "Un-revoke" else "Revoke") }
+                    TextButton(onClick = { act { access.setDeviceRevoked(d.id, !d.revoked) } }) { Text(if (d.revoked) "Un-revoke" else "Revoke") }
                     if (!isThis) {
-                        TextButton(onClick = { scope.launch { access.removeDeviceAndData(d.id); reload() } }) { Text("Remove") }
+                        TextButton(onClick = { act { access.removeDeviceAndData(d.id) } }) { Text("Remove") }
                     }
                 }
             }

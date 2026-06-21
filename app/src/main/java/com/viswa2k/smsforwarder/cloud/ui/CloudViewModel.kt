@@ -138,6 +138,16 @@ class CloudViewModel(app: Application) : AndroidViewModel(app) {
         resetAuthState()
     }
 
+    /** Debug-only: upload a synthetic SMS to exercise the full encrypt→fan-out→inbox→decrypt path. */
+    fun sendTestMessage(onResult: (String) -> Unit) = viewModelScope.launch {
+        val r = runCatching {
+            SmsCloudUploader.get(getApplication())
+                .upload("+10000000000", "Test message ${System.currentTimeMillis() % 100000}", System.currentTimeMillis(), force = true)
+        }
+        onResult(if (r.isSuccess) "Test message uploaded" else "Failed: ${r.exceptionOrNull()?.message}")
+        refreshMessages()
+    }
+
     fun refreshMessages() = viewModelScope.launch {
         val readerId = prefs.cloudDeviceId.first(); if (readerId.isBlank()) return@launch
         aliasCache = runCatching { deviceRepo.fetchFleetDevices().associate { it.id to it.alias } }.getOrDefault(emptyMap())

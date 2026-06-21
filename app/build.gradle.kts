@@ -28,6 +28,9 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"${prop("GOOGLE_WEB_CLIENT_ID")}\"")
+        // Local-only: point Firebase at the emulator suite. Enable with -PuseEmulator=true.
+        // Always false for production/CI builds.
+        buildConfigField("boolean", "USE_EMULATOR", "${prop("useEmulator").ifBlank { "false" }}")
 
         // Security settings
         ndk.debugSymbolLevel = "FULL"
