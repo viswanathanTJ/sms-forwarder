@@ -17,6 +17,16 @@ import kotlinx.coroutines.launch
 private fun chipLabel(d: Device, myDeviceId: String): String =
     d.alias.ifBlank { "(unnamed)" } + " ·" + d.id.take(4) + if (d.id == myDeviceId) " ★" else ""
 
+/** Turns raw Firestore/SDK exceptions into a short, human-friendly message (no "PERMISSION_DENIED"). */
+private fun friendlyError(t: Throwable): String {
+    val m = (t.message ?: "").lowercase()
+    return when {
+        "permission" in m || "insufficient" in m -> "You don't have permission for that action."
+        "unavailable" in m || "network" in m || "offline" in m -> "Network unavailable — try again."
+        else -> "Something went wrong. Please try again."
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AdminScreen(vm: CloudViewModel, onBack: () -> Unit) {
@@ -32,19 +42,17 @@ fun AdminScreen(vm: CloudViewModel, onBack: () -> Unit) {
     var myDeviceId by remember { mutableStateOf("") }
     val snackbar = remember { SnackbarHostState() }
 
-    // Reads never throw out of the coroutine — a Firestore/permission error shows a snackbar
-    // instead of crashing the screen.
+    // Each section loads independently so one failure never blanks the others or surfaces a
+    // raw Firestore error (e.g. "PERMISSION_DENIED") — partial data just loads quietly.
     suspend fun reload() {
-        runCatching {
-            myDeviceId = vm.myDeviceId()
-            emails = access.listAuthorizedEmails()
-            devices = vm.fleetDevices()
-            requests = access.listAccessRequests()
-        }.onFailure { snackbar.showSnackbar("Couldn't load admin data: ${it.message ?: "error"}") }
+        runCatching { myDeviceId = vm.myDeviceId() }
+        runCatching { emails = access.listAuthorizedEmails() }
+        runCatching { devices = vm.fleetDevices() }
+        runCatching { requests = access.listAccessRequests() }
     }
-    // Runs an admin action safely, then refreshes; surfaces any failure as a snackbar.
+    // Runs an admin action safely, then refreshes; surfaces a friendly message on failure.
     fun act(block: suspend () -> Unit) = scope.launch {
-        runCatching { block() }.onFailure { snackbar.showSnackbar(it.message ?: "Action failed") }
+        runCatching { block() }.onFailure { snackbar.showSnackbar(friendlyError(it)) }
         reload()
     }
     LaunchedEffect(Unit) { reload() }
