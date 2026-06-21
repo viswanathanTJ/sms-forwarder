@@ -15,3 +15,4 @@ data class Device(
 data class AuthorizedEmail(val email: String, val role: String)
 data class AccessGrant(val readerDeviceId: String, val sourceDeviceId: String)
 data class Subscription(val readerDeviceId: String, val sourceDeviceId: String, val notify: Boolean)
+data class AccessRequest(val email: String, val displayName: String)

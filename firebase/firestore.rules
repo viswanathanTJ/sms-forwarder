@@ -55,5 +55,15 @@ service cloud.firestore {
       allow delete: if isAdmin();
       allow update: if false;
     }
+
+    // Self-service access requests. A signed-in (but not-yet-approved) user may
+    // create/read ONLY their own pending request; the super-admin reviews them.
+    match /access_requests/{email} {
+      allow create: if authed()
+        && request.auth.token.email == email
+        && request.resource.data.status == 'pending';
+      allow read: if (authed() && request.auth.token.email == email) || isAdmin();
+      allow update, delete: if isAdmin();
+    }
   }
 }

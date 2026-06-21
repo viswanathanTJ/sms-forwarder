@@ -2,6 +2,7 @@ package com.viswa2k.smsforwarder.cloud.data
 
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -13,6 +14,7 @@ class AuthRepository(
     private val db: FirebaseFirestore = FirebaseProvider.db,
 ) {
     fun currentEmail(): String? = auth.currentUser?.email
+    fun currentDisplayName(): String? = auth.currentUser?.displayName
 
     val authState: Flow<Boolean> = callbackFlow {
         val listener = FirebaseAuth.AuthStateListener { trySend(it.currentUser != null) }
@@ -43,5 +45,24 @@ class AuthRepository(
         val email = currentEmail() ?: return false
         val doc = db.collection("authorized_emails").document(email).get().await()
         return doc.exists() && doc.getString("role") == "admin"
+    }
+
+    /** Submit a self-service access request for the signed-in (but unapproved) account. */
+    suspend fun requestAccess() {
+        val email = currentEmail() ?: return
+        db.collection("access_requests").document(email).set(
+            mapOf(
+                "email" to email,
+                "displayName" to (currentDisplayName() ?: ""),
+                "status" to "pending",
+                "requestedAt" to FieldValue.serverTimestamp(),
+            )
+        ).await()
+    }
+
+    /** True if this account already has a pending access request. */
+    suspend fun hasPendingRequest(): Boolean {
+        val email = currentEmail() ?: return false
+        return db.collection("access_requests").document(email).get().await().exists()
     }
 }

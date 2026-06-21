@@ -11,7 +11,9 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.credentials.CredentialManager
 import androidx.credentials.GetCredentialRequest
-import com.google.android.libraries.identity.googleid.GetGoogleIdOption
+import androidx.credentials.exceptions.GetCredentialCancellationException
+import androidx.credentials.exceptions.NoCredentialException
+import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.viswa2k.smsforwarder.BuildConfig
 import kotlinx.coroutines.launch
@@ -19,7 +21,7 @@ import java.security.MessageDigest
 import java.security.SecureRandom
 
 @Composable
-fun SignInScreen(vm: CloudViewModel, onSignedIn: () -> Unit) {
+fun SignInScreen(vm: CloudViewModel) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
@@ -50,25 +52,30 @@ fun SignInScreen(vm: CloudViewModel, onSignedIn: () -> Unit) {
                 busy = true; error = null
                 scope.launch {
                     try {
-                        val nonce = sha256(randomNonce())
-                        val option = GetGoogleIdOption.Builder()
-                            .setServerClientId(BuildConfig.GOOGLE_WEB_CLIENT_ID)
-                            .setFilterByAuthorizedAccounts(false)
-                            .setNonce(nonce)
+                        // Explicit "Sign in with Google" button flow: always opens the account
+                        // picker / "add account" UI (unlike GetGoogleIdOption, which throws
+                        // NoCredentialException when nothing is pre-authorized).
+                        val option = GetSignInWithGoogleOption.Builder(BuildConfig.GOOGLE_WEB_CLIENT_ID)
+                            .setNonce(sha256(randomNonce()))
                             .build()
                         val request = GetCredentialRequest.Builder().addCredentialOption(option).build()
                         val result = CredentialManager.create(context).getCredential(context, request)
                         val cred = GoogleIdTokenCredential.createFrom(result.credential.data)
                         vm.signInGoogle(cred.idToken) { busy = false; error = it }
-                    } catch (e: Exception) { busy = false; error = e.message ?: "Google sign-in cancelled" }
+                    } catch (e: GetCredentialCancellationException) {
+                        busy = false // user dismissed the picker — no error
+                    } catch (e: NoCredentialException) {
+                        busy = false
+                        error = "No Google account on this device. Add one in Settings → Accounts, then retry."
+                    } catch (e: Exception) {
+                        busy = false
+                        error = e.message ?: "Google sign-in failed"
+                    }
                 }
             },
             enabled = !busy, modifier = Modifier.fillMaxWidth(),
         ) { Text("Sign in with Google") }
     }
-
-    val signedIn by vm.signedIn.collectAsState()
-    LaunchedEffect(signedIn) { if (signedIn) onSignedIn() }
 }
 
 private fun randomNonce(): String {
