@@ -167,7 +167,7 @@ def cmd_tag(args: argparse.Namespace) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="SMS Forwarder release helper")
-    sub = parser.add_subparsers(dest="command", required=True)
+    sub = parser.add_subparsers(dest="command")
 
     t = sub.add_parser("tag", help="create (and optionally push) a release tag")
     t.add_argument("version", nargs="?", help="explicit version, e.g. v1.4.0 (default: bump last tag)")
@@ -182,7 +182,12 @@ def main() -> None:
     c.add_argument("--to", help="end ref (default: HEAD)")
     c.set_defaults(func=cmd_changelog)
 
-    args = parser.parse_args()
+    # Default to the auto-bump `tag` flow when no subcommand is given, so a bare
+    # `uv run scripts/release.py [--push]` just works. Flags pass through to `tag`.
+    argv = sys.argv[1:]
+    if not argv or argv[0] not in ("tag", "changelog", "-h", "--help"):
+        argv = ["tag", *argv]
+    args = parser.parse_args(argv)
     args.func(args)
 
 
