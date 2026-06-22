@@ -94,6 +94,16 @@ class SmsReceiver : BroadcastReceiver() {
     private suspend fun forwardMessage(context: Context, senderNumber: String?, messageBody: String) {
         val prefs: Preferences = context.dataStore.data.first()
 
+        // Master switch: the receiver is always registered (static), but only forward when the
+        // user has turned forwarding on. With the master on, each channel (SMS/Telegram/Cloud)
+        // is gated by its own flag below — so a cloud-only setup just needs Enable Service +
+        // Upload to cloud.
+        val serviceEnabled = prefs[booleanPreferencesKey("SMS_FORWARD_SERVICE")] ?: false
+        if (!serviceEnabled) {
+            Log.d("SmsReceiver", "Forwarding master switch off; ignoring SMS")
+            return
+        }
+
         val isSkipContacts = prefs[booleanPreferencesKey("IS_SKIP_CONTACTS")] ?: false
         if (isSkipContacts && isSenderInContacts(context, senderNumber)) {
             return

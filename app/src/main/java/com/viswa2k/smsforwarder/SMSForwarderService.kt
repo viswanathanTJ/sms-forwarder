@@ -31,9 +31,9 @@ import kotlinx.coroutines.launch
 
 class SmsForwarderService : Service() {
 
-    private lateinit var smsReceiver: SmsReceiver
-    private var isReceiverRegistered = false // Track receiver registration status
-
+    // SMS reception is handled by the statically-registered SmsReceiver in the manifest, so the
+    // service no longer registers it at runtime (that runtime-only path dropped SMS whenever the
+    // service wasn't alive). This service now only runs the connectivity flush + inbox notifier.
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var connectivityManager: ConnectivityManager? = null
     private var networkCallback: ConnectivityManager.NetworkCallback? = null
@@ -42,7 +42,6 @@ class SmsForwarderService : Service() {
     override fun onCreate() {
         super.onCreate()
         Log.d("SmsForwarderService", "Service created.")
-        smsReceiver = SmsReceiver()
 
         // Flush any queued cloud uploads as soon as the network comes back, instead of
         // waiting for the next app launch / sign-in.
@@ -89,7 +88,6 @@ class SmsForwarderService : Service() {
             val prefs = UserPreferences(applicationContext.dataStore)
             val smsEnabled = prefs.isSmsForwarderService.first()
             val receiveEnabled = prefs.isReceiveEnabled.first()
-            if (smsEnabled) startListeningForSms() else stopListeningForSms()
             if (receiveEnabled) inboxNotifier?.start()
             if (!smsEnabled && !receiveEnabled) stopSelf()
         }
@@ -194,30 +192,12 @@ class SmsForwarderService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
-        stopListeningForSms()
         networkCallback?.let { cb -> runCatching { connectivityManager?.unregisterNetworkCallback(cb) } }
         networkCallback = null
         inboxNotifier?.stop()
         inboxNotifier = null
         serviceScope.cancel()
         Log.d("SmsForwarderService", "Service destroyed.")
-    }
-
-    private fun startListeningForSms() {
-        if (!isReceiverRegistered) {
-            val intentFilter = IntentFilter("android.provider.Telephony.SMS_RECEIVED")
-            ContextCompat.registerReceiver(this, smsReceiver, intentFilter, ContextCompat.RECEIVER_NOT_EXPORTED)
-            isReceiverRegistered = true // Update the registration status
-            Log.d("SmsForwarderService", "Started listening for SMS.")
-        }
-    }
-
-    private fun stopListeningForSms() {
-        if (isReceiverRegistered) {
-            unregisterReceiver(smsReceiver)
-            isReceiverRegistered = false // Update the registration status
-            Log.d("SmsForwarderService", "Stopped listening for SMS.")
-        }
     }
 
     private fun createNotification(): Notification {

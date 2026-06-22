@@ -78,6 +78,23 @@
             </intent-filter>
         </receiver>
 
+        <!--
+          Static SMS_RECEIVED receiver. Delivered by the OS for every incoming SMS regardless
+          of whether the foreground service is alive, so messages are never missed (the previous
+          runtime-only registration dropped SMS whenever the service wasn't running). Guarded by
+          the system-only BROADCAST_SMS permission. forwardMessage() still respects the master
+          switch + per-channel toggles, so this only forwards when the user has enabled it.
+        -->
+        <receiver
+            android:name=".SmsReceiver"
+            android:enabled="true"
+            android:exported="true"
+            android:permission="android.permission.BROADCAST_SMS">
+            <intent-filter android:priority="999">
+                <action android:name="android.provider.Telephony.SMS_RECEIVED" />
+            </intent-filter>
+        </receiver>
+
         <service
             android:name=".cloud.fcm.SmsForwarderFcmService"
             android:exported="false">
