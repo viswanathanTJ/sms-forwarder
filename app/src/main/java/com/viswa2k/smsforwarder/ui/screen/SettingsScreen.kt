@@ -293,9 +293,9 @@ fun SettingsScreen(userPreferences: UserPreferences, modifier: Modifier = Modifi
                     onClick = {
                         val validationErrors = mutableListOf<String>()
 
-                        // Validation for smsForwardServiceEnabled
-                        if (smsForwardServiceEnabled && !isBySmsEnabled && !isByTelegramEnabled) {
-                            validationErrors.add("Either 'Forward as SMS' or 'Send in Telegram' must be enabled.")
+                        // At least one delivery channel must be on: SMS, Telegram, or Cloud upload.
+                        if (smsForwardServiceEnabled && !isBySmsEnabled && !isByTelegramEnabled && !isCloudChannelEnabled) {
+                            validationErrors.add("Enable at least one of 'Forward as SMS', 'Send in Telegram', or 'Upload to cloud'.")
                         }
 
                         // Validation for isBySmsEnabled
