@@ -44,6 +44,13 @@ service cloud.firestore {
       allow update, delete: if resource != null && ownsDevice(resource.data.readerDeviceId);
     }
 
+    // Admin can read messages across ALL inboxes via collection-group queries
+    // (e.g. purging a device's sent messages). The per-inbox rule below can't be
+    // used for collection-group reads because {deviceId} isn't bound there.
+    match /{path=**}/messages/{messageId} {
+      allow read: if isAdmin();
+    }
+
     match /inbox/{deviceId}/messages/{messageId} {
       allow read: if ownsDevice(deviceId) || isAdmin();
       allow create: if ownsDevice(request.resource.data.sourceDeviceId)
