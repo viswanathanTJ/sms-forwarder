@@ -174,12 +174,15 @@ class MainActivity : ComponentActivity() {
 
     private suspend fun checkAndStartService() {
         val smsForwardServiceEnabled = userPreferences.isSmsForwarderService.first()
+        // Cloud-receive users (who don't forward SMS) still need the service alive so it can
+        // post local notifications for new cloud messages.
+        val receiveEnabled = userPreferences.isReceiveEnabled.first()
 
         val serviceIntent = Intent(this, SmsForwarderService::class.java).apply {
             putExtra("SMS_FORWARD_SERVICE_ENABLED", smsForwardServiceEnabled)
         }
 
-        if (smsForwardServiceEnabled) {
+        if (smsForwardServiceEnabled || receiveEnabled) {
             ContextCompat.startForegroundService(this, serviceIntent) // Start the service
         } else {
             this.stopService(serviceIntent) // Stop the service

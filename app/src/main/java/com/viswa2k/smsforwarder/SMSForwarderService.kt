@@ -20,11 +20,13 @@ import android.os.SystemClock
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
+import com.viswa2k.smsforwarder.cloud.data.CloudInboxNotifier
 import com.viswa2k.smsforwarder.cloud.data.SmsCloudUploader
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 class SmsForwarderService : Service() {
@@ -35,6 +37,7 @@ class SmsForwarderService : Service() {
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var connectivityManager: ConnectivityManager? = null
     private var networkCallback: ConnectivityManager.NetworkCallback? = null
+    private var inboxNotifier: CloudInboxNotifier? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -44,6 +47,9 @@ class SmsForwarderService : Service() {
         // Flush any queued cloud uploads as soon as the network comes back, instead of
         // waiting for the next app launch / sign-in.
         registerConnectivityFlush()
+
+        // Local push: notify on new cloud inbox messages while this service is alive.
+        inboxNotifier = CloudInboxNotifier(this, serviceScope).also { it.start() }
 
         // Reset retry count on successful service creation
         getSharedPreferences("service_prefs", Context.MODE_PRIVATE)
@@ -77,12 +83,15 @@ class SmsForwarderService : Service() {
         // types!" and tear the service down almost immediately (observed on Android 15).
         startForegroundCompat(createNotification())
 
-        val smsForwardServiceEnabled = intent?.getBooleanExtra("SMS_FORWARD_SERVICE_ENABLED", false) ?: false
-
-        if (smsForwardServiceEnabled) {
-            startListeningForSms()
-        } else {
-            stopSelf()
+        // Read the live prefs (the intent extra is absent on alarm/boot restarts). Keep the
+        // service alive if SMS forwarding OR cloud receive is enabled; stop only if neither is.
+        serviceScope.launch {
+            val prefs = UserPreferences(applicationContext.dataStore)
+            val smsEnabled = prefs.isSmsForwarderService.first()
+            val receiveEnabled = prefs.isReceiveEnabled.first()
+            if (smsEnabled) startListeningForSms() else stopListeningForSms()
+            if (receiveEnabled) inboxNotifier?.start()
+            if (!smsEnabled && !receiveEnabled) stopSelf()
         }
 
         // Schedule a restart if the service gets killed
@@ -188,6 +197,8 @@ class SmsForwarderService : Service() {
         stopListeningForSms()
         networkCallback?.let { cb -> runCatching { connectivityManager?.unregisterNetworkCallback(cb) } }
         networkCallback = null
+        inboxNotifier?.stop()
+        inboxNotifier = null
         serviceScope.cancel()
         Log.d("SmsForwarderService", "Service destroyed.")
     }

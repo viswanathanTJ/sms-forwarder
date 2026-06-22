@@ -4,6 +4,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.SetOptions
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withTimeoutOrNull
 
 class AccessRepository(private val db: FirebaseFirestore = FirebaseProvider.db) {
 
@@ -53,15 +54,31 @@ class AccessRepository(private val db: FirebaseFirestore = FirebaseProvider.db) 
         db.collection("devices").document(deviceId).set(mapOf("revoked" to revoked), SetOptions.merge()).await()
     }
 
-    /** Permanently remove a device and ALL of its cloud data (admin-only cleanup). */
+    /**
+     * Permanently remove a device and ALL of its cloud data (admin-only cleanup).
+     * Each cleanup step is best-effort so a single failure (e.g. a collection-group
+     * query that's blocked or unindexed) never prevents the device doc itself from
+     * being deleted.
+     */
     suspend fun removeDeviceAndData(deviceId: String) {
-        deleteQuery(db.collection("inbox").document(deviceId).collection("messages")) // messages it received
-        deleteQuery(db.collectionGroup("messages").whereEqualTo("sourceDeviceId", deviceId)) // messages it sent
+        // Delete the device doc FIRST — it's the essential operation, and it must not be
+        // blocked by data-cleanup steps. (A denied collection-group query doesn't throw
+        // promptly; the SDK retries the listen and the call can hang, so each cleanup is
+        // both best-effort and time-bounded.)
+        runCatching { db.collection("devices").document(deviceId).delete().await() }
+        cleanup { deleteQuery(db.collection("inbox").document(deviceId).collection("messages")) } // received
         for (field in listOf("readerDeviceId", "sourceDeviceId")) {
-            deleteQuery(db.collection("access_matrix").whereEqualTo(field, deviceId))
-            deleteQuery(db.collection("subscriptions").whereEqualTo(field, deviceId))
+            cleanup { deleteQuery(db.collection("access_matrix").whereEqualTo(field, deviceId)) }
+            cleanup { deleteQuery(db.collection("subscriptions").whereEqualTo(field, deviceId)) }
         }
-        db.collection("devices").document(deviceId).delete().await()
+        // Sent messages live in other inboxes; purging them needs the admin collection-group
+        // read rule. Best-effort + bounded so a denial can never hang the removal.
+        cleanup { deleteQuery(db.collectionGroup("messages").whereEqualTo("sourceDeviceId", deviceId)) }
+    }
+
+    /** Best-effort, time-bounded cleanup step — never throws, never hangs the caller. */
+    private suspend fun cleanup(block: suspend () -> Unit) {
+        runCatching { withTimeoutOrNull(8000) { block() } }
     }
 
     private suspend fun deleteQuery(query: Query) {
