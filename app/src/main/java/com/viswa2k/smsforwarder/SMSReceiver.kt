@@ -29,23 +29,33 @@ class SmsReceiver : BroadcastReceiver() {
     var globalMessageFormat = ""
     var deviceAlias = ""
 
+    companion object {
+        const val TEST_ACTION = "com.viswa2k.smsforwarder.TEST_SMS_RECEIVED"
+    }
+
     override fun onReceive(context: Context, intent: Intent) {
         val pendingResult = goAsync()
         Log.d("Message Receiver", "Received message")
 
-        // Parse PDUs synchronously (fast, no I/O) before handing off to a background coroutine.
         val messages = mutableListOf<Pair<String?, String>>()
-        try {
-            val bundle: Bundle? = intent.extras
-            if (bundle != null) {
-                val pdus = bundle.get("pdus") as Array<*>
-                for (pdu in pdus) {
-                    val smsMessage = SmsMessage.createFromPdu(pdu as ByteArray)
-                    messages.add(smsMessage.displayOriginatingAddress to smsMessage.messageBody)
+        if (BuildConfig.DEBUG && intent.action == TEST_ACTION) {
+            // Debug-only: simulate an incoming SMS without the telephony stack (the emulator's
+            // free license blocks SMS injection). Exercises the exact forward/upload path.
+            messages.add((intent.getStringExtra("sender") ?: "TEST") to (intent.getStringExtra("body") ?: ""))
+        } else {
+            // Parse PDUs synchronously (fast, no I/O) before handing off to a background coroutine.
+            try {
+                val bundle: Bundle? = intent.extras
+                if (bundle != null) {
+                    val pdus = bundle.get("pdus") as Array<*>
+                    for (pdu in pdus) {
+                        val smsMessage = SmsMessage.createFromPdu(pdu as ByteArray)
+                        messages.add(smsMessage.displayOriginatingAddress to smsMessage.messageBody)
+                    }
                 }
+            } catch (e: Exception) {
+                Log.e("SmsReceiver", "Error parsing SMS")
             }
-        } catch (e: Exception) {
-            Log.e("SmsReceiver", "Error parsing SMS")
         }
 
         // Forward off the main thread; goAsync() keeps the process alive until finish().

@@ -61,6 +61,17 @@ class MainActivity : ComponentActivity() {
             } catch (e: Exception) { Log.e("MainActivity", "queue flush failed", e) }
         }
 
+        // Debug-only: a dynamic, exported receiver for the test-SMS action so `adb broadcast`
+        // can exercise the real SmsReceiver→forward→upload path (emulator SMS injection is
+        // license-blocked). Never registered in release builds.
+        if (BuildConfig.DEBUG) {
+            ContextCompat.registerReceiver(
+                this, SmsReceiver(),
+                android.content.IntentFilter(SmsReceiver.TEST_ACTION),
+                ContextCompat.RECEIVER_EXPORTED,
+            )
+        }
+
         // Check for battery optimization exemption
         checkBatteryOptimization()
 
