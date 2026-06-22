@@ -36,7 +36,7 @@ class CloudInboxNotifier(context: Context, private val scope: CoroutineScope) {
     private val appContext = context.applicationContext
     private val prefs = UserPreferences(appContext.dataStore)
     private val crypto = CryptoManager(appContext)
-    private val deviceRepo = DeviceRepository(crypto = crypto, prefs = prefs)
+    private val deviceRepo = DeviceRepository(context = appContext, crypto = crypto, prefs = prefs)
     private val accessRepo = AccessRepository()
     private val messageRepo = CloudMessageRepository(crypto = crypto, deviceRepo = deviceRepo, accessRepo = accessRepo)
 

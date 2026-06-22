@@ -24,7 +24,7 @@ class SmsForwarderFcmService : FirebaseMessagingService() {
 
     override fun onNewToken(token: String) {
         val prefs = UserPreferences(applicationContext.dataStore)
-        val deviceRepo = DeviceRepository(crypto = CryptoManager(applicationContext), prefs = prefs)
+        val deviceRepo = DeviceRepository(context = applicationContext, crypto = CryptoManager(applicationContext), prefs = prefs)
         CoroutineScope(Dispatchers.IO).launch { runCatching { deviceRepo.updateFcmToken(token) } }
     }
 
@@ -39,7 +39,7 @@ class SmsForwarderFcmService : FirebaseMessagingService() {
             val readerDeviceId = prefs.cloudDeviceId.first()
             if (readerDeviceId.isBlank()) return@launch
             val crypto = CryptoManager(ctx)
-            val deviceRepo = DeviceRepository(crypto = crypto, prefs = prefs)
+            val deviceRepo = DeviceRepository(context = ctx, crypto = crypto, prefs = prefs)
             val messageRepo = CloudMessageRepository(crypto = crypto, deviceRepo = deviceRepo, accessRepo = AccessRepository())
             val aliases = runCatching { deviceRepo.fetchFleetDevices().associate { it.id to it.alias } }.getOrDefault(emptyMap())
             val decrypted = runCatching { messageRepo.decryptOne(readerDeviceId, messageId, aliases) }.getOrNull() ?: return@launch
