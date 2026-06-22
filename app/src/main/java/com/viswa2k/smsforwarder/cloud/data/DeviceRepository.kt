@@ -20,10 +20,12 @@ class DeviceRepository(
 ) {
     suspend fun registerThisDevice(ownerEmail: String, alias: String): String {
         crypto.ensureIdentityKey()
-        // Stable per-physical-device id (survives reinstall/login), so one device = one entry
-        // instead of a fresh random UUID on every install.
+        // Keep an already-assigned id (so existing installs don't lose their inbox/messages),
+        // and only mint one when none exists. For fresh installs/reinstalls we derive it from
+        // ANDROID_ID so the SAME physical device reuses ONE entry across reinstalls instead of
+        // piling up a new random UUID each time.
         val existing = prefs.cloudDeviceId.first()
-        val id = stableDeviceId() ?: existing.ifBlank { UUID.randomUUID().toString() }
+        val id = existing.ifBlank { stableDeviceId() ?: UUID.randomUUID().toString() }
         if (existing != id) prefs.saveCloudDeviceId(id)
         val pub = Base64.getEncoder().encodeToString(crypto.publicKeyset())
         db.collection("devices").document(id).set(
