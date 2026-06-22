@@ -118,7 +118,11 @@
   <h2>Changelog</h2>
   <p class="muted">What each version does and what changed — newest first.</p>
   <div class="card">
-    <h3>v1.2.0 <span class="muted">— current</span></h3>
+    <h3>v1.2.1 <span class="muted">— current</span></h3>
+    <p><b>Bug fix:</b> incoming SMS could be missed — the message listener was only active while the background service happened to be running. It's now registered with the system directly, so <b>every incoming SMS is captured reliably</b> (even right after boot or when the service was killed) and forwarded through your enabled channels. Cloud‑only setup: turn on <b>Enable Service</b> + <b>Upload to cloud</b>.</p>
+  </div>
+  <div class="card">
+    <h3>v1.2.0</h3>
     <p><b>What's new:</b> <b>Notifications for new cloud messages</b> — no extra setup or paid plan. While the app's background service is running, a new message in your cloud inbox pops a notification with the sender and a preview; tapping it opens the app. Cloud‑only users (who don't forward SMS) now keep the service running too, so they get alerts as well. <span class="muted">Note: alerts arrive while the service is alive; messages received while the app is fully closed appear when you next open it. (A future option can deliver those in the background via Firebase Cloud Messaging.)</span></p>
   </div>
   <div class="card">
