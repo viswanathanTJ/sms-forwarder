@@ -47,8 +47,8 @@ class MainActivity : ComponentActivity() {
         // Initialize DataStore and UserPreferences
         userPreferences = UserPreferences(dataStore)
 
-        // Show privacy policy before anything else
-        showPrivacyPolicy()
+        // Show the privacy policy only until the user acknowledges it once.
+        if (!isPrivacyAccepted()) showPrivacyPolicy()
 
         // Initialize defaults
         lifecycleScope.launch {
@@ -89,15 +89,20 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private fun isPrivacyAccepted(): Boolean =
+        getSharedPreferences("app_prefs", Context.MODE_PRIVATE).getBoolean("privacy_accepted", false)
+
     private fun showPrivacyPolicy() {
         val builder = AlertDialog.Builder(this)
             .setTitle(getString(R.string.privacy_policy_title))
             .setMessage(getString(R.string.privacy_policy_summary))
             .setPositiveButton("I Understand") { dialog, _ ->
+                getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+                    .edit().putBoolean("privacy_accepted", true).apply()
                 dialog.dismiss()
             }
             .setCancelable(false)
-        
+
         builder.show()
     }
 

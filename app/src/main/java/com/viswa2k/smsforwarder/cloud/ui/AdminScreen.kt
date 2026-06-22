@@ -13,9 +13,12 @@ import com.viswa2k.smsforwarder.cloud.data.AuthorizedEmail
 import com.viswa2k.smsforwarder.cloud.data.Device
 import kotlinx.coroutines.launch
 
+/** Short, meaningful slice of a device id (strips the stable "android-" prefix for display). */
+private fun shortId(id: String): String = id.removePrefix("android-").take(8)
+
 /** Disambiguates same-named devices with a short id, and tags the current device. */
 private fun chipLabel(d: Device, myDeviceId: String): String =
-    d.alias.ifBlank { "(unnamed)" } + " ·" + d.id.take(4) + if (d.id == myDeviceId) " ★" else ""
+    d.alias.ifBlank { "(unnamed)" } + " ·" + shortId(d.id).take(4) + if (d.id == myDeviceId) " ★" else ""
 
 /** Turns raw Firestore/SDK exceptions into a short, human-friendly message (no "PERMISSION_DENIED"). */
 private fun friendlyError(t: Throwable): String {
@@ -166,7 +169,7 @@ fun AdminScreen(vm: CloudViewModel, onBack: () -> Unit) {
                             },
                             style = MaterialTheme.typography.bodyLarge,
                         )
-                        Text("id ${d.id.take(8)}  ·  ${d.ownerEmail}", style = MaterialTheme.typography.bodySmall)
+                        Text("id ${shortId(d.id)}  ·  ${d.ownerEmail}", style = MaterialTheme.typography.bodySmall)
                     }
                     TextButton(onClick = { act { access.setDeviceRevoked(d.id, !d.revoked) } }) { Text(if (d.revoked) "Un-revoke" else "Revoke") }
                     if (!isThis) {

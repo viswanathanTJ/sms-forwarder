@@ -25,7 +25,7 @@ class CloudViewModel(app: Application) : AndroidViewModel(app) {
     private val prefs = UserPreferences(app.dataStore)
     private val crypto = CryptoManager(app)
     private val auth = AuthRepository()
-    private val deviceRepo = DeviceRepository(crypto = crypto, prefs = prefs)
+    private val deviceRepo = DeviceRepository(context = app, crypto = crypto, prefs = prefs)
     private val accessRepo = AccessRepository()
     private val messageRepo = CloudMessageRepository(crypto = crypto, deviceRepo = deviceRepo, accessRepo = accessRepo)
 

@@ -2,12 +2,15 @@ package com.viswa2k.smsforwarder.cloud.ui
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -17,6 +20,9 @@ fun CloudSmsScreen(vm: CloudViewModel, onOpenWatch: () -> Unit, onOpenAdmin: () 
     val isAdmin by vm.isAdmin.collectAsState()
     var menuOpen by remember { mutableStateOf(false) }
     var showPasswordDialog by remember { mutableStateOf(false) }
+    var query by remember { mutableStateOf("") }
+    var deviceFilter by remember { mutableStateOf<String?>(null) }
+    val listState = rememberLazyListState()
 
     LaunchedEffect(Unit) { vm.refreshMessages(); vm.startRealtime() }
     DisposableEffect(Unit) { onDispose { vm.stopRealtime() } }
@@ -53,39 +59,101 @@ fun CloudSmsScreen(vm: CloudViewModel, onOpenWatch: () -> Unit, onOpenAdmin: () 
             )
         },
     ) { padding ->
-        if (messages.isEmpty()) {
-            Column(
-                Modifier.fillMaxSize().padding(padding).padding(32.dp),
-                verticalArrangement = Arrangement.Center,
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                Text("No cloud messages yet", style = MaterialTheme.typography.titleMedium)
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    "Cloud SMS shows incoming texts from your other devices, end-to-end encrypted. " +
+        Column(Modifier.fillMaxSize().padding(padding)) {
+            if (messages.isEmpty()) {
+                EmptyState("No cloud messages yet",
+                    "Cloud SMS shows incoming texts from your devices, end-to-end encrypted. " +
                         "Enable \"Upload to cloud\" on a device to send its SMS here, and use Watch to follow " +
-                        "the devices you're allowed to read.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                )
+                        "the devices you're allowed to read.")
+                return@Column
             }
-        } else {
-            LazyColumn(Modifier.fillMaxSize().padding(padding).padding(horizontal = 12.dp)) {
-                items(messages, key = { it.id }) { m ->
-                    ElevatedCard(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
-                        Column(Modifier.padding(12.dp)) {
-                            Text("${m.sourceAlias} • ${m.sender}", style = MaterialTheme.typography.labelMedium)
-                            Spacer(Modifier.height(4.dp))
-                            Text(m.body, style = MaterialTheme.typography.bodyLarge)
-                            if (isAdmin) {
-                                Spacer(Modifier.height(4.dp))
-                                TextButton(onClick = { vm.deleteMessage(m.id) }) { Text("Delete") }
+
+            // Search across sender / body / device alias.
+            OutlinedTextField(
+                value = query,
+                onValueChange = { query = it },
+                singleLine = true,
+                label = { Text("Search messages, sender or device") },
+                trailingIcon = {
+                    if (query.isNotEmpty()) TextButton(onClick = { query = "" }) { Text("Clear") }
+                },
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+            )
+
+            // Filter by source device.
+            val devices = remember(messages) { messages.map { it.sourceAlias }.filter { it.isNotBlank() }.distinct().sorted() }
+            if (devices.size > 1) {
+                LazyRow(
+                    Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    item {
+                        FilterChip(selected = deviceFilter == null, onClick = { deviceFilter = null }, label = { Text("All") })
+                    }
+                    items(devices, key = { it }) { d ->
+                        FilterChip(
+                            selected = deviceFilter == d,
+                            onClick = { deviceFilter = if (deviceFilter == d) null else d },
+                            label = { Text(d) },
+                        )
+                    }
+                }
+            }
+
+            val filtered = remember(messages, query, deviceFilter) {
+                messages.filter { m ->
+                    (deviceFilter == null || m.sourceAlias == deviceFilter) &&
+                        (query.isBlank() ||
+                            m.body.contains(query, ignoreCase = true) ||
+                            m.sender.contains(query, ignoreCase = true) ||
+                            m.sourceAlias.contains(query, ignoreCase = true))
+                }
+            }
+
+            if (filtered.isEmpty()) {
+                EmptyState("No matches", "No messages match your search/filter. Try clearing them.")
+            } else {
+                LazyColumn(
+                    Modifier.fillMaxSize().padding(horizontal = 12.dp),
+                    state = listState,
+                    contentPadding = PaddingValues(vertical = 6.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    items(filtered, key = { it.id }) { m ->
+                        ElevatedCard(Modifier.fillMaxWidth()) {
+                            Column(Modifier.padding(14.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(m.sourceAlias.ifBlank { "Unknown device" },
+                                        style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+                                    Text(m.sender, style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                                Spacer(Modifier.height(6.dp))
+                                Text(m.body, style = MaterialTheme.typography.bodyLarge)
+                                if (isAdmin) {
+                                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                                        TextButton(onClick = { vm.deleteMessage(m.id) }) { Text("Delete") }
+                                    }
+                                }
                             }
                         }
                     }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun ColumnScope.EmptyState(title: String, body: String) {
+    Column(
+        Modifier.fillMaxWidth().weight(1f).padding(32.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(title, style = MaterialTheme.typography.titleMedium)
+        Spacer(Modifier.height(8.dp))
+        Text(body, style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center)
     }
 }
 
