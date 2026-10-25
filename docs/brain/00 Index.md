@@ -33,3 +33,5 @@ updated: 2026-10-25
 ## Cross-cutting
 - [[Known Issues]]
 - [[Log]]
+
+- [[Decisions]]: rulings made during the v2 build (why + cost if wrong)
