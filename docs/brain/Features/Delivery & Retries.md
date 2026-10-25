@@ -8,7 +8,7 @@ updated: 2026-10-25
 
 ## What the user can do
 - Nothing directly: forwarded messages are sent, and retried while offline, without any action.
-- Failed rows (rejected by Telegram, SMS error, or 24 h elapsed) show in the Log with the error and can be re-sent.
+- Failed rows (rejected by Telegram, SMS error, 24 h elapsed, or an OTP not sent within 1 h) show in the Log with the error and can be re-sent (except expired OTPs).
 - Add-chat **Detect** and the per-destination **Test** button use `TelegramClient.detectChats()` / `test()`.
 
 ## Screens & entry points
@@ -20,7 +20,7 @@ updated: 2026-10-25
 - Token comes from `SettingsStore.encryptedToken` through `TokenCipher.decrypt` on every send (never cached).
 
 ## How it works
-- A pass loads due rows oldest first and sends them one by one (a mutex allows one pass at a time).
+- A pass first runs `LogRepository.prune(now)` (OTP sends still queued 1 h after receipt become FAILED "OTP expired (not sent within 1 hour)"), then loads due rows oldest first and sends them one by one (a mutex allows one pass at a time).
 - `RetryPolicy`: delay = `retry_after` or 30 s doubling, capped at 1 h; `null` (give up) once 24 h have passed since the first attempt, and the row becomes FAILED.
 - `TelegramResponse.classify`: 200 + `ok` is Sent; 429 is Retry with `retry_after`; 408/5xx/IO errors are Retry; other 4xx (400/401/403/404) are Fatal with Telegram's `description`.
 - `SmsSender`: `divideMessage` + `sendMultipartTextMessage`, one sent `PendingIntent` per part with a unique request code, one-shot receiver per send (unique action, unregistered in `finally`), 60 s timeout is Retry. Sent only when all parts are OK; radio off / no service are Retry; other codes are Fatal.
@@ -35,6 +35,6 @@ updated: 2026-10-25
 - The network constraint also applies to SMS rows (accepted trade-off: an SMS retry waits for connectivity).
 - `REPLACE` called from inside the running worker cancels that worker; `schedule` is therefore the last step of a pass.
 - An SMS sent-confirmation timeout (60 s) is retried, so a very slow radio can produce a duplicate SMS.
-- OTP rows older than 1 h have a masked body; a blank-text fallback after that sends the masked body.
+- OTP rows older than 1 h are never sent (ruling 30): prune fails their PENDING sends before masking, and Resend is refused for a masked or >1 h old OTP (`core/OtpExpiry`). A send already in flight when the hour passes still completes.
 - Ordering: `core/DeliveryOrder` serves each destination strictly oldest-first; sends run NonCancellable; `schedule` never cancels a RUNNING worker: outside callers (inline passes) enqueue a follow-up with `APPEND_OR_REPLACE` that runs after it, so no row is stranded; only the worker's own end-of-pass call uses `REPLACE`.
-- Tests: `RetryPolicyTest`, `TelegramResponseTest`, `DeliveryOrderTest`, `DispatcherTextTest`.
+- Tests: `RetryPolicyTest`, `TelegramResponseTest`, `DeliveryOrderTest`, `DispatcherTextTest`, `OtpExpiryTest`.

@@ -1,9 +1,3 @@
-# Keep Essential Components
--keep public class com.viswa2k.smsforwarder.MainActivity { *; }
--keep public class com.viswa2k.smsforwarder.SmsForwarderService { *; }
--keep public class com.viswa2k.smsforwarder.ServiceRestartReceiver { *; }
--keep public class com.viswa2k.smsforwarder.SMSReceiver { *; }
-
 # Keep Android Components
 -keep public class * extends android.app.Activity
 -keep public class * extends android.app.Service
@@ -30,9 +24,7 @@
 # Keep Compose UI
 -keep class androidx.compose.** { *; }
 
-# Security Settings
--optimizations !code/simplification/arithmetic,!code/simplification/cast,!field/*,!class/merging/*
--optimizationpasses 5
+# R8 ignores ProGuard's -optimizations / -optimizationpasses, so they are not listed.
 -allowaccessmodification
 -dontusemixedcaseclassnames
 -dontskipnonpubliclibraryclasses

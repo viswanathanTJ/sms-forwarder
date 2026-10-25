@@ -17,17 +17,21 @@ updated: 2026-10-25
 - Formatter: escaping tests cover the body only; no hard 4096 cap inside the formatter (the Dispatcher caps it); "·" and "₹" make SMS UCS-2; custom template can render empty (Dispatcher falls back to the original body); carrier display name is not resolved (raw sender shown) ([[Formatting]]).
 
 ## Data and pipeline
-- `failingSince` approximates with `firstAttemptAt`; logs with only FAILED rows count in no bucket on older queries; midnight is fixed at call time; mapper fallbacks can hide bad rows; analyzer asset load may run on the main thread; no DataStore corruption handler ([[Data Layer]]).
+- `failingSince` approximates with `firstAttemptAt`; logs with only FAILED rows count in no bucket on older queries; midnight is fixed at call time; mapper fallbacks can hide bad rows; analyzer asset load may run on the main thread ([[Data Layer]]).
+- Log "Clear" moves the catch-up floor to now: an SMS the live receiver missed shortly before Clear is no longer caught up. Rows with a still-queued send survive Clear.
+- `DefaultRules.attachFirstDestination` recognises default rules by their default names; a renamed default rule is not auto-attached.
+- An OTP send already in flight when its hour passes still completes (prune fails only PENDING rows).
+- A corrupt `settings_v2` resets every setting (token, PIN, device name) and starts paused.
 - Literal plus separated OTP both present: the separated form stays unmasked in the Log.
 - `LogEntity.simSlot` holds a subscription id (naming only).
 - READ_SMS missing makes catch-up silently do nothing (Health shows it); a pipeline failure leaves no Log row; `schedule()` throwing after commit delays send until the next trigger; loose-duplicate read sits outside the transaction (tiny race) ([[Incoming Pipeline]]).
-- Fresh-install crash between DB import and settings writes leaves defaults that forward nothing (no enabled rules/destinations).
+- Fresh-install crash between DB import and settings writes leaves defaults that forward nothing until a destination is added (the first destination then enables them).
 
 ## Delivery
 - Generic SMS failure codes are treated as fatal although some are transient; a partially delivered multipart SMS resends all parts on retry; a Telegram read timeout after acceptance can duplicate (inherent) ([[Delivery & Retries]]).
 
 ## Reliability
-- Watchdog repeats catch-up/send already started by service start (safe, wasteful); alert HTML truncation could cut an entity; `Plan.newState` and `ProblemAlerter.info()` unused; a paused service can flash its notification on a race; a second boot overwrites a pending reboot alert ([[Reliability]]).
+- Watchdog repeats the send pass already started by service start (safe; catch-up is no longer repeated); alert HTML truncation could cut an entity; `Plan.newState` and `ProblemAlerter.info()` unused; a paused service can flash its notification on a race; a second boot overwrites a pending reboot alert ([[Reliability]]).
 - Cold launch calls `ensureRunning` twice; background-started processes rely on the watchdog / onResume if the FGS start is refused.
 
 ## UI
@@ -37,6 +41,6 @@ updated: 2026-10-25
 - Onboarding is not PIN-gated (it only enables forwarding); PIN back-off can be bypassed by moving the clock forward; a forgotten PIN requires clearing app data; PIN failure persistence runs in a composable scope; device-name toast shows before the write completes.
 
 ## Build
-- kotlinx-serialization-json 1.6.3 is old for Kotlin 2.2 (updater only); check `data_extraction_rules` cloud-backup section; proguard keeps a stale `SMSReceiver` name.
+- kotlinx-serialization-json 1.6.3 is old for Kotlin 2.2 (updater only).
 
 Back to [[00 Index]].

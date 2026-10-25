@@ -23,4 +23,5 @@ Gets a Telegram message when forwarding is at risk, and a "resolved" message whe
 
 ## Gotchas
 - Target = alerts destination, else first Telegram destination (ruling 14); none -> skipped silently, state untouched.
+- `check()` runs under a process-wide `Mutex` (state read inside it): boot, service start and watchdog can call it at once without sending an alert twice.
 - Resolved text for a destination that is gone falls back to a generic line.

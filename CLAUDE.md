@@ -29,11 +29,11 @@ adb -s 127.0.0.1:6562 shell "am broadcast -a com.viswa2k.smsforwarder.debug.INJE
 
 Pure-Kotlin `core/` holds every decision (classify, match, format, retry, migrate) and is JUnit-tested; a thin Android layer wires broadcasts, Room, DataStore, WorkManager and HTTP to it. Manual DI through `AppGraph` (created in `ForwarderApp`), no Hilt/Koin.
 
-Flow: `SmsReceiver` (manifest, `goAsync`) -> `IncomingSmsAssembler` joins PDUs -> `IncomingProcessor` (analyze -> `RuleEngine` -> one Room transaction writing the Log row + outbox rows) -> `Dispatcher` sends each outbox row (Telegram / SMS) -> failures retry through a unique `DeliveryWorker` (30 s doubling, max 1 h, give up after 24 h = FAILED). `ForwarderService` (foreground, `specialUse`) + `WatchdogWorker` (15 min) + `InboxCatchUp` (24 h window) keep it alive; `ProblemAlerter` sends problem alerts to Telegram.
+Flow: `SmsReceiver` (manifest, `goAsync`) -> `IncomingSmsAssembler` joins PDUs -> `IncomingProcessor` (analyze -> `RuleEngine` -> one Room transaction writing the Log row + outbox rows) -> `Dispatcher` sends each outbox row (Telegram / SMS) -> failures retry through a unique `DeliveryWorker` (30 s doubling, max 1 h, give up after 24 h = FAILED). `ForwarderService` (foreground, `specialUse`) + `WatchdogWorker` (15 min; starts the service without its own catch-up) + `InboxCatchUp` (24 h window, one scan at a time) keep it alive; `ProblemAlerter` (process-wide mutex) sends problem alerts to Telegram.
 
 | Package (`app/src/main/java/com/viswa2k/smsforwarder/`) | Contents |
 |---|---|
-| `core/` | PURE logic: MessageType, MissedCallDetector, MessageAnalyzer, Rule/RuleEngine, MessageFormatter, PhoneNumbers, RetryPolicy, DeliveryOrder, TelegramResponse, ProblemAlerts, LogMasker, MessageKey, CatchUpWindow, V1Migration, DefaultRules, IncomingSmsAssembler, SettingsExport, PinLock, PinBackoff, MessageCheck |
+| `core/` | PURE logic: MessageType, MissedCallDetector, MessageAnalyzer, Rule/RuleEngine, MessageFormatter, PhoneNumbers, RetryPolicy, DeliveryOrder, TelegramResponse, ProblemAlerts, LogMasker, OtpExpiry, LogClearPolicy, MessageKey, CatchUpWindow, V1Migration, DefaultRules, IncomingSmsAssembler, SettingsExport, PinLock, PinBackoff, MessageCheck |
 | `classify/`, `finance/` | Ported from the SMS app (first-line "Ported from SMS app" comment): MessageClassifier, OtpExtractor, TransactionParser, BankSenderResolver; assets `keywords.json` |
 | `data/db`, `data/prefs`, `data/repo` | Room (rules, destinations, log, outbox), `V1MigrationRunner`, `SettingsStore` (DataStore `settings_v2`), `TokenCipher` (Keystore AES-GCM), repositories |
 | `delivery/` | TelegramClient, SmsSender, Dispatcher, DeliveryWorker |
@@ -52,7 +52,9 @@ Tests mirror packages under `app/src/test` (JVM only: JUnit 4 + org.json; no Rob
 - No Firebase, Google services or cloud code. Keep `allowBackup=false`, `usesCleartextTraffic=false`, `network_security_config`.
 - Bot token rules: never logged, never in exceptions or the Log (bot-token URLs redacted), stored encrypted, excluded from export unless the user ticks the box.
 - Telegram text is `parse_mode=HTML`, all SMS/user text escaped, hard cap 4096 chars; blank text falls back to the original body.
-- Log retention 48 h; OTP codes masked 1 h after receipt (pending OTP rows older than 1 h are failed, not sent masked).
+- Log retention 48 h; OTP codes masked 1 h after receipt (`OtpExpiry`: still-pending OTP sends are failed "OTP expired", never sent masked; Resend refused). Prune runs before every dispatch pass, on service start, app resume and in the watchdog.
+- Log rows are the dedupe keys: Log "Clear" moves `catchUpFloor` to now first and keeps rows with a pending send (`LogClearPolicy`). `IncomingProcessor` checks the key before analysing.
+- Loop guard: a sender equal to ANY SMS destination gets no SMS sends (Telegram still sent). The first destination saved is attached to the default rules (`DefaultRules.attachFirstDestination`).
 - The v1 DataStore `"settings"` delegate exists only in `V1MigrationRunner.kt` (two delegates for one file crash DataStore).
 - Foreground service type is `specialUse` (Android 15 forbids `dataSync` from boot). No heartbeat messages: problem alerts only.
 - One Gradle invocation at a time (low-RAM machine). Git: `git -c safe.directory=$PWD ...` (NTFS); never push.

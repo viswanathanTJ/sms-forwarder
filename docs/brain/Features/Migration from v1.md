@@ -17,7 +17,7 @@ Reads v1 DataStore `settings` (via the private `Context.dataStore` delegate in V
 
 ## How it works
 - Pure mapping in `core/V1Migration.plan(V1Settings?)`: chats "Chat 1..n" (TELEGRAM), SMS destination "SMS"; only destinations of channels whose v1 flag was on are assigned to the default rules; `skipContacts` gives NOT_IN_CONTACTS; blank alias gives `""`; `null` (no v1 keys) gives no destinations and master off.
-- Runner: skip if `migrationDone`; DB step only if no rules exist (safe retry after partial run); then settings, delete `filesDir/cloud_upload_queue`, set `migrationDone` BEFORE the destructive cleanup (a crash after clearing v1 keys must not look like a fresh install), then delete `filesDir/cloud_upload_queue` and clear all v1 keys.
+- Runner: skip if `migrationDone`; DB step only if no rules exist (safe retry after partial run); then settings, delete `filesDir/cloud_upload_queue`, set `migrationDone` BEFORE the destructive cleanup (a crash after clearing v1 keys must not look like a fresh install), then cancel v1's leftover `ServiceRestartReceiver` AlarmManager alarms (hourly request code 1 explicit component, one-shot request code 0 implicit `RESTART_SERVICE`; matched with `FLAG_NO_CREATE`), delete `filesDir/cloud_upload_queue` and clear all v1 keys.
 - `AppGraph.migrationGate` opens when the runner ends (success or failure); `V1MigrationRunner.awaitDone` is awaited by IncomingProcessor.process, ForwarderService startup pass and WatchdogWorker.
 - A failed migration still opens the gate: nothing is forwarded (no rules gives NO_RULE) until the next launch retries.
 - With rules present and no v1 keys only the flag is set, never fresh-install settings (`V1Migration.steps`).
@@ -30,4 +30,5 @@ Reads v1 DataStore `settings` (via the private `Context.dataStore` delegate in V
 ## Gotchas
 - The v1 store file is not deleted (DataStore holds it open); all v1 keys are cleared except `STORED_UPDATE`, which `update/` still uses.
 - The v1 UI and `UserPreferences` are gone, so nothing re-creates v1 keys.
-- Fresh install: master off, `catchUpFloor=now` so old inbox is never forwarded.
+- Fresh install: master off, `catchUpFloor=now` so old inbox is never forwarded. Default rules start without destinations; the first destination saved attaches to them and enables three (see [[Rules]]).
+- A corrupt v1 `settings` file reads as empty (nothing imported).
