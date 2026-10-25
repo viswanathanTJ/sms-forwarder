@@ -1,3 +1,5 @@
+> Superseded: removed in v2.0.0 (cloud sync was deleted; kept for history).
+
 # Cloud SMS — manual smoke test (two devices)
 
 Pre-req: rules + indexes deployed, Cloud Function deployed, super-admin seeded,

@@ -14,6 +14,7 @@ updated: 2026-10-25
 - **OemSettings**: intents per vendor (Samsung, realme/oppo/oneplus, xiaomi, vivo/iqoo) + app-details fallback; caller tries each until one resolves.
 
 ## Gotchas
+- Offline retry, swipe-away and reboot behaviour has JVM coverage for the decisions only; the on-device smoke test is still pending (see [[Known Issues]]).
 - `am broadcast BOOT_COMPLETED` is denied from adb shell; verify with an emulator reboot.
 - MainActivity no longer schedules the v1 hourly alarm; it calls `ForwarderService.start` when master is on.
 

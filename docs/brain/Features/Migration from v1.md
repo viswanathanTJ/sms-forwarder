@@ -20,13 +20,14 @@ Reads v1 DataStore `settings` (via the private `Context.dataStore` delegate in V
 - Runner: skip if `migrationDone`; DB step only if no rules exist (safe retry after partial run); then settings, delete `filesDir/cloud_upload_queue`, set `migrationDone` BEFORE the destructive cleanup (a crash after clearing v1 keys must not look like a fresh install), then delete `filesDir/cloud_upload_queue` and clear all v1 keys.
 - `AppGraph.migrationGate` opens when the runner ends (success or failure); `V1MigrationRunner.awaitDone` is awaited by IncomingProcessor.process, ForwarderService startup pass and WatchdogWorker.
 - A failed migration still opens the gate: nothing is forwarded (no rules gives NO_RULE) until the next launch retries.
-- Flag is set before the v1 key clear (best-effort cleanup); with rules present and no v1 keys only the flag is set, never fresh-install settings (`V1Migration.steps`).
+- With rules present and no v1 keys only the flag is set, never fresh-install settings (`V1Migration.steps`).
 - Failure: log class name only, flag unset, retried next launch.
+- Tested on JVM only (pure mapping and steps); a v1 APK was not available for an on-device upgrade test.
 
 ## Connections
 [[00 Index]] · [[Architecture Overview]] · [[Testing]]
 
 ## Gotchas
 - The v1 store file is not deleted (DataStore holds it open); all v1 keys are cleared except `STORED_UPDATE`, which `update/` still uses.
-- v1 `MainActivity` (until Task 12) may re-create default v1 keys; harmless once `migrationDone`.
+- The v1 UI and `UserPreferences` are gone, so nothing re-creates v1 keys.
 - Fresh install: master off, `catchUpFloor=now` so old inbox is never forwarded.

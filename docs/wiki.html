@@ -61,7 +61,7 @@
 
 <div class="wrap">
   <h1>SMS Forwarder</h1>
-  <p class="lead">An Android app (<code>com.viswa2k.smsforwarder</code>) that forwards incoming SMS to another phone, to Telegram, and to an end‑to‑end‑encrypted cloud so your other devices can read them. Use the <b>User / Developer</b> switch above — Developer mode reveals the architecture and the exact <code>file:line</code> behind every action.</p>
+  <p class="lead">An Android app (<code>com.viswa2k.smsforwarder</code>) that classifies incoming SMS and forwards them by rules to Telegram chats and/or other phone numbers, with a retrying delivery queue, a Log and Telegram problem alerts (v2.0.0; the cloud inbox was removed). Use the <b>User / Developer</b> switch above — Developer mode reveals the architecture and the exact <code>file:line</code> behind every action.</p>
 
   <div class="card">
     <span class="pill user">User mode</span> how to use the app, step by step.
@@ -70,55 +70,42 @@
 
   <h2>1 · What it does</h2>
   <div class="grid">
-    <div class="card"><h3>📩 Forward</h3><p>Every incoming SMS can be re‑sent as an SMS to another number and/or posted to Telegram chats, using a custom message format.</p></div>
-    <div class="card"><h3>🔐 Cloud (E2E)</h3><p>SMS are encrypted on‑device and uploaded to Firebase. Only authorized devices can decrypt and read them — the server only ever sees ciphertext.</p></div>
-    <div class="card"><h3>👀 Read anywhere</h3><p>Approved devices view another device's messages live, with optional push notifications.</p></div>
+    <div class="card"><h3>📩 Forward</h3><p>Incoming SMS are re‑sent as an SMS to other numbers and/or posted to Telegram chats according to your rules.</p></div>
+    <div class="card"><h3>🧠 Rules</h3><p>OTP, transaction, missed call and other types are matched by rules that choose destinations and a message style (Smart, Original, Custom).</p></div>
+    <div class="card"><h3>🩺 Health &amp; alerts</h3><p>A Health checklist plus Telegram problem alerts when a permission is removed, battery limits return, or a destination keeps failing.</p></div>
+    <div class="card"><h3>☁️ Cloud (removed in v2.0.0)</h3><p>The Firebase end‑to‑end‑encrypted cloud inbox and device sharing no longer exist.</p></div>
     <div class="card"><h3>⬆️ Self‑update</h3><p>The app checks GitHub Releases and offers to install a newer version.</p></div>
   </div>
 
   <!-- ============================ USER GUIDE ============================ -->
   <h2>2 · User guide</h2>
 
-  <h3>Turn on forwarding</h3>
+  <h3>Turn on forwarding (v2)</h3>
   <ol>
-    <li>Open the app → grant the SMS, contacts and notification permissions it asks for.</li>
-    <li>Toggle <b>Enable Service</b>. A persistent notification shows it's running.</li>
-    <li>Pick channels: <b>Forward as SMS</b> (enter a destination number) and/or <b>Send in Telegram</b> (bot API key + chat IDs).</li>
-    <li>Optional: set a <b>Device alias</b> and a <b>message format</b> — <code>%s</code> sender, <code>%m</code> message, <code>%r</code> device alias.</li>
-    <li>Tap <b>Save Settings</b>.</li>
+    <li>Open the app and grant SMS, Contacts and Notification permissions from the first‑run checklist.</li>
+    <li>Settings → <b>Telegram</b>: paste the bot token, add a chat (<b>Detect</b> or enter the id, optional topic id) and press <b>Test</b>. Optionally add an SMS number.</li>
+    <li>Rules tab: review the default rules (OTPs, Bank transactions, Missed calls on; Unknown senders off) and pick destinations.</li>
+    <li>Settings → Health: set battery to <b>Unrestricted</b> and allow auto‑start for your brand (Samsung, Realme, Xiaomi, Vivo).</li>
+    <li>Tap <b>Start forwarding</b>. A quiet notification shows the service is running.</li>
   </ol>
-  <div class="note user-hint">Tip: <b>Skip Contacts</b> stops forwarding messages from people already in your contacts (useful to forward only OTPs/automated texts).</div>
+  <div class="note user-hint">Tip: use <b>Test a message</b> in Settings to see how any text is classified and exactly what would be sent.</div>
 
-  <h3>Cloud SMS — sign in</h3>
-  <ol>
-    <li>Settings → <b>Open Cloud SMS</b>.</li>
-    <li><b>Sign in with Google</b> (recommended) or email/password.</li>
-    <li>If your account is approved you go straight to the cloud inbox. If not, you'll see <b>“Account not approved”</b> → tap <b>Request access</b>; an administrator approves you, then you can sign in.</li>
-  </ol>
-
-  <h3>Share & read other devices' SMS</h3>
-  <ul>
-    <li><b>Upload to cloud</b> (Settings) makes this device a <i>sender</i> — its incoming SMS are encrypted and uploaded.</li>
-    <li><b>Receive cloud messages</b> + the <b>Watch</b> screen let you pick which permitted devices to follow and whether to get push notifications.</li>
-    <li>The <b>Cloud SMS</b> screen lists decrypted messages live. The administrator controls which device may read which.</li>
-  </ul>
-
-  <h3>Administrator</h3>
-  <ul>
-    <li>The super‑admin sees an <b>Admin</b> button: manage the allow‑list, approve/deny <b>access requests</b>, grant “reader → source” access, revoke devices, and delete cloud messages.</li>
-  </ul>
+  <h3>Cloud SMS — removed in v2.0.0</h3>
+  <p>Cloud sign‑in, sharing, the Watch screen and the Admin screen were removed together with Firebase. v2 only forwards to Telegram and SMS.</p>
 
   <h3>Updates</h3>
   <p>The app checks for a newer release automatically. When one is available, an <b>Update available: vX</b> indicator appears under Settings → About (and a launch prompt) with an <b>Update</b> button that downloads + installs it — no manual checking, and the indicator clears itself once you're on the latest version.</p>
-
-  <h3>Sign out</h3>
-  <p>Use <b>Sign out</b> in the Cloud SMS screen's top bar to switch accounts. If your account isn't approved, the “Account not approved” screen also offers <b>Use a different account</b>.</p>
 
   <!-- ============================ CHANGELOG (both modes) ============================ -->
   <h2>Changelog</h2>
   <p class="muted">What each version does and what changed — newest first.</p>
   <div class="card">
-    <h3>v1.2.3 <span class="muted">— current</span></h3>
+    <h3>v2.0.0 <span class="muted">— current</span></h3>
+    <p><b>What's new:</b> complete rebuild. <b>Rules</b> choose which message types (OTP, Transaction, Balance alert, Bills, Delivery, Missed call, Other important, Personal) go to which <b>destinations</b> (many Telegram chats with optional topics, many SMS numbers) in a <b>Smart</b>, Original or Custom style. A <b>delivery queue</b> retries failed sends (30 s doubling to 1 h, up to 24 h). New <b>Log</b> (48 h, OTP masking, Resend), <b>Health</b> checklist with OEM auto‑start shortcuts, <b>Telegram problem alerts</b>, 24x7 reliability (foreground service, 15‑min watchdog, inbox catch‑up), <b>Test a message</b>, optional <b>PIN</b>, settings <b>export/import</b>, light/dark Material 3 UI. Installs over v1 and migrates token, chats, number, alias and master switch.</p>
+    <p><b>Removed:</b> Firebase, the E2E cloud inbox, device sharing, Watch and Admin screens, v1 message‑format tokens (replaced by styles).</p>
+  </div>
+  <div class="card">
+    <h3>v1.2.3</h3>
     <p><b>Bug fix:</b> after the v1.2.2 device‑identity change, some users' existing messages stopped showing because the device's id changed and its inbox moved. This keeps your existing device id (messages stay put) and only assigns a stable id to brand‑new installs — so one device still maps to one entry across reinstalls, without losing your current inbox.</p>
   </div>
   <div class="card">
@@ -193,6 +180,7 @@
   <!-- ============================ DEV: ARCHITECTURE ============================ -->
   <div class="dev-only">
     <h2>3 · Architecture <span class="pill dev">dev</span></h2>
+    <div class="note warn"><b>Superseded in v2.0.0:</b> the cloud/Firebase architecture below was removed; see CLAUDE.md and docs/brain for the v2 design.</div>
     <p>Single‑module Kotlin + Jetpack Compose app (minSdk 29 / target 34). No DI framework; state flows through DataStore preferences, a foreground service, and a set of repositories over Firebase. New cloud code lives under <code>app/src/main/java/com/viswa2k/smsforwarder/cloud/**</code> (<code>crypto</code>, <code>data</code>, <code>ui</code>, <code>fcm</code>, <code>update</code>).</p>
     <div class="flow">incoming SMS
   └─ SmsForwarderService (foreground) ──registers──▶ SmsReceiver
@@ -259,6 +247,7 @@ reader device: CloudSmsScreen ──snapshot listener──▶ inbox/{me}/messag
 
     <!-- ============================ DEV: CRYPTO ============================ -->
     <h2>5 · End‑to‑end encryption <span class="pill dev">dev</span></h2>
+    <div class="note warn"><b>Superseded in v2.0.0:</b> this cloud feature was removed in v2.0.0 (kept for history).</div>
     <p>Envelope (hybrid) crypto. The server never holds a usable key.</p>
     <ul>
       <li><b>Identity keys:</b> each reader/admin device has an HPKE key pair (Tink, <code>DHKEM(P‑256)+HKDF‑SHA256+AES‑256‑GCM</code>). The private keyset is sealed at rest by an Android Keystore master key; the public key is published on the device's Firestore doc. Senders hold <i>no</i> private key.</li>
@@ -271,6 +260,7 @@ reader device: CloudSmsScreen ──snapshot listener──▶ inbox/{me}/messag
 
     <!-- ============================ DEV: BACKEND ============================ -->
     <h2>6 · Backend (Firebase) <span class="pill dev">dev</span></h2>
+    <div class="note warn"><b>Superseded in v2.0.0:</b> this cloud feature was removed in v2.0.0 (kept for history).</div>
     <p>Project <code>v2k-sms-sync</code>. Firestore (storage + realtime), Firebase Auth (email + Google), Cloud Functions (FCM), all under <code>firebase/</code>.</p>
     <h3>Firestore collections</h3>
     <div class="flow">authorized_emails/{email}            { role: admin|member }

@@ -4,49 +4,67 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-Android app (`com.viswa2k.smsforwarder`) that forwards incoming SMS to another phone number (via SMS) and/or one or more Telegram chats (via the Telegram Bot API). Single-module Kotlin + Jetpack Compose app. minSdk 29, targetSdk/compileSdk 34.
+SMS Forwarder v2 (`com.viswa2k.smsforwarder`, versionName 2.0.0 / versionCode 20). Android app (Kotlin 2.2.0, Jetpack Compose, minSdk 29, compile/target SDK 36) that classifies each incoming SMS (OTP, Transaction, Balance alert, Bills, Delivery, Missed call, Other important, Personal, Spam) and forwards it according to **rules** to **destinations**: Telegram chats (Bot API, optional forum topic) and/or SMS numbers. Built for phones that run unattended 24x7: delivery queue with retries, Log, Health checks and Telegram problem alerts. No Firebase, no cloud sync; network only to `api.telegram.org` and the GitHub releases API (updater).
+
+Spec: `docs/superpowers/specs/2026-10-25-forwarder-revamp-design.md`. Old cloud spec/plans (`2026-06-20-*`) are history only.
 
 ## Build & Test
 
 ```bash
-./gradlew assembleDebug          # build debug APK
-./gradlew assembleRelease        # build minified/shrunk release APK (R8 + proguard-rules.pro)
-./gradlew installDebug           # build + install on connected device/emulator
-./gradlew test                   # JVM unit tests (app/src/test)
-./gradlew testDebugUnitTest --tests "com.viswa2k.smsforwarder.ExampleUnitTest"  # single test
-./gradlew connectedAndroidTest   # instrumented tests (app/src/androidTest, needs device)
-./gradlew lint                   # Android lint
+./gradlew testDebugUnitTest assembleDebug   # the per-change gate (JVM tests + debug APK)
+./gradlew assembleRelease                   # R8 + proguard-rules.pro (unsigned locally unless signing env is set)
+./gradlew installDebug                      # install on the emulator
+./gradlew testDebugUnitTest --tests 'com.viswa2k.smsforwarder.core.*'   # focused tests
 ```
 
-There is no CI config and only the template example tests exist — the test suite is effectively empty.
+Version defaults live in `app/build.gradle.kts` (overridable with `-PVERSION_NAME` / `-PVERSION_CODE`). `gradle.properties` pins `org.gradle.java.home=/opt/android-studio/jbr`.
+
+Debug-only SMS inject hook (feeds `IncomingProcessor` exactly like a real SMS; lives in `app/src/debug`):
+
+```bash
+adb -s 127.0.0.1:6562 shell "am broadcast -a com.viswa2k.smsforwarder.debug.INJECT_SMS -n com.viswa2k.smsforwarder/.debug.InjectSmsReceiver --es from VM-HDFCBK --es body 'Rs 1250.00 debited from A/c XX4521 ... UPI Swiggy'"
+```
 
 ## Architecture
 
-The app has no DI framework, no Room, no networking library. State flows through three pieces:
+Pure-Kotlin `core/` holds every decision (classify, match, format, retry, migrate) and is JUnit-tested; a thin Android layer wires broadcasts, Room, DataStore, WorkManager and HTTP to it. Manual DI through `AppGraph` (created in `ForwarderApp`), no Hilt/Koin.
 
-- **`UserPreferences`** — the single source of truth, wrapping a DataStore Preferences store named `"settings"`. Exposes every setting as a `Flow` getter and a `suspend` saver. The store is created via the `Context.dataStore` extension property declared in `MainActivity.kt` (line ~30) — `SmsReceiver` reaches it through that same extension. `initializeDefaults()` seeds all keys on first launch.
-- **`SmsForwarderService`** — a `START_STICKY` foreground service (`foregroundServiceType=dataSync`) that registers/unregisters `SmsReceiver` at runtime for the `android.provider.Telephony.SMS_RECEIVED` broadcast. It self-heals: `onTaskRemoved`/`onStartCommand` schedule an exact AlarmManager restart with exponential backoff (5 min → 4 h, retry count in the `service_prefs` SharedPreferences), and `MainActivity` also requests battery-optimization exemption and sets an hourly restart alarm.
-- **`SmsReceiver`** — the actual forwarding logic. On each SMS it reads preferences, optionally skips senders found in Contacts (`isSkipContacts` + `READ_CONTACTS` query), then forwards via `SmsManager.sendTextMessage` and/or an HTTP POST to `https://api.telegram.org/bot<key>/sendMessage` (raw `HttpURLConnection`, `parse_mode=HTML`, comma-separated chat IDs).
+Flow: `SmsReceiver` (manifest, `goAsync`) -> `IncomingSmsAssembler` joins PDUs -> `IncomingProcessor` (analyze -> `RuleEngine` -> one Room transaction writing the Log row + outbox rows) -> `Dispatcher` sends each outbox row (Telegram / SMS) -> failures retry through a unique `DeliveryWorker` (30 s doubling, max 1 h, give up after 24 h = FAILED). `ForwarderService` (foreground, `specialUse`) + `WatchdogWorker` (15 min) + `InboxCatchUp` (24 h window) keep it alive; `ProblemAlerter` sends problem alerts to Telegram.
 
-`ServiceRestartReceiver` restarts the service on `BOOT_COMPLETED` and the custom `<applicationId>.RESTART_SERVICE` action.
+| Package (`app/src/main/java/com/viswa2k/smsforwarder/`) | Contents |
+|---|---|
+| `core/` | PURE logic: MessageType, MissedCallDetector, MessageAnalyzer, Rule/RuleEngine, MessageFormatter, PhoneNumbers, RetryPolicy, DeliveryOrder, TelegramResponse, ProblemAlerts, LogMasker, MessageKey, CatchUpWindow, V1Migration, DefaultRules, IncomingSmsAssembler, SettingsExport, PinLock, PinBackoff, MessageCheck |
+| `classify/`, `finance/` | Ported from the SMS app (first-line "Ported from SMS app" comment): MessageClassifier, OtpExtractor, TransactionParser, BankSenderResolver; assets `keywords.json` |
+| `data/db`, `data/prefs`, `data/repo` | Room (rules, destinations, log, outbox), `V1MigrationRunner`, `SettingsStore` (DataStore `settings_v2`), `TokenCipher` (Keystore AES-GCM), repositories |
+| `delivery/` | TelegramClient, SmsSender, Dispatcher, DeliveryWorker |
+| `pipeline/` | SmsReceiver, IncomingProcessor, ContactLookup, InboxCatchUp |
+| `service/` | ForwarderService, BootReceiver, WatchdogWorker, HealthChecker, OemSettings, ProblemAlerter |
+| `update/` | GitHub releases updater (UpdateChecker/Installer/Manager/Dialog) |
+| `ui/` | theme, nav, home, rules, log, settings, onboarding, common (4 tabs: Home, Rules, Log, Settings) |
+| `app/src/debug/.../debug/` | `InjectSmsReceiver` (adb hook) |
 
-UI is one Compose screen: `SettingsScreen` → `SettingsViewModel` (via `SettingsViewModelFactory`). The ViewModel mirrors every preference into `MutableStateFlow`s and writes them all back in `saveSettings()`. Toggling the service on/off only takes effect when `MainActivity.checkAndStartService()` runs (on next `onCreate`), which starts or stops `SmsForwarderService` based on `isSmsForwarderService`.
-
-### Message format tokens
-
-Forwarded message text is built by token replacement in `SmsReceiver.sendSms`/`sendTelegramMessage`:
-- `%s` → original sender number
-- `%m` → original message body
-- `%r` → device alias (`deviceAlias`, defaults to `Build.MANUFACTURER Build.MODEL`)
-
-There is a global format plus per-channel (SMS / Telegram) overrides; a blank channel format falls back to the global format, and a blank global format falls back to `%m`. Telegram additionally converts literal `\n` to real newlines.
+Tests mirror packages under `app/src/test` (JVM only: JUnit 4 + org.json; no Robolectric, no androidTest).
 
 ## Conventions & gotchas
 
-- **Filename vs. class name mismatch**: `SMSForwarderService.kt` defines class `SmsForwarderService`; `SMSReceiver.kt` defines `SmsReceiver`. The manifest and code reference the `Sms...` class names — match those, not the filenames.
-- **Package vs. directory mismatch**: `SettingsScreen.kt` lives in `ui/screen/` but declares `package com.viswa2k.smsforwarder.ui` (the ViewModel files in the same dir use `...ui.screen`). Keep existing package declarations when editing.
-- Secrets (Telegram bot token, target number) live unencrypted in DataStore. `allowBackup=false` and `usesCleartextTraffic=false` are set deliberately — preserve them.
-- Version catalog is `gradle/libs.versions.toml`; DataStore and lifecycle-viewmodel-compose are declared as raw coordinate strings in `app/build.gradle.kts` rather than the catalog.
+- Decisions belong in pure `core/` classes with tests; Android classes stay thin.
+- Enums persisted in Room/DataStore use stored string **codes**, never ordinals.
+- No Firebase, Google services or cloud code. Keep `allowBackup=false`, `usesCleartextTraffic=false`, `network_security_config`.
+- Bot token rules: never logged, never in exceptions or the Log (bot-token URLs redacted), stored encrypted, excluded from export unless the user ticks the box.
+- Telegram text is `parse_mode=HTML`, all SMS/user text escaped, hard cap 4096 chars; blank text falls back to the original body.
+- Log retention 48 h; OTP codes masked 1 h after receipt (pending OTP rows older than 1 h are failed, not sent masked).
+- The v1 DataStore `"settings"` delegate exists only in `V1MigrationRunner.kt` (two delegates for one file crash DataStore).
+- Foreground service type is `specialUse` (Android 15 forbids `dataSync` from boot). No heartbeat messages: problem alerts only.
+- One Gradle invocation at a time (low-RAM machine). Git: `git -c safe.directory=$PWD ...` (NTFS); never push.
+- Devices: use ONLY the emulator `127.0.0.1:6562`. Never touch `adb-RZCX51XRGKZ...` (owner's real phone) or other devices.
+- Brain vault: `docs/brain/` is an Obsidian vault (start at `00 Index.md`). Update the relevant feature note and add a dated line to `Log.md` for every behaviour change; deferred minors go in `Known Issues.md`.
+
+## Hard rules
+
+- Never forward Spam/scams; never add network endpoints beyond Telegram and GitHub releases.
+- Never log or display the bot token; never commit secrets or `local.properties`.
+- Keep package/applicationId `com.viswa2k.smsforwarder` and the signing config so v2 installs over v1.
+- Gate before every commit: `./gradlew testDebugUnitTest assembleDebug`.
 
 ---
 

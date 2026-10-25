@@ -1,3 +1,5 @@
+> Superseded: removed in v2.0.0 (cloud sync was deleted; kept for history).
+
 # Cloud Encrypted SMS Sync — Implementation Plan (Firebase)
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.

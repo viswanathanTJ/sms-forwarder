@@ -6,6 +6,9 @@ updated: 2026-10-25
 
 > Dated work log. Newest first. See [[00 Index]].
 
+## 2026-10-25 - v2.0.0 release docs (Task 16)
+- Rewrote CLAUDE.md and README.md for v2, added the v2.0.0 wiki changelog and "Superseded" notes on the cloud spec/plans, completed every brain note ([[Testing]], [[Known Issues]], [[00 Index]]). Version 2.0.0 / code 20 confirmed. Gate `testDebugUnitTest assembleDebug assembleRelease` passed.
+
 ## 2026-10-25 - Task 1: toolchain upgrade and cloud removal
 - Upgraded to Kotlin 2.2.0, AGP 8.13.2, Gradle 8.13, KSP 2.3.4, SDK 36; versions inline, `libs.versions.toml` deleted. Added Room, WorkManager, Navigation, icons-extended; kept kotlinx-serialization for the updater.
 - Removed Firebase, `cloud/` (crypto, data, fcm, ui), v1 settings UI, `firebase/`, the debug cleartext override, Tink/biometric/credentials dependencies and Example tests. Moved `cloud/update` to `update/`.

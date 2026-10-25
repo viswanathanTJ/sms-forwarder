@@ -1,3 +1,5 @@
+> Superseded: removed in v2.0.0 (cloud sync was deleted; kept for history).
+
 # Cloud Encrypted SMS Sync — Design Spec
 
 **Date:** 2026-06-20

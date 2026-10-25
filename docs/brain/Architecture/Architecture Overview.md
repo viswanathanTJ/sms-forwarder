@@ -4,7 +4,7 @@ updated: 2026-10-25
 ---
 # Architecture Overview
 
-> SMS Forwarder v2 (`com.viswa2k.smsforwarder`, 2.0.0): rule-based forwarding of classified SMS to Telegram and SMS. Pure-Kotlin core holds every decision; a thin Android layer wires it to broadcasts, Room, DataStore, WorkManager and HTTP. This is the **target** structure; Task 1 only removed cloud sync and upgraded the toolchain.
+> SMS Forwarder v2 (`com.viswa2k.smsforwarder`, 2.0.0): rule-based forwarding of classified SMS to Telegram and SMS. Pure-Kotlin core holds every decision; a thin Android layer wires it to broadcasts, Room, DataStore, WorkManager and HTTP. All layers below are implemented.
 
 ## Layers
 - **core/** (pure, JUnit-tested): MessageType, MissedCallDetector, MessageAnalyzer, Rule/RuleEngine, MessageFormatter, PhoneNumbers, RetryPolicy, TelegramResponse, ProblemAlerts, LogMasker, MessageKey, CatchUpWindow, V1Migration, DefaultRules, IncomingSmsAssembler, SettingsExport, PinLock, MessageCheck. See [[Rules]], [[Formatting]], [[Delivery & Retries]], [[Migration from v1]].
@@ -13,11 +13,11 @@ updated: 2026-10-25
 - **delivery/**: TelegramClient, SmsSender, Dispatcher, DeliveryWorker. See [[Delivery & Retries]].
 - **pipeline/**: SmsReceiver, IncomingProcessor, ContactLookup, InboxCatchUp. See [[Incoming Pipeline]].
 - **service/**: ForwarderService, BootReceiver, WatchdogWorker, HealthChecker, OemSettings, ProblemAlerter. See [[Reliability]], [[Problem Alerts]].
-- **update/**: GitHub-releases updater (UpdateChecker, UpdateInstaller, UpdateManager, UpdateDialog). Already in place (moved from `cloud/update` in Task 1).
+- **update/**: GitHub-releases updater (UpdateChecker, UpdateInstaller, UpdateManager, UpdateDialog). Moved from `cloud/update`.
 - **ui/**: theme, nav, home, rules, log, settings, onboarding, common. See [[UI Screens]].
 - `ForwarderApp` creates `AppGraph`, a manual lazy DI container (db, settings, cipher, analyzer, clients, repos, appScope).
 
-## Current state (after Task 1)
+## Current state (v2.0.0)
 - Kotlin 2.2.0, AGP 8.13.2, Gradle 8.13, KSP 2.3.4, compile/target SDK 36, min SDK 29. Versions are inline in `app/build.gradle.kts` (no version catalog).
 - Firebase and all cloud sync code are removed. Network is only `api.telegram.org` and the GitHub releases API.
 - `MainActivity` is edge-to-edge and hosts `ui/nav/AppNavHost` plus `UpdateDialogHost`. `UserPreferences` is gone (Task 12): stored-update state lives in `SettingsStore`; the v1 `Context.dataStore` ("settings") is private to `V1MigrationRunner`, its only reader. See [[UI Screens]].

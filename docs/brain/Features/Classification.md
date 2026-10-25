@@ -30,7 +30,7 @@ Diff each file against `../SMS/app/src/main/java/com/viswa2k/sms/{classify,finan
 - `caller` = first such token with spaces removed; `time` = first `h:mm` / `hh:mm AM|PM` as written; `count` = `N missed calls`, default 1.
 - Adding a carrier format: add a `Pattern` (anchored regex, group 1 = caller number via `$NUM`) to `PATTERNS` in `MissedCallDetector.kt` (and widen `NUM`/`TIME` only if the number or time looks different), then add a real sample to `MissedCallDetectorTest`. Samples can be pasted via the Test tool later.
 
-## Message types (Task 4)
+## Message types
 `core/MessageAnalyzer(lists?).analyze(sender, body, senderKind): Analysis` maps the classifier output to `MessageType` (codes stored, never renumber). Order: missed call (detector) first, then the table below. `lists == null` (asset failed): missed call, else business -> Other important, phone -> Personal, `classifierAvailable = false`.
 
 | MessageType | Source |
