@@ -222,7 +222,7 @@ with no one touching the app, and must not drain the battery.
 - **Catch-up scan (gap filler):** SMS that arrive before the first unlock after a reboot, or while
   the process was dead, are not delivered to the receiver. On `BOOT_COMPLETED`, service start and
   each watchdog run, read the SMS inbox for messages newer than the last processed timestamp
-  (bounded to the last 48 h) and run them through the pipeline; dedupe by sender + timestamp +
+  (bounded to the last 24 h, shorter than the 48 h log retention that holds the dedupe keys; never earlier than first run or the last time forwarding was switched on) and run them through the pipeline; dedupe by sender + timestamp +
   body hash. This is a scoped exception to the "no back-fill" non-goal *(my call)*. No
   direct-boot storage, so the token stays credential-encrypted.
 - **Watchdog:** a 15-minute periodic WorkManager job (min. interval, inexact, batched by the OS)
