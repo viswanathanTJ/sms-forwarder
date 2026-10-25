@@ -7,6 +7,7 @@
     <string name="home_hero_paused">Forwarding is paused</string>
     <string name="home_hero_sub_on">%1$s · service healthy</string>
     <string name="home_hero_sub_on_attention">%1$s · needs attention</string>
+    <string name="home_no_destination_rule">No rule has a destination: nothing is forwarded</string>
     <string name="home_hero_sub_paused">Incoming SMS are not checked or sent</string>
     <string name="home_device_default">This phone</string>
     <string name="home_needs_attention">Needs attention: %1$d to fix</string>

@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.viswa2k.smsforwarder.AppGraph
 import com.viswa2k.smsforwarder.core.Rule
+import com.viswa2k.smsforwarder.core.RuleEngine
 import com.viswa2k.smsforwarder.service.ForwarderService
 import com.viswa2k.smsforwarder.service.HealthChecker
 import com.viswa2k.smsforwarder.service.HealthItem
@@ -61,6 +62,8 @@ data class HomeState(
     val recent: List<LogRowData> = emptyList(),
     /** True until proven otherwise (and until [loaded]) so the setup card does not flash on start. */
     val hasDestinations: Boolean = true,
+    /** Some enabled rule has a destination ([RuleEngine.canForward]); true until [loaded]. */
+    val canForward: Boolean = true,
     val loaded: Boolean = false,
 )
 
@@ -68,10 +71,16 @@ class HomeViewModel(private val graph: AppGraph) : ViewModel() {
 
     private val settingsFlow = combine(graph.settings.masterOn, graph.settings.deviceName) { on, name -> on to name }
 
+    private data class RulesInfo(val rows: List<RuleRow>, val hasDestinations: Boolean, val canForward: Boolean)
+
     private val rulesFlow = combine(graph.rules.rules, graph.destinations.destinations) { rules, dests ->
         val labels = dests.associate { it.id to it.label }
-        rules.sortedWith(compareBy({ it.position }, { it.id }))
-            .map { r -> RuleRow(r, r.destinationIds.mapNotNull { labels[it] }) } to dests.isNotEmpty()
+        RulesInfo(
+            rules.sortedWith(compareBy({ it.position }, { it.id }))
+                .map { r -> RuleRow(r, r.destinationIds.mapNotNull { labels[it] }) },
+            dests.isNotEmpty(),
+            RuleEngine.canForward(rules, dests),
+        )
     }
 
     private val recentFlow = graph.logRows(RECENT_LIMIT)
@@ -93,8 +102,8 @@ class HomeViewModel(private val graph: AppGraph) : ViewModel() {
         countsFlow,
         rulesFlow,
         recentFlow,
-    ) { (master, device), counts, (rules, hasDestinations), recent ->
-        HomeState(master, device, counts, rules, recent, hasDestinations, loaded = true)
+    ) { (master, device), counts, info, recent ->
+        HomeState(master, device, counts, info.rows, recent, info.hasDestinations, info.canForward, loaded = true)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeState())
 
     private val _health = MutableStateFlow<List<HealthItem>>(emptyList())

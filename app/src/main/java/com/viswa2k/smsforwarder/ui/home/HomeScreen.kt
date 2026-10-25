@@ -98,6 +98,7 @@ fun HomeScreen(
             issues = issues,
             onToggle = { on -> requireUnlock { vm.setMaster(on) } },
             onAttention = onOpenSettings,
+            onNoDestinationRule = onOpenRules,
         )
 
         if (state.loaded && !state.hasDestinations) {
@@ -146,7 +147,13 @@ private fun MutedText(text: String) =
     Text(text, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
 
 @Composable
-private fun HeroCard(state: HomeState, issues: Int, onToggle: (Boolean) -> Unit, onAttention: () -> Unit) {
+private fun HeroCard(
+    state: HomeState,
+    issues: Int,
+    onToggle: (Boolean) -> Unit,
+    onAttention: () -> Unit,
+    onNoDestinationRule: () -> Unit,
+) {
     val switchLabel = stringResource(R.string.home_master_switch)
     val onHero = Color.White
     Column(
@@ -191,6 +198,10 @@ private fun HeroCard(state: HomeState, issues: Int, onToggle: (Boolean) -> Unit,
             Stat(state.counts.skipped, R.string.home_stat_skipped, Modifier.weight(1f))
             Stat(state.counts.notSent, R.string.home_stat_not_sent, Modifier.weight(1f))
         }
+        // Forwarding "on" but no enabled rule has a destination: nothing would be forwarded.
+        if (state.loaded && state.masterOn && !state.canForward) {
+            HeroWarning(stringResource(R.string.home_no_destination_rule), onNoDestinationRule)
+        }
         if (issues > 0) {
             Row(
                 Modifier
@@ -208,6 +219,22 @@ private fun HeroCard(state: HomeState, issues: Int, onToggle: (Boolean) -> Unit,
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun HeroWarning(text: String, onClick: () -> Unit) {
+    Row(
+        Modifier
+            .padding(top = 10.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .clickable(onClick = onClick)
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(Icons.Outlined.ErrorOutline, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+        Spacer(Modifier.width(6.dp))
+        Text(text, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
     }
 }
 
@@ -270,6 +297,8 @@ private fun RuleItem(row: RuleRow, onClick: () -> Unit, onToggle: (Boolean) -> U
         Switch(
             modifier = Modifier.semantics { contentDescription = switchLabel },
             checked = rule.enabled,
+            // Same as the Rules screen: a rule without destinations cannot be enabled, only switched off.
+            enabled = rule.enabled || row.destinationLabels.isNotEmpty(),
             onCheckedChange = onToggle,
         )
     }
