@@ -1,7 +1,13 @@
 package com.viswa2k.smsforwarder.ui.log
 
-import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -29,6 +35,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -42,9 +49,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.viswa2k.smsforwarder.AppGraph
 import com.viswa2k.smsforwarder.R
+import com.viswa2k.smsforwarder.ui.nav.LocalReduceMotion
 import com.viswa2k.smsforwarder.ui.nav.Transitions
-import com.viswa2k.smsforwarder.ui.nav.contentEnter
-import com.viswa2k.smsforwarder.ui.nav.contentExit
+import com.viswa2k.smsforwarder.ui.nav.itemMotion
 
 @Composable
 fun LogScreen(modifier: Modifier = Modifier) {
@@ -86,34 +93,47 @@ fun LogScreen(modifier: Modifier = Modifier) {
                 )
             }
         }
-        AnimatedVisibility(visible = state.loaded && visible.isEmpty(), enter = contentEnter(), exit = contentExit()) {
-            Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.TopCenter) {
-                Text(
-                    stringResource(if (state.all.isEmpty()) R.string.log_empty else R.string.log_empty_filtered),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp,
-                )
-            }
+        // One AnimatedContent so loading / empty / list cross-fade instead of animating separately.
+        val mode = when {
+            visible.isNotEmpty() -> 2
+            state.loaded -> 1
+            else -> 0
         }
-        AnimatedVisibility(
-            visible = visible.isNotEmpty(),
-            enter = contentEnter(),
-            exit = contentExit(),
+        // Frozen for the exit frame: the last non-empty list and the last empty-state text.
+        val frozen = remember { object { var rows: List<LogRowData> = visible; var emptyRes = R.string.log_empty } }
+        if (visible.isNotEmpty()) frozen.rows = visible
+        if (mode == 1) frozen.emptyRes = if (state.all.isEmpty()) R.string.log_empty else R.string.log_empty_filtered
+        val reduce = LocalReduceMotion.current
+        AnimatedContent(
+            targetState = mode,
             modifier = Modifier.weight(1f, fill = false),
-        ) {
-            Surface(
-                modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp).fillMaxWidth(),
-                shape = RoundedCornerShape(18.dp),
-                color = MaterialTheme.colorScheme.surface,
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-            ) {
-                LazyColumn(contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp)) {
-                    items(visible, key = { it.id }) { row ->
-                        Column(Modifier.animateItem(fadeInSpec = tween(Transitions.CONTENT_MS), placementSpec = tween(Transitions.CONTENT_MS), fadeOutSpec = tween(Transitions.CONTENT_MS))) {
-                            LogRow(row, Modifier.padding(vertical = 10.dp), onClick = { openId = row.id })
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            transitionSpec = {
+                if (reduce) EnterTransition.None togetherWith ExitTransition.None
+                else fadeIn(tween(Transitions.CONTENT_MS)) togetherWith fadeOut(tween(Transitions.CONTENT_MS)) using
+                    SizeTransform(clip = true) { _, _ -> tween(Transitions.CONTENT_MS) }
+            },
+            label = "log-content",
+        ) { m ->
+            when (m) {
+                1 -> Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.TopCenter) {
+                    Text(stringResource(frozen.emptyRes), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
+                }
+                2 -> Surface(
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp).fillMaxWidth(),
+                    shape = RoundedCornerShape(18.dp),
+                    color = MaterialTheme.colorScheme.surface,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                ) {
+                    LazyColumn(contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp)) {
+                        items(frozen.rows, key = { it.id }) { row ->
+                            Column(itemMotion()) {
+                                LogRow(row, Modifier.padding(vertical = 10.dp), onClick = { openId = row.id })
+                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                            }
                         }
                     }
                 }
+                else -> Box(Modifier.fillMaxWidth())
             }
         }
     }

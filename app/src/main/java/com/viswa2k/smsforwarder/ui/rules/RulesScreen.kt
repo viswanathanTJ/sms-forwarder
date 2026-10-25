@@ -1,6 +1,5 @@
 package com.viswa2k.smsforwarder.ui.rules
 
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -20,7 +19,6 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.ExtendedFloatingActionButton
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -47,7 +45,7 @@ import com.viswa2k.smsforwarder.core.SenderCondition
 import com.viswa2k.smsforwarder.ui.common.Pill
 import com.viswa2k.smsforwarder.ui.common.TypeBadge
 import com.viswa2k.smsforwarder.ui.home.RuleRow
-import com.viswa2k.smsforwarder.ui.nav.Transitions
+import com.viswa2k.smsforwarder.ui.nav.itemMotion
 
 @Composable
 fun RulesScreen(
@@ -60,7 +58,6 @@ fun RulesScreen(
     val rules by vm.rules.collectAsStateWithLifecycle()
 
     Box(modifier.fillMaxSize()) {
-        val spec = tween<androidx.compose.ui.unit.IntOffset>(Transitions.CONTENT_MS)
         LazyColumn(
             Modifier.fillMaxSize(),
             contentPadding = PaddingValues(start = 14.dp, end = 14.dp, bottom = 88.dp),
@@ -96,7 +93,7 @@ fun RulesScreen(
                     }
                 }
                 itemsIndexed(list, key = { _, row -> row.rule.id }) { i, row ->
-                    RuleCard(Modifier.animateItem(fadeInSpec = tween(Transitions.CONTENT_MS), placementSpec = spec, fadeOutSpec = tween(Transitions.CONTENT_MS))) {
+                    RuleCard(itemMotion()) {
                         RuleListItem(
                             row = row,
                             canMoveUp = i > 0,

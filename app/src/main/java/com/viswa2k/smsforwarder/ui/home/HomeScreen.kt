@@ -49,6 +49,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.viswa2k.smsforwarder.AppGraph
 import com.viswa2k.smsforwarder.R
 import com.viswa2k.smsforwarder.ui.nav.contentEnter
+import com.viswa2k.smsforwarder.ui.rules.RuleCard
 import com.viswa2k.smsforwarder.ui.nav.contentExit
 import com.viswa2k.smsforwarder.core.SenderCondition
 import com.viswa2k.smsforwarder.ui.common.SectionTitle
@@ -112,13 +113,17 @@ fun HomeScreen(
         }
 
         SectionTitle(stringResource(R.string.home_section_rules), actionLabel = stringResource(R.string.home_manage), onAction = onOpenRules)
-        AppCard {
-            if (state.loaded && state.rules.isEmpty()) {
-                MutedText(stringResource(R.string.home_no_rules))
+        if (state.rules.isEmpty()) {
+            AppCard {
+                if (state.loaded) MutedText(stringResource(R.string.home_no_rules))
             }
-            state.rules.forEachIndexed { index, row ->
-                if (index > 0) HorizontalDivider(Modifier.padding(vertical = 10.dp), color = MaterialTheme.colorScheme.outlineVariant)
-                RuleItem(row, onClick = { onOpenRule(row.rule.id) }, onToggle = { on -> requireUnlock { vm.setRuleEnabled(row.rule.id, on) } })
+        } else {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                state.rules.forEach { row ->
+                    RuleCard {
+                        RuleItem(row, onClick = { onOpenRule(row.rule.id) }, onToggle = { on -> requireUnlock { vm.setRuleEnabled(row.rule.id, on) } })
+                    }
+                }
             }
         }
 

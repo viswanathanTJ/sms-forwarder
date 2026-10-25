@@ -17,6 +17,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -153,18 +154,22 @@ fun AppNavHost(navController: NavHostController = rememberNavController()) {
         val enter: (String?, String?) -> EnterTransition = { from, to ->
             if (reduceMotion) EnterTransition.None else tabEnter(from, to)
         }
+        val popEnter: (String?, String?) -> EnterTransition = { from, to ->
+            if (reduceMotion) EnterTransition.None else popTabEnter(from, to)
+        }
         val exit: (String?, String?) -> ExitTransition = { from, to ->
             if (reduceMotion) ExitTransition.None else tabExit(from, to)
         }
         val pushIn: () -> EnterTransition = { if (reduceMotion) EnterTransition.None else pushEnter() }
         val pushOut: () -> ExitTransition = { if (reduceMotion) ExitTransition.None else pushPopExit() }
+        CompositionLocalProvider(LocalReduceMotion provides reduceMotion) {
         NavHost(
             navController,
             startDestination = startRoute,
             modifier = Modifier.padding(padding),
             enterTransition = { enter(initialState.destination.route, targetState.destination.route) },
             exitTransition = { exit(initialState.destination.route, targetState.destination.route) },
-            popEnterTransition = { enter(initialState.destination.route, targetState.destination.route) },
+            popEnterTransition = { popEnter(initialState.destination.route, targetState.destination.route) },
             popExitTransition = { exit(initialState.destination.route, targetState.destination.route) },
         ) {
             composable(
@@ -224,6 +229,7 @@ fun AppNavHost(navController: NavHostController = rememberNavController()) {
                 }
                 if (locked) LockedPane(onUnlock = { requireUnlock { } }) else SettingsScreen()
             }
+        }
         }
     }
 }
