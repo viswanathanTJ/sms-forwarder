@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="onb_welcome">Set up SMS Forwarder</string>
+    <string name="onb_step_of">Step %1$d of %2$d</string>
+    <string name="onb_next">Next</string>
+    <string name="onb_back">Back</string>
+    <string name="onb_perm_title">Permissions</string>
+    <string name="onb_perm_body">The app needs to read incoming SMS, send SMS, check your contacts and show its service notice.</string>
+    <string name="onb_grant">Grant</string>
+    <string name="onb_battery_title">Battery: unrestricted</string>
+    <string name="onb_battery_body">So Android never puts forwarding to sleep. It uses almost no battery: nothing runs between messages.</string>
+    <string name="onb_battery_action">Allow</string>
+    <string name="onb_oem_title">Auto-start</string>
+    <string name="onb_oem_body">Some phones also stop apps that are swiped away. Allow auto-start once, then tick Done.</string>
+    <string name="onb_oem_item">Auto-start allowed (%1$s)</string>
+    <string name="onb_finish_title">Ready</string>
+    <string name="onb_finish_body_off">Forwarding is paused until you start it. Only messages received from now on are forwarded. Add Telegram chats or SMS numbers in Settings.</string>
+    <string name="onb_finish_body_on">Forwarding is on.</string>
+    <string name="onb_start">Start forwarding</string>
+    <string name="onb_not_now">Not now</string>
+    <string name="onb_continue">Continue</string>
+</resources>

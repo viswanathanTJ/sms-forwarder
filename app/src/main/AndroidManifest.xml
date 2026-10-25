@@ -19,6 +19,8 @@
     <uses-permission android:name="android.permission.READ_SMS" android:label="@string/permission_read_sms_label" android:description="@string/permission_read_sms_description"/>
     <uses-permission android:name="android.permission.SEND_SMS" android:label="@string/permission_send_sms_label" android:description="@string/permission_send_sms_description"/>
     <uses-permission android:name="android.permission.READ_CONTACTS"/>
+    <!-- Only to list active SIMs for the SMS-destination SIM picker; requested when that dialog opens. -->
+    <uses-permission android:name="android.permission.READ_PHONE_STATE"/>
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/>

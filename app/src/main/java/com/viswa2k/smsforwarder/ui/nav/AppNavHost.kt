@@ -14,11 +14,22 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.ProcessLifecycleOwner
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.flow.map
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
-import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -26,11 +37,24 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.viswa2k.smsforwarder.AppGraph
 import com.viswa2k.smsforwarder.R
+import com.viswa2k.smsforwarder.core.PinLock
+import com.viswa2k.smsforwarder.ui.onboarding.OnboardingScreen
+import com.viswa2k.smsforwarder.ui.onboarding.needsOnboarding
+import com.viswa2k.smsforwarder.ui.settings.AppLock
+import com.viswa2k.smsforwarder.ui.settings.LockedPane
+import com.viswa2k.smsforwarder.ui.settings.PinEntryDialog
+import com.viswa2k.smsforwarder.ui.settings.SettingsScreen
 import com.viswa2k.smsforwarder.ui.home.HomeScreen
 import com.viswa2k.smsforwarder.ui.log.LogScreen
 import com.viswa2k.smsforwarder.ui.rules.RuleEditorScreen
 import com.viswa2k.smsforwarder.ui.rules.RulesScreen
+
+private sealed interface PinState {
+    data object Loading : PinState
+    data class Loaded(val record: String?) : PinState
+}
 
 private data class Tab(val route: String, val label: Int, val icon: ImageVector)
 
@@ -43,7 +67,8 @@ private val tabs = listOf(
 
 fun NavHostController.navigateToTab(route: String) {
     navigate(route) {
-        popUpTo(graph.findStartDestination().id) { saveState = true }
+        // HOME is the root once onboarding (when shown) has been popped.
+        popUpTo(Routes.HOME) { saveState = true }
         launchSingleTop = true
         restoreState = true
     }
@@ -51,10 +76,49 @@ fun NavHostController.navigateToTab(route: String) {
 
 @Composable
 fun AppNavHost(navController: NavHostController = rememberNavController()) {
+    val context = LocalContext.current
+    val graph = remember { AppGraph.from(context) }
     val backStack by navController.currentBackStackEntryAsState()
     val current = backStack?.destination?.route
-    // Task 15 wires the PIN prompt here; until then guarded actions simply run.
-    val requireUnlock: (() -> Unit) -> Unit = { action -> action() }
+
+    // First run, or a required permission missing: setup checklist before Home (decided once, off Main).
+    var start by rememberSaveable { mutableStateOf<String?>(null) }
+    LaunchedEffect(Unit) {
+        if (start == null) start = if (needsOnboarding(graph)) Routes.ONBOARDING else Routes.HOME
+    }
+
+    // PIN (spec 5.8): guards the master switch, rule edits and Settings until the app goes to the background.
+    val pinRecord by remember { graph.settings.pinHash.map { PinState.Loaded(it) } }
+        .collectAsStateWithLifecycle(initialValue = PinState.Loading)
+    val unlocked by AppLock.unlocked.collectAsStateWithLifecycle()
+    var pendingAction by remember { mutableStateOf<(() -> Unit)?>(null) }
+    DisposableEffect(Unit) {
+        val observer = LifecycleEventObserver { _, event -> if (event == Lifecycle.Event.ON_STOP) AppLock.lock() }
+        val process = ProcessLifecycleOwner.get().lifecycle
+        process.addObserver(observer)
+        onDispose { process.removeObserver(observer) }
+    }
+    val requireUnlock: (() -> Unit) -> Unit = { action ->
+        when (val pin = pinRecord) {
+            PinState.Loading -> Unit // settings not read yet: ignore the tap rather than bypass the PIN
+            is PinState.Loaded -> if (pin.record == null || AppLock.unlocked.value) action() else pendingAction = action
+        }
+    }
+    pendingAction?.let { action ->
+        val record = (pinRecord as? PinState.Loaded)?.record
+        PinEntryDialog(
+            title = stringResource(R.string.pin_enter_title),
+            verify = { pin -> record != null && PinLock.verify(pin, record) },
+            onSuccess = {
+                AppLock.unlocked.value = true
+                pendingAction = null
+                action()
+            },
+            onDismiss = { pendingAction = null },
+        )
+    }
+
+    val startRoute = start ?: return
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -80,7 +144,15 @@ fun AppNavHost(navController: NavHostController = rememberNavController()) {
             }
         },
     ) { padding ->
-        NavHost(navController, startDestination = Routes.HOME, modifier = Modifier.padding(padding)) {
+        NavHost(navController, startDestination = startRoute, modifier = Modifier.padding(padding)) {
+            composable(Routes.ONBOARDING) {
+                OnboardingScreen(onDone = {
+                    navController.navigate(Routes.HOME) {
+                        popUpTo(Routes.ONBOARDING) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                })
+            }
             composable(Routes.HOME) {
                 HomeScreen(
                     requireUnlock = requireUnlock,
@@ -109,7 +181,13 @@ fun AppNavHost(navController: NavHostController = rememberNavController()) {
                 )
             }
             composable(Routes.LOG) { LogScreen() }
-            composable(Routes.SETTINGS) { StubScreen(stringResource(R.string.title_settings)) }
+            composable(Routes.SETTINGS) {
+                val locked = when (val pin = pinRecord) {
+                    PinState.Loading -> true
+                    is PinState.Loaded -> pin.record != null && !unlocked
+                }
+                if (locked) LockedPane(onUnlock = { requireUnlock { } }) else SettingsScreen()
+            }
         }
     }
 }

@@ -29,10 +29,12 @@ class SettingsStore(context: Context) {
     private val pendingRebootKey = longPreferencesKey("pending_reboot_at")
     private val alertStateKey = stringPreferencesKey("alert_state")
     private val storedUpdateKey = stringPreferencesKey("stored_update")
+    private val onboardingKey = booleanPreferencesKey("onboarding_done")
 
     val masterOn: Flow<Boolean> = store.data.map { it[masterOnKey] ?: true }
     val deviceName: Flow<String> = store.data.map { it[deviceNameKey] ?: "" }
     val encryptedToken: Flow<String?> = store.data.map { it[tokenKey] }
+    /** [com.viswa2k.smsforwarder.core.PinLock] record `salt:hash`, or null when no PIN is set. */
     val pinHash: Flow<String?> = store.data.map { it[pinKey] }
     val alertsDestinationId: Flow<Long?> = store.data.map { it[alertsDestKey] }
     val catchUpFloor: Flow<Long> = store.data.map { it[floorKey] ?: 0L }
@@ -45,6 +47,8 @@ class SettingsStore(context: Context) {
 
     /** Last-known newer release (JSON from update/UpdateChecker) or "". */
     val storedUpdate: Flow<String> = store.data.map { it[storedUpdateKey] ?: "" }
+    /** First-run setup finished once; onboarding still returns while a required permission is missing. */
+    val onboardingDone: Flow<Boolean> = store.data.map { it[onboardingKey] ?: false }
 
     suspend fun setMasterOn(on: Boolean) { store.edit { it[masterOnKey] = on } }
     suspend fun setDeviceName(name: String) { store.edit { it[deviceNameKey] = name } }
@@ -57,6 +61,7 @@ class SettingsStore(context: Context) {
     suspend fun setPendingReboot(at: Long?) { store.edit { if (at == null) it.remove(pendingRebootKey) else it[pendingRebootKey] = at } }
     suspend fun setAlertState(json: String) { store.edit { it[alertStateKey] = json } }
     suspend fun setStoredUpdate(json: String) { store.edit { it[storedUpdateKey] = json } }
+    suspend fun setOnboardingDone(done: Boolean) { store.edit { it[onboardingKey] = done } }
 
     companion object {
         fun parseAlertState(json: String): Map<String, Long> = try {

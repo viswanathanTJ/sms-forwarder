@@ -18,6 +18,7 @@ abstract class RuleDao {
     @Insert abstract suspend fun insert(rule: RuleEntity): Long
     @Upsert abstract suspend fun upsert(rule: RuleEntity)
     @Query("DELETE FROM rules WHERE id = :id") abstract suspend fun delete(id: Long)
+    @Query("DELETE FROM rules") abstract suspend fun deleteAll()
     @Query("UPDATE rules SET enabled = :on WHERE id = :id") abstract suspend fun setEnabled(id: Long, on: Boolean)
     @Query("UPDATE rules SET position = :position WHERE id = :id") abstract suspend fun setPosition(id: Long, position: Int)
 
@@ -45,6 +46,7 @@ abstract class DestinationDao {
     @Insert abstract suspend fun insert(destination: DestinationEntity): Long
     @Upsert abstract suspend fun upsert(destination: DestinationEntity)
     @Query("DELETE FROM destinations WHERE id = :id") abstract suspend fun delete(id: Long)
+    @Query("DELETE FROM destinations") abstract suspend fun deleteAll()
 
     @Transaction
     open suspend fun save(destination: DestinationEntity): Long {

@@ -28,6 +28,29 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
+/** The one path that switches forwarding on or off (Home master switch, onboarding "Start forwarding"). */
+object Forwarding {
+    private val lock = Mutex()
+
+    // Runs on the app scope (a screen leaving mid-toggle cannot half-apply) and in order.
+    fun set(graph: AppGraph, on: Boolean) {
+        val context = graph.appContext
+        graph.appScope.launch {
+            lock.withLock {
+                if (on) {
+                    // Un-pausing never forwards what arrived while paused.
+                    graph.settings.setCatchUpFloor(System.currentTimeMillis())
+                    graph.settings.setMasterOn(true)
+                    ForwarderService.start(context)
+                } else {
+                    graph.settings.setMasterOn(false)
+                    ForwarderService.stop(context)
+                }
+            }
+        }
+    }
+}
+
 data class RuleRow(val rule: Rule, val destinationLabels: List<String>)
 
 data class HomeState(
@@ -88,22 +111,7 @@ class HomeViewModel(private val graph: AppGraph) : ViewModel() {
     // Writes run on the app scope (a screen leaving mid-toggle cannot half-apply) and in order.
     private val writeLock = Mutex()
 
-    fun setMaster(on: Boolean) {
-        val context = graph.appContext
-        graph.appScope.launch {
-            writeLock.withLock {
-                if (on) {
-                    // Un-pausing never forwards what arrived while paused.
-                    graph.settings.setCatchUpFloor(System.currentTimeMillis())
-                    graph.settings.setMasterOn(true)
-                    ForwarderService.start(context)
-                } else {
-                    graph.settings.setMasterOn(false)
-                    ForwarderService.stop(context)
-                }
-            }
-        }
-    }
+    fun setMaster(on: Boolean) = Forwarding.set(graph, on)
 
     fun setRuleEnabled(id: Long, on: Boolean) {
         graph.appScope.launch { writeLock.withLock { graph.rules.setEnabled(id, on) } }

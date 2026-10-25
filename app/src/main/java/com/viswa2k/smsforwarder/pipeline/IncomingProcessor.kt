@@ -4,21 +4,18 @@ import android.util.Log
 import androidx.room.withTransaction
 import com.viswa2k.smsforwarder.AppGraph
 import com.viswa2k.smsforwarder.classify.SenderIds
-import com.viswa2k.smsforwarder.core.Analysis
 import com.viswa2k.smsforwarder.core.IncomingSms
+import com.viswa2k.smsforwarder.core.MessageCheck
 import com.viswa2k.smsforwarder.core.MessageFormatter
 import com.viswa2k.smsforwarder.core.MessageKey
-import com.viswa2k.smsforwarder.core.MessageType
 import com.viswa2k.smsforwarder.core.RuleEngine
 import com.viswa2k.smsforwarder.data.db.LogEntity
 import com.viswa2k.smsforwarder.data.db.OutboxEntity
 import com.viswa2k.smsforwarder.data.prefs.V1MigrationRunner
 import com.viswa2k.smsforwarder.delivery.Dispatcher
-import com.viswa2k.smsforwarder.finance.TxnDirection
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import java.util.Locale
 
 enum class Source { LIVE, CATCH_UP, DEBUG }
 
@@ -56,7 +53,7 @@ class IncomingProcessor(private val graph: AppGraph) {
             val entry = LogEntity(
                 key = MessageKey.of(sms.sender, sms.sentAt, sms.body), looseKey = loose,
                 sender = sms.sender, body = sms.body, receivedAt = sms.receivedAt,
-                type = analysis.type.code, senderKind = kind.code, extracted = extractedLine(analysis),
+                type = analysis.type.code, senderKind = kind.code, extracted = MessageCheck.extractedLine(analysis),
                 matchedRules = decision.matchedRuleIds.joinToString(","), skip = decision.skip?.code,
                 simSlot = sms.subscriptionId, otpCode = analysis.otp?.code,
             )
@@ -94,21 +91,6 @@ class IncomingProcessor(private val graph: AppGraph) {
             Log.e(TAG, "inline delivery failed: ${e.javaClass.simpleName}")
             runCatching { Dispatcher.schedule(graph.appContext) }
         }
-    }
-
-    internal fun extractedLine(a: Analysis): String = when {
-        a.otp != null -> "Code ${a.otp.code}"
-        a.type == MessageType.TRANSACTION && a.txn != null && a.txn.amount > 0 -> {
-            val amount = String.format(Locale.US, "%,.2f", a.txn.amount).removeSuffix(".00")
-            val dir = when (a.txn.direction) {
-                TxnDirection.DEBIT -> " debit"
-                TxnDirection.CREDIT -> " credit"
-                else -> ""
-            }
-            "₹$amount$dir"
-        }
-        a.missedCall != null -> a.missedCall.caller?.let { "From $it" } ?: ""
-        else -> ""
     }
 
     private companion object { const val TAG = "IncomingProcessor" }

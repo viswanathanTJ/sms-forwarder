@@ -7,7 +7,7 @@ updated: 2026-10-25
 > SMS Forwarder v2 (`com.viswa2k.smsforwarder`, 2.0.0): rule-based forwarding of classified SMS to Telegram and SMS. Pure-Kotlin core holds every decision; a thin Android layer wires it to broadcasts, Room, DataStore, WorkManager and HTTP. This is the **target** structure; Task 1 only removed cloud sync and upgraded the toolchain.
 
 ## Layers
-- **core/** (pure, JUnit-tested): MessageType, MissedCallDetector, MessageAnalyzer, Rule/RuleEngine, MessageFormatter, PhoneNumbers, RetryPolicy, TelegramResponse, ProblemAlerts, LogMasker, MessageKey, CatchUpWindow, V1Migration, DefaultRules, IncomingSmsAssembler. See [[Rules]], [[Formatting]], [[Delivery & Retries]], [[Migration from v1]].
+- **core/** (pure, JUnit-tested): MessageType, MissedCallDetector, MessageAnalyzer, Rule/RuleEngine, MessageFormatter, PhoneNumbers, RetryPolicy, TelegramResponse, ProblemAlerts, LogMasker, MessageKey, CatchUpWindow, V1Migration, DefaultRules, IncomingSmsAssembler, SettingsExport, PinLock, MessageCheck. See [[Rules]], [[Formatting]], [[Delivery & Retries]], [[Migration from v1]].
 - **classify/** and **finance/** (ported from the SMS app): classifier, OTP extractor, transaction parser. See [[Classification]].
 - **data/db**, **data/prefs**, **data/repo**: Room, `SettingsStore` (DataStore "settings_v2"), `TokenCipher`, repositories. See [[Data Layer]].
 - **delivery/**: TelegramClient, SmsSender, Dispatcher, DeliveryWorker. See [[Delivery & Retries]].

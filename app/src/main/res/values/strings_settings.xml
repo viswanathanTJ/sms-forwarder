@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="common_add">Add</string>
+    <string name="common_cancel">Cancel</string>
+    <string name="common_delete">Delete</string>
+    <string name="common_save">Save</string>
+
+    <string name="settings_section_telegram">Telegram</string>
+    <string name="settings_section_sms">SMS</string>
+    <string name="settings_section_test">Test a message</string>
+    <string name="settings_section_health">Health</string>
+    <string name="settings_section_device">Device</string>
+    <string name="settings_section_backup">Backup</string>
+    <string name="settings_section_about">About</string>
+
+    <!-- Telegram -->
+    <string name="settings_bot_token">Bot token</string>
+    <string name="settings_token_saved">•••••••••• saved · type to replace</string>
+    <string name="settings_token_saved_help">✓ Token saved (hidden). Type a new one to replace it.</string>
+    <string name="settings_token_hint">From @BotFather, e.g. 7349210:AAH…</string>
+    <string name="settings_token_invalid">That doesn\'t look like a bot token (digits:letters)</string>
+    <string name="settings_chats">Chats</string>
+    <string name="settings_no_chats">No chats yet.</string>
+    <string name="settings_chat_sub">chat %1$s</string>
+    <string name="settings_topic_sub">topic %1$d</string>
+    <string name="settings_test">Test</string>
+    <string name="settings_delete_named">Delete %1$s</string>
+    <string name="settings_delete_title">Delete %1$s?</string>
+    <string name="settings_delete_body">It is removed from every rule that sends to it.</string>
+    <string name="settings_add_chat">+ Add chat</string>
+    <string name="settings_add_chat_title">Add Telegram chat</string>
+    <string name="settings_add_chat_help">Send /start to your bot (or add it to the group and post a message), then tap Detect. You can also type the chat id.</string>
+    <string name="settings_detect">Detect</string>
+    <string name="settings_label">Name</string>
+    <string name="settings_chat_id">Chat id</string>
+    <string name="settings_topic_id">Topic id (optional)</string>
+    <string name="settings_alerts_title">Problem alerts go to</string>
+    <string name="settings_alerts_body">Permission lost, battery restricted, sending failing…</string>
+    <string name="settings_alerts_default">Default (%1$s)</string>
+
+    <!-- SMS -->
+    <string name="settings_no_numbers">No numbers yet.</string>
+    <string name="settings_add_number">+ Add number</string>
+    <string name="settings_add_number_title">Add SMS number</string>
+    <string name="settings_number">Phone number</string>
+    <string name="settings_send_from">Send from</string>
+    <string name="settings_default_sim">Default SIM</string>
+
+    <!-- Test a message -->
+    <string name="test_sender">Sender</string>
+    <string name="test_message">Message</string>
+    <string name="test_nothing_sent">Nothing is sent. Shows what would happen.</string>
+    <string name="test_check">Check</string>
+    <string name="test_detected">Detected</string>
+    <string name="test_extracted">Extracted</string>
+    <string name="test_sender_kind">Sender</string>
+    <string name="test_matched">Matched</string>
+    <string name="test_would_send">Would send to</string>
+    <string name="test_nothing">Nothing (not forwarded)</string>
+    <string name="test_preview_telegram">Telegram preview</string>
+    <string name="test_preview_sms">SMS text</string>
+    <string name="test_kind_business">Business ID</string>
+    <string name="test_kind_contact">Saved contact</string>
+    <string name="test_kind_unknown">Unknown number</string>
+    <string name="test_kind_unverified">Number (contacts permission missing)</string>
+    <string name="test_skip_no_rule">No rule</string>
+    <string name="test_skip_spam">Spam / promotion — never forwarded</string>
+    <string name="test_skip_contacts">No rule (contacts permission missing)</string>
+
+    <!-- Health -->
+    <string name="health_checking">Checking…</string>
+    <string name="health_ok">OK</string>
+    <string name="health_fix">Fix</string>
+    <string name="health_open">Open</string>
+    <string name="health_problem">Problem</string>
+    <string name="health_oem_done">Done</string>
+    <string name="health_open_failed">Could not open that screen. Open the phone\'s Settings → Apps → SMS Forwarder.</string>
+    <string name="health_hint_sms">Needed to receive, read and send SMS</string>
+    <string name="health_hint_contacts">Needed for the contacts sender condition</string>
+    <string name="health_hint_notif">Needed for the service notice</string>
+    <string name="health_hint_battery">Otherwise Android may stop forwarding while idle</string>
+    <string name="health_hint_classifier">Reinstall the app; only “All messages” rules work meanwhile</string>
+
+    <!-- Device + PIN -->
+    <string name="settings_device_name" formatted="false">Device name (%r)</string>
+    <string name="settings_device_name_help">Shown in every forwarded message</string>
+    <string name="pin_title">PIN lock</string>
+    <string name="pin_on_body">Needed for the master switch, rules and Settings</string>
+    <string name="pin_off_body">Off · anyone can change forwarding</string>
+    <string name="pin_set">Set PIN</string>
+    <string name="pin_change">Change</string>
+    <string name="pin_remove">Remove</string>
+    <string name="pin_set_title">Set a PIN</string>
+    <string name="pin_set_body">4 to 6 digits. It stays unlocked until the app goes to the background.</string>
+    <string name="pin_new">New PIN</string>
+    <string name="pin_confirm">Repeat PIN</string>
+    <string name="pin_mismatch">The PINs don\'t match</string>
+    <string name="pin_label">PIN</string>
+    <string name="pin_wrong">Wrong PIN</string>
+    <string name="pin_unlock">Unlock</string>
+    <string name="pin_enter_title">Enter PIN</string>
+    <string name="pin_change_title">Current PIN</string>
+    <string name="pin_remove_title">Enter PIN to remove it</string>
+    <string name="pin_locked_title">Settings are locked</string>
+    <string name="pin_locked_body">Enter the PIN to change settings.</string>
+
+    <!-- Backup -->
+    <string name="backup_title">Export / import settings</string>
+    <string name="backup_body">Rules, chats and numbers as a JSON file. Bot token excluded unless ticked.</string>
+    <string name="backup_include_token">Include bot token</string>
+    <string name="backup_export">Export</string>
+    <string name="backup_import">Import</string>
+    <string name="import_title">Import settings?</string>
+    <plurals name="import_rules">
+        <item quantity="one">%d rule</item>
+        <item quantity="other">%d rules</item>
+    </plurals>
+    <plurals name="import_chats">
+        <item quantity="one">%d Telegram chat</item>
+        <item quantity="other">%d Telegram chats</item>
+    </plurals>
+    <plurals name="import_numbers">
+        <item quantity="one">%d SMS number</item>
+        <item quantity="other">%d SMS numbers</item>
+    </plurals>
+    <string name="import_device">Device name in file: %1$s (used only if this phone has none)</string>
+    <string name="import_replace_warning">All current rules, chats and numbers are replaced.</string>
+    <string name="import_include_token">Also import the bot token</string>
+    <string name="import_no_token">The file has no bot token; the current one is kept.</string>
+    <string name="import_replace">Replace</string>
+
+    <!-- About -->
+    <string name="about_version">Version %1$s (%2$d)</string>
+    <string name="about_check">Check for update</string>
+    <string name="about_up_to_date">You have the latest version</string>
+    <string name="about_check_failed">Could not check (offline?)</string>
+</resources>
