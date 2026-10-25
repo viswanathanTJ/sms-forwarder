@@ -52,7 +52,7 @@ fun SettingsRoot(vm: SettingsViewModel, onOpen: (SettingsSection) -> Unit, modif
     @Composable
     fun ColumnScope.row(section: SettingsSection, icon: ImageVector, tint: Tone, divider: Boolean = true) {
         SettingsRow(icon, tint, stringResource(section.title), rows[section]) { onOpen(section) }
-        if (divider) HorizontalDivider(Modifier.padding(start = 64.dp), color = scheme.outlineVariant)
+        if (divider) HorizontalDivider(Modifier.padding(start = 72.dp), color = scheme.outlineVariant)
     }
 
     Column(
@@ -60,7 +60,7 @@ fun SettingsRoot(vm: SettingsViewModel, onOpen: (SettingsSection) -> Unit, modif
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 16.dp)
-            .padding(bottom = 12.dp),
+            .padding(bottom = 24.dp),
     ) {
         Text(
             stringResource(R.string.title_settings),
@@ -95,10 +95,8 @@ private fun Group(label: Int, content: @Composable ColumnScope.() -> Unit) {
     Text(
         stringResource(label).uppercase(),
         color = MaterialTheme.colorScheme.onSurfaceVariant,
-        fontSize = 12.sp,
-        fontWeight = FontWeight.SemiBold,
-        letterSpacing = 0.7.sp,
-        modifier = Modifier.padding(start = 4.dp, top = 12.dp, bottom = 6.dp),
+        style = MaterialTheme.typography.labelLarge,
+        modifier = Modifier.padding(start = 4.dp, top = 24.dp, bottom = 8.dp),
     )
     OutlinedCard(
         modifier = Modifier.fillMaxWidth(),

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="home_master_switch">Forwarding on or off</string>
-    <string name="home_title">Forwarder</string>
+    <string name="home_title">SMS Forwarder</string>
     <string name="home_open_settings">Settings</string>
     <string name="home_hero_on">Forwarding is on</string>
     <string name="home_hero_paused">Forwarding is paused</string>

@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -25,7 +26,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.viswa2k.smsforwarder.R
 import com.viswa2k.smsforwarder.ui.theme.ForwarderTheme
 import com.viswa2k.smsforwarder.ui.theme.Tone
@@ -68,29 +68,31 @@ private fun RowTone.color() = when (this) {
 }
 
 /**
- * A compact two-line list row (M3 list-item anatomy: tinted leading icon, headline, one-line supporting
- * status, trailing chevron). Denser than `ListItem`'s 72 dp so the whole root fits one phone screen.
+ * A roomy two-line list row (M3 list-item anatomy: tinted leading icon, headline, supporting status that may
+ * wrap to two lines, trailing chevron). Min height 72 dp.
  */
 @Composable
 internal fun SettingsRow(icon: ImageVector, tint: Tone, title: String, summary: RowText?, onClick: () -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()
+            .heightIn(min = 72.dp)
             .clickable(role = Role.Button, onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 7.dp),
+            .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(Modifier.size(36.dp).clip(CircleShape).background(tint.soft), contentAlignment = Alignment.Center) {
-            Icon(icon, contentDescription = null, tint = tint.fg, modifier = Modifier.size(20.dp))
+        Box(Modifier.size(44.dp).clip(CircleShape).background(tint.soft), contentAlignment = Alignment.Center) {
+            Icon(icon, contentDescription = null, tint = tint.fg, modifier = Modifier.size(24.dp))
         }
-        Column(Modifier.weight(1f).padding(start = 14.dp, end = 8.dp)) {
-            Text(title, style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp, lineHeight = 20.sp), maxLines = 1)
+        Column(Modifier.weight(1f).padding(start = 16.dp, end = 8.dp)) {
+            Text(title, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
             // Blank (not absent) until loaded, so rows keep their height.
             Text(
                 summary?.let { rowText(it) } ?: " ",
                 color = (summary?.tone ?: RowTone.NEUTRAL).color(),
-                style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, lineHeight = 18.sp),
-                maxLines = 1,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(top = 2.dp),
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
         }
