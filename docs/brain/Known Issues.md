@@ -31,7 +31,7 @@ updated: 2026-10-25
 - Not verified on a device in Task 19 (emulators busy; the real phone is the controller's). MessagingStyle shapes, housekeeping texts and title counters are from WhatsApp behaviour as documented, not captured samples.
 - Chat titles containing " · " make `chatOf` cut the title, so such a 1:1 chat cannot match a contact name. Two chats with the same title share one dedupe space (same text in the same second collapses).
 - An unsaved number appears as its phone number title -> UNKNOWN_NUMBER (no PhoneLookup on titles). Group messages use the group name for the contact check (usually UNKNOWN_NUMBER).
-- Export / Import carry the WhatsApp toggle and types but not `waFloor` (importing "on" moves the floor to now). Importing "on" does not open the notification-access screen.
+- Export / Import carry the WhatsApp toggle and types (absent in an older file = left untouched) but not `waFloor` (importing "on" moves the floor to now). Importing "on" does not open the notification-access screen.
 - The WhatsApp Log note lists the CURRENT type selection, not the one in force when the row was logged.
 - Messages missed while the listener is unbound are lost (no catch-up source).
 - The non-MessagingStyle fallback uses the notification `when` as the message time; if WhatsApp ever re-posts such a notification with a new `when`, the same text could be forwarded twice (WhatsApp normally uses MessagingStyle).

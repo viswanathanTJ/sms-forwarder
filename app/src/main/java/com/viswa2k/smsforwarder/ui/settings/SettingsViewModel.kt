@@ -414,9 +414,9 @@ class SettingsViewModel(private val graph: AppGraph) : ViewModel() {
                     if (includeToken && token != null) {
                         settings.setEncryptedToken(withContext(Dispatchers.Default) { graph.tokenCipher.encrypt(token) })
                     }
-                    settings.setWhatsAppTypes(imported.whatsAppTypes)
-                    if (settings.whatsAppEnabled.first() != imported.whatsAppEnabled) {
-                        settings.setWhatsAppEnabled(imported.whatsAppEnabled, System.currentTimeMillis())
+                    imported.whatsAppTypes?.let { settings.setWhatsAppTypes(it) }
+                    imported.whatsAppEnabled?.let { on ->
+                        if (settings.whatsAppEnabled.first() != on) settings.setWhatsAppEnabled(on, System.currentTimeMillis())
                     }
                     if (settings.deviceName.first().isBlank() && imported.deviceName.isNotBlank()) {
                         settings.setDeviceName(imported.deviceName)

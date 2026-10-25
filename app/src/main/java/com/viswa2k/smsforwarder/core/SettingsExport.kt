@@ -11,9 +11,9 @@ data class Imported(
     val deviceName: String,
     /** The bot token in plain text, only when the file carries one. */
     val token: String?,
-    /** Missing in older files: off / OTP only. */
-    val whatsAppEnabled: Boolean = false,
-    val whatsAppTypes: Set<MessageType> = SourceFilter.DEFAULT_WHATSAPP_TYPES,
+    /** null = absent in the file (older export): leave the current setting alone. */
+    val whatsAppEnabled: Boolean? = null,
+    val whatsAppTypes: Set<MessageType>? = null,
 )
 
 /**
@@ -52,8 +52,7 @@ object SettingsExport {
             val rules = o.getJSONArray("rules").objects().map { parseRule(it, known) }
             val token = if (o.has("token") && !o.isNull("token")) o.getString("token").trim().ifEmpty { null } else null
             val waTypes = o.optJSONArray("whatsAppTypes")?.let { a -> SourceFilter.fromCodes((0 until a.length()).map { a.get(it).toString() }) }
-                ?: SourceFilter.DEFAULT_WHATSAPP_TYPES
-            return Imported(rules, dests, o.optString("deviceName", ""), token, o.optBoolean("whatsAppEnabled", false), waTypes)
+            return Imported(rules, dests, o.optString("deviceName", ""), token, if (o.has("whatsAppEnabled")) o.optBoolean("whatsAppEnabled") else null, waTypes)
         } catch (e: JSONException) {
             throw IllegalArgumentException("Not a valid settings file")
         }

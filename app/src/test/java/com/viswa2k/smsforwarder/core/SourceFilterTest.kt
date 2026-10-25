@@ -36,6 +36,20 @@ class SourceFilterTest {
         assertEquals(setOf(MessageType.BILL, MessageType.OTP), SourceFilter.fromCodes(listOf("5", "2", "9")))
     }
 
+    private val everything = Rule(1, "All", true, true, emptySet(), SenderCondition.ANYONE, listOf(1), Style.SMART, null, 0)
+    private val dests = listOf(Destination(1, Channel.TELEGRAM, "Me", "5"))
+    private fun decide(origin: Origin, type: MessageType, masterOn: Boolean = true) =
+        SourceFilter.decide(origin, type, otp, masterOn, SenderKind.UNKNOWN_NUMBER, "x", listOf(everything), dests)
+
+    @Test fun decideOrder() {
+        assertEquals(SkipReason.PAUSED, decide(Origin.WHATSAPP, MessageType.PERSONAL, masterOn = false).skip)
+        assertEquals(SkipReason.SPAM, decide(Origin.WHATSAPP, MessageType.SPAM).skip)
+        assertEquals(SkipReason.SOURCE_FILTERED, decide(Origin.WHATSAPP, MessageType.PERSONAL).skip)
+        assertEquals(null, decide(Origin.WHATSAPP, MessageType.OTP).skip)
+        assertEquals(null, decide(Origin.SMS, MessageType.PERSONAL).skip)
+        assertEquals(SkipReason.SPAM, decide(Origin.SMS, MessageType.SPAM).skip)
+    }
+
     @Test fun noteListsTypesInCodeOrder() {
         assertEquals("WhatsApp: only OTP forwarded", SourceFilter.note(otp))
         assertEquals("WhatsApp: only OTP, Balance alert forwarded", SourceFilter.note(setOf(MessageType.BALANCE, MessageType.OTP)))

@@ -34,6 +34,7 @@
 
     <string name="skip_paused">Skipped: forwarding was paused</string>
     <string name="skip_spam">Skipped: spam / promotion</string>
+    <string name="skip_source_filtered">Skipped: WhatsApp type filter</string>
     <string name="skip_no_rule">Skipped: no rule matches</string>
     <string name="skip_contacts_permission">Skipped: contacts permission is missing</string>
     <string name="recent_sent_to">→ %1$s</string>
