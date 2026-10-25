@@ -23,3 +23,4 @@ updated: 2026-10-25
 - 2026-10-25 Task 7: Room storage, SettingsStore, TokenCipher, repositories, AppGraph (see [[Data Layer]]).
 - 2026-10-25 Task 8: Telegram/SMS senders, RetryPolicy, Dispatcher + DeliveryWorker (see [[Delivery & Retries]]).
 - 2026-10-25 Task 9: incoming pipeline (SmsReceiver, IncomingProcessor, InboxCatchUp, debug inject hook); see [[Incoming Pipeline]].
+- 2026-10-25 Task 10: ForwarderService (specialUse), BootReceiver, WatchdogWorker, HealthChecker, ProblemAlerts (see [[Reliability]], [[Problem Alerts]]).

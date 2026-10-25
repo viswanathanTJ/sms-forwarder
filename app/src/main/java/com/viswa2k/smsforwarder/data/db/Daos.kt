@@ -137,6 +137,10 @@ interface OutboxDao {
     )
     suspend fun failingSince(destinationId: Long): Long?
 
+    /** Most recent error text of an unresolved (pending-retry or failed) row for [destinationId]. */
+    @Query("SELECT lastError FROM outbox WHERE destinationId = :destinationId AND state IN (0, 2) AND lastError IS NOT NULL ORDER BY id DESC LIMIT 1")
+    suspend fun lastErrorFor(destinationId: Long): String?
+
     @Query("UPDATE outbox SET state = 0, attempts = 0, firstAttemptAt = :now, nextAttemptAt = :now, lastError = NULL WHERE id = :id AND state = 2")
     suspend fun resend(id: Long, now: Long)
 }

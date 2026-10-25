@@ -2,8 +2,6 @@ package com.viswa2k.smsforwarder
 
 import android.Manifest
 import android.app.AlertDialog
-import android.app.AlarmManager
-import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -23,6 +21,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStore
 import androidx.lifecycle.lifecycleScope
+import com.viswa2k.smsforwarder.service.ForwarderService
 import com.viswa2k.smsforwarder.ui.PlaceholderScreen
 import com.viswa2k.smsforwarder.update.UpdateDialogHost
 import kotlinx.coroutines.flow.first
@@ -101,26 +100,6 @@ class MainActivity : ComponentActivity() {
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 }
                 startActivity(intent)
-            } else {
-                // Schedule periodic battery optimization check
-                val alarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
-                val checkBatteryIntent = Intent(this, ServiceRestartReceiver::class.java).apply {
-                    action = "${packageName}.RESTART_SERVICE"
-                }
-                val pendingIntent = PendingIntent.getBroadcast(
-                    this,
-                    1,
-                    checkBatteryIntent,
-                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-                )
-
-                // Check every hour to be more battery efficient
-                alarmManager.setInexactRepeating(
-                    AlarmManager.ELAPSED_REALTIME,
-                    System.currentTimeMillis() + AlarmManager.INTERVAL_HOUR,
-                    AlarmManager.INTERVAL_HOUR,
-                    pendingIntent
-                )
             }
         } catch (e: Exception) {
             Log.e("BatteryOptimization", "Error checking battery optimization: ${e.message}")
@@ -161,17 +140,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private suspend fun checkAndStartService() {
-        val smsForwardServiceEnabled = userPreferences.isSmsForwarderService.first()
-
-        val serviceIntent = Intent(this, SmsForwarderService::class.java).apply {
-            putExtra("SMS_FORWARD_SERVICE_ENABLED", smsForwardServiceEnabled)
-        }
-
-        if (smsForwardServiceEnabled) {
-            ContextCompat.startForegroundService(this, serviceIntent) // Start the service
-        } else {
-            this.stopService(serviceIntent) // Stop the service
-        }
+        if (AppGraph.from(this).settings.masterOn.first()) ForwarderService.start(this)
     }
 
 }

@@ -12,8 +12,7 @@
     <uses-permission-sdk-23 android:name="android.permission.SEND_SMS"/>
 
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_PERSISTENT" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- SMS permissions for message forwarding functionality -->
     <uses-permission android:name="android.permission.RECEIVE_SMS" android:label="@string/permission_receive_sms_label" android:description="@string/permission_receive_sms_description"/>
@@ -63,19 +62,21 @@
         </activity>
 
         <service
-            android:name=".SmsForwarderService"
-            android:foregroundServiceType="dataSync"
-            android:exported="false"
-            android:enabled="true"
-            android:persistent="true" />
+            android:name=".service.ForwarderService"
+            android:foregroundServiceType="specialUse"
+            android:exported="false">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Forwards incoming SMS to the user's Telegram/SMS destinations" />
+        </service>
 
         <receiver
-            android:name=".ServiceRestartReceiver"
+            android:name=".service.BootReceiver"
             android:enabled="true"
-            android:exported="false">
+            android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
-                <action android:name="${applicationId}.RESTART_SERVICE" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
             </intent-filter>
         </receiver>
 

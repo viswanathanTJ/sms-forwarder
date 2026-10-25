@@ -50,6 +50,9 @@ class AppGraph(context: Context) {
         MessageAnalyzer(lists)
     }
 
+    /** False when the keyword lists failed to load (health check + problem alert). */
+    val classifierLoaded: Boolean get() = !analyzer.reduced
+
     companion object {
         fun from(context: Context): AppGraph = (context.applicationContext as ForwarderApp).graph
     }

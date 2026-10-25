@@ -39,6 +39,9 @@ data class Analysis(
  * the missed-call detector and the business/phone split remain.
  */
 class MessageAnalyzer(lists: KeywordLists?) {
+    /** True when the keyword lists failed to load (reduced mode). */
+    val reduced: Boolean = lists == null
+
     private val classifier = lists?.let { MessageClassifier(it) }
     private val parser = lists?.let { TransactionParser(it) }
     private val resolver = lists?.let { BankSenderResolver(it) }

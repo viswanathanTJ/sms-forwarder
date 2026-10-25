@@ -16,6 +16,7 @@ class OutboxRepository(private val dao: OutboxDao) {
     suspend fun markRetry(id: Long, nextAt: Long, error: String?) = dao.markRetry(id, nextAt, error)
     suspend fun markFailed(id: Long, error: String?) = dao.markFailed(id, error)
     suspend fun failingSince(destinationId: Long): Long? = dao.failingSince(destinationId)
+    suspend fun lastErrorFor(destinationId: Long): String? = dao.lastErrorFor(destinationId)
     /** Puts a FAILED row back in the queue as new; no-op for any other state. */
     suspend fun resend(outboxId: Long) = dao.resend(outboxId, System.currentTimeMillis())
 }
