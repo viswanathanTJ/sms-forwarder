@@ -141,4 +141,20 @@
     <string name="about_check">Check for update</string>
     <string name="about_up_to_date">You have the latest version</string>
     <string name="about_check_failed">Could not check (offline?)</string>
+
+    <!-- Sources (WhatsApp notification source) -->
+    <string name="settings_section_sources">Sources</string>
+    <string name="sources_sms">SMS</string>
+    <string name="sources_sms_hint">Incoming text messages</string>
+    <string name="sources_always_on">Always on</string>
+    <string name="sources_whatsapp">WhatsApp</string>
+    <string name="sources_whatsapp_hint">Forward WhatsApp messages from their notifications (off)</string>
+    <string name="sources_access_allowed">Notification access: Allowed</string>
+    <string name="sources_access_missing">Notification access: Not allowed — nothing is received</string>
+    <string name="sources_access_steps">Allow → SMS Forwarder → Allow notification access. Keep WhatsApp message previews on.</string>
+    <string name="sources_allow">Allow</string>
+    <string name="health_hint_notif_access">WhatsApp is on but Notification access is off</string>
+    <string name="test_source">Source</string>
+    <string name="test_chat_name">Chat name</string>
+    <string name="wa_listener_label">SMS Forwarder (WhatsApp messages)</string>
 </resources>

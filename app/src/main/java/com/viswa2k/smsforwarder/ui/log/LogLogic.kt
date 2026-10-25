@@ -1,6 +1,8 @@
 package com.viswa2k.smsforwarder.ui.log
 
 import com.viswa2k.smsforwarder.core.MessageType
+import com.viswa2k.smsforwarder.core.NotificationText
+import com.viswa2k.smsforwarder.core.Origin
 import com.viswa2k.smsforwarder.core.SkipReason
 import com.viswa2k.smsforwarder.data.db.LogWithSends
 import com.viswa2k.smsforwarder.data.db.OutboxEntity
@@ -65,8 +67,13 @@ data class LogRowData(
     val ruleNames: List<String>,
     val destinationLabels: List<String>,
     val sends: List<SendRow>,
+    val origin: Origin = Origin.SMS,
 ) {
     val note: NoteLine get() = noteLine(skip, ruleNames, destinationLabels)
+
+    /** WhatsApp rows show the chat (the "WhatsApp" chip says where it came from). */
+    val senderLabel: String get() =
+        if (origin == Origin.WHATSAPP) sender.trim().removePrefix(NotificationText.PREFIX).trim() else sender
 }
 
 fun LogWithSends.toRowData(destinationLabels: Map<Long, String>, ruleNames: Map<Long, String>): LogRowData {
@@ -84,6 +91,7 @@ fun LogWithSends.toRowData(destinationLabels: Map<Long, String>, ruleNames: Map<
         ruleNames = log.matchedRules.split(',').mapNotNull { it.trim().toLongOrNull() }.mapNotNull { ruleNames[it] },
         destinationLabels = sends.mapNotNull { destinationLabels[it.destinationId] }.distinct(),
         sends = sends.map { SendRow(it.id, destinationLabels[it.destinationId], it.state, it.lastError) },
+        origin = Origin.fromCode(log.origin),
     )
 }
 

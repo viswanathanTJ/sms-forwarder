@@ -74,7 +74,7 @@ fun HealthList(items: List<HealthItem>, oemConfirmed: Boolean, onOemDone: (Boole
                     val fix = item.fix
                     when {
                         item.ok -> Pill(stringResource(R.string.health_ok), ForwarderTheme.extra.ok)
-                        fix != null -> SmallButton(stringResource(R.string.health_fix), { openFirst(context, listOf(fix)) })
+                        fix != null -> SmallButton(stringResource(R.string.health_fix), { openFirst(context, listOf(fix) + item.fallbacks) })
                         else -> Pill(stringResource(R.string.health_problem), ForwarderTheme.extra.warn)
                     }
                 },
@@ -155,6 +155,7 @@ private fun healthHint(id: String): String? = when (id) {
     "notif" -> stringResource(R.string.health_hint_notif)
     "battery" -> stringResource(R.string.health_hint_battery)
     "classifier" -> stringResource(R.string.health_hint_classifier)
+    "notif_access" -> stringResource(R.string.health_hint_notif_access)
     else -> null
 }
 

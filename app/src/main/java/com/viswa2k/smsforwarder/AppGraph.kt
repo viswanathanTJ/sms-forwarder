@@ -7,6 +7,7 @@ import com.viswa2k.smsforwarder.core.MessageAnalyzer
 import com.viswa2k.smsforwarder.data.db.ForwarderDatabase
 import com.viswa2k.smsforwarder.data.prefs.SettingsStore
 import com.viswa2k.smsforwarder.data.prefs.TokenCipher
+import com.viswa2k.smsforwarder.data.prefs.WhatsAppPrefs
 import com.viswa2k.smsforwarder.data.repo.AssetKeywordSource
 import com.viswa2k.smsforwarder.data.repo.DestinationRepository
 import com.viswa2k.smsforwarder.data.repo.LogRepository
@@ -19,7 +20,10 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.stateIn
 
 /** Hand-rolled DI: everything is `by lazy` so a receiver wake-up only builds what it touches. */
 class AppGraph(context: Context) {
@@ -52,6 +56,14 @@ class AppGraph(context: Context) {
             null
         }
         MessageAnalyzer(lists)
+    }
+
+    /**
+     * WhatsApp source settings, cached for the notification listener (no DataStore read per notification).
+     * null until the store has been read once.
+     */
+    val whatsApp: StateFlow<WhatsAppPrefs?> by lazy {
+        settings.whatsApp.stateIn(appScope, SharingStarted.Eagerly, null)
     }
 
     /** False when the keyword lists failed to load (health check + problem alert). */

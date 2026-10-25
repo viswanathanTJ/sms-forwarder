@@ -96,6 +96,24 @@
                 <action android:name="android.provider.Telephony.SMS_RECEIVED" />
             </intent-filter>
         </receiver>
+
+        <!--
+          WhatsApp source (pipeline.WhatsAppNotificationListener). Bound by the system only after the user grants
+          Notification access; BIND_NOTIFICATION_LISTENER_SERVICE means only the system can bind it. Every package
+          except com.whatsapp / com.whatsapp.w4b is ignored before its notification is read.
+        -->
+        <service
+            android:name=".pipeline.WhatsAppNotificationListener"
+            android:label="@string/wa_listener_label"
+            android:exported="true"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.service.notification.default_filter_types"
+                android:value="conversations|alerting" />
+        </service>
     </application>
 
 </manifest>

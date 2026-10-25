@@ -24,6 +24,9 @@ private val Context.settingsV2: DataStore<Preferences> by preferencesDataStore(
     },
 )
 
+/** WhatsApp source toggle + [floor] = when it was last switched on (messages before it are never forwarded). */
+data class WhatsAppPrefs(val enabled: Boolean, val floor: Long)
+
 class SettingsStore(context: Context) {
     private val store = context.applicationContext.settingsV2
 
@@ -40,6 +43,8 @@ class SettingsStore(context: Context) {
     private val storedUpdateKey = stringPreferencesKey("stored_update")
     private val onboardingKey = booleanPreferencesKey("onboarding_done")
     private val pinAttemptsKey = stringPreferencesKey("pin_attempts")
+    private val whatsAppKey = booleanPreferencesKey("whatsapp_enabled")
+    private val waFloorKey = longPreferencesKey("wa_floor")
 
     val masterOn: Flow<Boolean> = store.data.map { it[masterOnKey] ?: true }
     val deviceName: Flow<String> = store.data.map { it[deviceNameKey] ?: "" }
@@ -62,6 +67,11 @@ class SettingsStore(context: Context) {
     /** [com.viswa2k.smsforwarder.core.PinBackoff] state, "failures:lockedUntil". */
     val pinAttempts: Flow<String> = store.data.map { it[pinAttemptsKey] ?: "" }
 
+    /** WhatsApp notification source; off by default. */
+    val whatsAppEnabled: Flow<Boolean> = store.data.map { it[whatsAppKey] ?: false }
+    val waFloor: Flow<Long> = store.data.map { it[waFloorKey] ?: 0L }
+    val whatsApp: Flow<WhatsAppPrefs> = store.data.map { WhatsAppPrefs(it[whatsAppKey] ?: false, it[waFloorKey] ?: 0L) }
+
     suspend fun setMasterOn(on: Boolean) { store.edit { it[masterOnKey] = on } }
     suspend fun setDeviceName(name: String) { store.edit { it[deviceNameKey] = name } }
     suspend fun setEncryptedToken(token: String?) { store.edit { if (token == null) it.remove(tokenKey) else it[tokenKey] = token } }
@@ -81,6 +91,13 @@ class SettingsStore(context: Context) {
     suspend fun setStoredUpdate(json: String) { store.edit { it[storedUpdateKey] = json } }
     suspend fun setOnboardingDone(done: Boolean) { store.edit { it[onboardingKey] = done } }
     suspend fun setPinAttempts(state: String) { store.edit { it[pinAttemptsKey] = state } }
+    /** Switching on also moves [waFloor] to [now] (one edit); switching off keeps the floor. */
+    suspend fun setWhatsAppEnabled(on: Boolean, now: Long) {
+        store.edit {
+            if (on) it[waFloorKey] = now
+            it[whatsAppKey] = on
+        }
+    }
 
     companion object {
         internal const val MASTER_ON = "master_on"

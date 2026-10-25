@@ -8,6 +8,8 @@ import com.viswa2k.smsforwarder.core.IncomingSms
 import com.viswa2k.smsforwarder.core.MessageCheck
 import com.viswa2k.smsforwarder.core.MessageFormatter
 import com.viswa2k.smsforwarder.core.MessageKey
+import com.viswa2k.smsforwarder.core.NotificationText
+import com.viswa2k.smsforwarder.core.Origin
 import com.viswa2k.smsforwarder.core.RuleEngine
 import com.viswa2k.smsforwarder.data.db.LogEntity
 import com.viswa2k.smsforwarder.data.db.OutboxEntity
@@ -20,7 +22,7 @@ import kotlinx.coroutines.launch
 enum class Source { LIVE, CATCH_UP, DEBUG }
 
 /**
- * The one path every SMS takes: classify, decide, then ONE transaction writes the log row (unique key =
+ * The one path every message takes (SMS and WhatsApp notifications): classify, decide, then ONE transaction writes the log row (unique key =
  * dedupe) and its outbox rows. Never throws (a failure here must not crash the receiver); logs only the
  * exception class, never the SMS text or the bot token.
  *
@@ -43,8 +45,12 @@ class IncomingProcessor(private val graph: AppGraph) {
             ) return
 
             val masterOn = graph.settings.masterOn.first()
-            val kind = contacts.kind(sms.sender, SenderIds.parse(sms.sender))
-            val analysis = graph.analyzer.analyze(sms.sender, sms.body, kind)
+            val kind = if (sms.origin == Origin.WHATSAPP) {
+                contacts.kindForName(NotificationText.chatOf(sms.sender))
+            } else {
+                contacts.kind(sms.sender, SenderIds.parse(sms.sender))
+            }
+            val analysis = graph.analyzer.analyze(sms.sender, sms.body, kind, sms.origin)
             val decision = RuleEngine.decide(
                 analysis.type, kind, sms.sender, masterOn, graph.rules.all(), graph.destinations.all(),
             )
@@ -58,7 +64,7 @@ class IncomingProcessor(private val graph: AppGraph) {
                 sender = sms.sender, body = sms.body, receivedAt = sms.receivedAt,
                 type = analysis.type.code, senderKind = kind.code, extracted = MessageCheck.extractedLine(analysis),
                 matchedRules = decision.matchedRuleIds.joinToString(","), skip = decision.skip?.code,
-                simSlot = sms.subscriptionId, otpCode = analysis.otp?.code,
+                simSlot = sms.subscriptionId, otpCode = analysis.otp?.code, origin = sms.origin.code,
             )
             val stored = graph.database.withTransaction {
                 val id = graph.database.logs().insert(entry)

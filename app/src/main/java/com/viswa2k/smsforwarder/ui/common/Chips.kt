@@ -9,9 +9,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.viswa2k.smsforwarder.R
 import com.viswa2k.smsforwarder.ui.theme.Tone
 
 /** Pill label used by [TypeChip] and [StatusChip]. */
@@ -32,3 +34,7 @@ internal fun Pill(text: String, tone: Tone, modifier: Modifier = Modifier) = Pil
 
 @Composable
 internal fun neutralTone() = Tone(MaterialTheme.colorScheme.onSurfaceVariant, MaterialTheme.colorScheme.surfaceVariant)
+
+/** Marks a message that came from a WhatsApp notification (Log row and detail). */
+@Composable
+fun WhatsAppChip() = Pill(stringResource(R.string.log_origin_whatsapp), neutralTone())

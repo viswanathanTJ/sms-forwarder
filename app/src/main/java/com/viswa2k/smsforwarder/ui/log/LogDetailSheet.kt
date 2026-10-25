@@ -26,6 +26,8 @@ import com.viswa2k.smsforwarder.R
 import com.viswa2k.smsforwarder.data.db.OutboxEntity
 import com.viswa2k.smsforwarder.ui.common.StatusChip
 import com.viswa2k.smsforwarder.ui.common.TypeChip
+import com.viswa2k.smsforwarder.ui.common.WhatsAppChip
+import com.viswa2k.smsforwarder.core.Origin
 
 /** Details of one entry: full body (masked as stored), what was detected, per-destination status/error, Resend for failures. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -37,10 +39,11 @@ fun LogDetailSheet(row: LogRowData, onResend: (Long) -> Unit, onDismiss: () -> U
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(row.sender, fontWeight = FontWeight.Bold, fontSize = 17.sp, modifier = Modifier.weight(1f))
+                Text(row.senderLabel, fontWeight = FontWeight.Bold, fontSize = 17.sp, modifier = Modifier.weight(1f))
                 Text(rememberTime(row.receivedAt), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
             }
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                if (row.origin == Origin.WHATSAPP) WhatsAppChip()
                 row.type?.let { TypeChip(it) }
                 StatusChip(row.state)
             }

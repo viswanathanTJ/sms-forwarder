@@ -21,9 +21,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.viswa2k.smsforwarder.R
+import com.viswa2k.smsforwarder.core.Origin
 import com.viswa2k.smsforwarder.core.SkipReason
 import com.viswa2k.smsforwarder.ui.common.StatusChip
 import com.viswa2k.smsforwarder.ui.common.TypeChip
+import com.viswa2k.smsforwarder.ui.common.WhatsAppChip
 import java.util.Date
 
 /** "10:41" today, "Yesterday 10:41" or "24 Oct 10:41" otherwise, in the user's 12/24 h format. */
@@ -61,7 +63,7 @@ fun LogRow(row: LogRowData, modifier: Modifier = Modifier, onClick: (() -> Unit)
     val time = rememberTime(row.receivedAt)
     Column(modifier.fillMaxWidth().let { if (onClick != null) it.clickable(onClick = onClick) else it }) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(row.sender, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+            Text(row.senderLabel, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
             Spacer(Modifier.width(6.dp))
             Text(time, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
         }
@@ -72,6 +74,7 @@ fun LogRow(row: LogRowData, modifier: Modifier = Modifier, onClick: (() -> Unit)
             modifier = Modifier.padding(top = 2.dp, bottom = 4.dp),
         )
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            if (row.origin == Origin.WHATSAPP) WhatsAppChip()
             row.type?.let { TypeChip(it) }
             StatusChip(row.state)
         }

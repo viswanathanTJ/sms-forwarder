@@ -18,6 +18,8 @@ import com.viswa2k.smsforwarder.core.Destination
 import com.viswa2k.smsforwarder.core.DetectedChat
 import com.viswa2k.smsforwarder.core.Imported
 import com.viswa2k.smsforwarder.core.MessageCheck
+import com.viswa2k.smsforwarder.core.NotificationText
+import com.viswa2k.smsforwarder.core.Origin
 import com.viswa2k.smsforwarder.core.PinLock
 import com.viswa2k.smsforwarder.core.SendResult
 import com.viswa2k.smsforwarder.core.SettingsExport
@@ -110,7 +112,25 @@ class SettingsViewModel(private val graph: AppGraph) : ViewModel() {
     val health: StateFlow<List<HealthItem>> = _health
 
     fun refreshHealth() {
+        _notifAccess.value = healthChecker.notificationAccessOk()
         viewModelScope.launch { _health.value = withContext(Dispatchers.Default) { healthChecker.items() } }
+    }
+
+    // ---- Sources (WhatsApp) ------------------------------------------------------------------
+
+    val whatsAppEnabled: StateFlow<Boolean?> =
+        settings.whatsAppEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(30_000), null)
+
+    private val _notifAccess = MutableStateFlow(false)
+    /** Notification access granted; refreshed with the health list (on resume). */
+    val notifAccess: StateFlow<Boolean> = _notifAccess
+
+    /** Switching on moves the WhatsApp floor to now, so nothing older is ever forwarded. */
+    fun setWhatsApp(on: Boolean) {
+        graph.appScope.launch {
+            writeLock.withLock { settings.setWhatsAppEnabled(on, System.currentTimeMillis()) }
+            _health.value = withContext(Dispatchers.Default) { healthChecker.items() }
+        }
     }
 
     fun setOemConfirmed(done: Boolean) {
@@ -252,17 +272,24 @@ class SettingsViewModel(private val graph: AppGraph) : ViewModel() {
     private val _checking = MutableStateFlow(false)
     val checking: StateFlow<Boolean> = _checking
 
-    /** Real analyzer, rules and formatter, in memory: nothing is written or sent. */
-    fun runCheck(sender: String, body: String) {
+    /**
+     * Real analyzer, rules and formatter, in memory: nothing is written or sent. For [Origin.WHATSAPP]
+     * [sender] is the chat title, looked up by contact name like the live listener does.
+     */
+    fun runCheck(sender: String, body: String, origin: Origin = Origin.SMS) {
         if (sender.isBlank() || body.isBlank() || _checking.value) return
         _checking.value = true
         viewModelScope.launch {
             try {
                 _check.value = withContext(Dispatchers.IO) {
-                    val kind = ContactLookup(graph.appContext).kind(sender.trim(), SenderIds.parse(sender.trim()))
+                    val contacts = ContactLookup(graph.appContext)
+                    val wa = origin == Origin.WHATSAPP
+                    val address = if (wa) NotificationText.senderAddress(sender, null) else sender.trim()
+                    val kind = if (wa) contacts.kindForName(sender) else contacts.kind(address, SenderIds.parse(address))
                     MessageCheck.run(
-                        sender.trim(), body, kind, graph.analyzer, graph.rules.all(), graph.destinations.all(),
+                        address, body, kind, graph.analyzer, graph.rules.all(), graph.destinations.all(),
                         deviceLabel(), System.currentTimeMillis(), masterOn = graph.settings.masterOn.first(),
+                        origin = origin,
                     )
                 }
             } catch (e: CancellationException) {

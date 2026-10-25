@@ -23,4 +23,5 @@
     <string name="log_resend">Resend</string>
     <string name="log_yesterday">Yesterday</string>
     <string name="log_resend_masked">Code hidden after 1 hour; can\'t resend.</string>
+    <string name="log_origin_whatsapp">WhatsApp</string>
 </resources>

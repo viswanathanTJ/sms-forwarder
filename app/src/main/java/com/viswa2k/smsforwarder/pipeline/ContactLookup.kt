@@ -26,4 +26,26 @@ class ContactLookup(private val context: Context) {
             SenderKind.UNVERIFIED
         }
     }
+
+    /**
+     * WhatsApp chats are named, not numbered (spec addendum §3): CONTACT when a contact's display name equals
+     * [displayName] (case-insensitive), UNKNOWN_NUMBER otherwise, UNVERIFIED without READ_CONTACTS.
+     */
+    fun kindForName(displayName: String): SenderKind {
+        val name = displayName.trim()
+        val granted = ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CONTACTS) ==
+            PackageManager.PERMISSION_GRANTED
+        if (!granted) return SenderKind.UNVERIFIED
+        if (name.isEmpty()) return SenderKind.UNKNOWN_NUMBER
+        return try {
+            context.contentResolver.query(
+                ContactsContract.Contacts.CONTENT_URI, arrayOf(ContactsContract.Contacts._ID),
+                "${ContactsContract.Contacts.DISPLAY_NAME} = ? COLLATE NOCASE", arrayOf(name), null,
+            )?.use {
+                if (it.moveToFirst()) SenderKind.CONTACT else SenderKind.UNKNOWN_NUMBER
+            } ?: SenderKind.UNVERIFIED
+        } catch (e: Exception) {
+            SenderKind.UNVERIFIED
+        }
+    }
 }

@@ -62,6 +62,8 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
         TelegramSection(vm)
         SectionTitle(stringResource(R.string.settings_section_sms))
         SmsSection(vm)
+        SectionTitle(stringResource(R.string.settings_section_sources))
+        SourcesSection(vm)
         SectionTitle(stringResource(R.string.settings_section_test))
         TestMessageSection(vm)
         SectionTitle(stringResource(R.string.settings_section_health))

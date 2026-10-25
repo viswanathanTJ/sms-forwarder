@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -28,6 +29,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.viswa2k.smsforwarder.R
 import com.viswa2k.smsforwarder.core.CheckResult
+import com.viswa2k.smsforwarder.core.Origin
 import com.viswa2k.smsforwarder.core.SenderKind
 import com.viswa2k.smsforwarder.core.SkipReason
 import com.viswa2k.smsforwarder.ui.common.TypeChip
@@ -44,11 +46,17 @@ fun TestMessageSection(vm: SettingsViewModel) {
     val checking by vm.checking.collectAsStateWithLifecycle()
     var sender by rememberSaveable { mutableStateOf(SAMPLE_SENDER) }
     var body by rememberSaveable { mutableStateOf(SAMPLE_BODY) }
+    var whatsApp by rememberSaveable { mutableStateOf(false) }
 
     SettingsCard {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Muted(stringResource(R.string.test_source))
+            FilterChip(selected = !whatsApp, onClick = { whatsApp = false }, label = { Text(stringResource(R.string.sources_sms)) })
+            FilterChip(selected = whatsApp, onClick = { whatsApp = true }, label = { Text(stringResource(R.string.sources_whatsapp)) })
+        }
         OutlinedTextField(
             sender, { sender = it },
-            label = { Text(stringResource(R.string.test_sender)) },
+            label = { Text(stringResource(if (whatsApp) R.string.test_chat_name else R.string.test_sender)) },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
         )
@@ -60,7 +68,7 @@ fun TestMessageSection(vm: SettingsViewModel) {
         )
         Row(Modifier.fillMaxWidth().padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
             Muted(stringResource(R.string.test_nothing_sent), Modifier.weight(1f))
-            Button(onClick = { vm.runCheck(sender, body) }, enabled = !checking && sender.isNotBlank() && body.isNotBlank()) {
+            Button(onClick = { vm.runCheck(sender, body, if (whatsApp) Origin.WHATSAPP else Origin.SMS) }, enabled = !checking && sender.isNotBlank() && body.isNotBlank()) {
                 Text(stringResource(R.string.test_check))
             }
         }
