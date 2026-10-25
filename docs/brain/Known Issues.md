@@ -27,6 +27,14 @@ updated: 2026-10-25
 - READ_SMS missing makes catch-up silently do nothing (Health shows it); a pipeline failure leaves no Log row; `schedule()` throwing after commit delays send until the next trigger; loose-duplicate read sits outside the transaction (tiny race) ([[Incoming Pipeline]]).
 - Fresh-install crash between DB import and settings writes leaves defaults that forward nothing until a destination is added (the first destination then enables them).
 
+## WhatsApp source
+- Not verified on a device in Task 19 (emulators busy; the real phone is the controller's). MessagingStyle shapes, housekeeping texts and title counters are from WhatsApp behaviour as documented, not captured samples.
+- Chat titles containing " · " make `chatOf` cut the title, so such a 1:1 chat cannot match a contact name. Two chats with the same title share one dedupe space (same text in the same second collapses).
+- An unsaved number appears as its phone number title -> UNKNOWN_NUMBER (no PhoneLookup on titles). Group messages use the group name for the contact check (usually UNKNOWN_NUMBER).
+- The WhatsApp toggle and `waFloor` are not part of Export / Import.
+- Messages missed while the listener is unbound are lost (no catch-up source).
+- The non-MessagingStyle fallback uses the notification `when` as the message time; if WhatsApp ever re-posts such a notification with a new `when`, the same text could be forwarded twice (WhatsApp normally uses MessagingStyle).
+
 ## Delivery
 - Generic SMS failure codes are treated as fatal although some are transient; a partially delivered multipart SMS resends all parts on retry; a Telegram read timeout after acceptance can duplicate (inherent) ([[Delivery & Retries]]).
 

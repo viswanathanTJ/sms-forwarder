@@ -15,6 +15,7 @@ No cloud, no accounts, no Firebase. The app talks only to `api.telegram.org` (se
 - **Home**: master switch, today's Forwarded / Skipped / Not sent counts, rules, recent messages.
 - **Health**: checklist for SMS, contacts, notifications, battery optimisation and OEM auto-start, each with a Fix button.
 - **Telegram problem alerts** so nobody has to look at the phone (see below).
+- **WhatsApp source** (optional, off by default): OTPs and bank/merchant alerts that arrive on WhatsApp are read from WhatsApp's notifications and go through the same classification, rules and destinations (see below).
 - **Test a message**: paste any text and see its type, the matching rules and the exact message that would be sent.
 - **Optional PIN** that locks the master switch, rules and Settings, with back-off after wrong tries.
 - **Export / Import** of settings as JSON (bot token excluded unless you tick the box).
@@ -50,6 +51,8 @@ A loop guard stops an SMS from one of your own SMS destination numbers being for
 6. Review the rules on the Rules tab (OTPs, Bank transactions, Missed calls are on by default; Unknown senders is off) and attach destinations.
 7. Set the **Alerts destination** and device name in Settings, optionally set a **PIN**, then tap **Start forwarding** on the last onboarding step.
 
+8. **WhatsApp** (optional): Settings > Sources > WhatsApp on > **Allow** > in the system list pick SMS Forwarder > Allow notification access. Keep WhatsApp's notification **message previews on** and don't mute the chats that carry OTPs (a hidden preview or muted chat gives the app nothing to read).
+
 Opening the app always restarts the service and runs the catch-up scan, so "please open the app" is a safe recovery step over the phone.
 
 ## Telegram problem alerts
@@ -63,7 +66,14 @@ Sent to the Alerts destination (default: first Telegram chat), once per problem,
 - Message classifier unavailable
 - A destination failing for more than an hour (with the last error)
 - Forwarding is switched off (master switch paused)
+- WhatsApp notification access removed (only while the WhatsApp source is on)
 - Phone rebooted (info)
+
+## WhatsApp source
+
+- **What is read**: only notifications posted by WhatsApp (`com.whatsapp`) and WhatsApp Business (`com.whatsapp.w4b`), and only while the toggle is on. Notifications from every other app are ignored before anything in them is read; nothing from them is stored or logged.
+- **Identity**: the chat name. A chat whose name equals a saved contact counts as a contact (its ordinary messages become Personal, so the default rules don't forward personal chats); others count as "not in contacts". Smart messages show "WhatsApp · Amazon"; `%s` renders "WhatsApp: Amazon". The Log marks these rows with a WhatsApp chip.
+- **Limits**: only what the notification shows is forwarded (previews must be on; long messages may be cut by WhatsApp). Messages older than 10 minutes when re-shown, or from before the toggle was switched on, are never forwarded. There is no history to catch up from: a message that arrives while the listener is disconnected (app killed by the OEM, access revoked) is lost. Group chats appear as "WA:Group · Person". WhatsApp housekeeping notifications (new-message counters, backup, calls) are skipped.
 
 ## Upgrading from v1
 
@@ -80,6 +90,7 @@ v2 installs over v1 (same package and signing). On first launch it migrates the 
 - `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`: ask for Unrestricted battery.
 - `INTERNET`, `ACCESS_NETWORK_STATE`: Telegram and update check.
 - `REQUEST_INSTALL_PACKAGES`: install updates downloaded from GitHub releases.
+- Notification access (granted in system settings, not a runtime permission): only for the optional WhatsApp source.
 
 ## Troubleshooting
 

@@ -4,7 +4,7 @@ updated: 2026-10-25
 ---
 # Incoming Pipeline
 
-> SMS receiver, PDU assembler, dedupe key, inbox catch-up scan.
+> SMS receiver, PDU assembler, dedupe key, inbox catch-up scan; WhatsApp notification source.
 
 ## What the user can do
 Nothing to operate: every incoming SMS is deduped, classified, matched against rules and queued for delivery automatically, even after a swipe from Recents or a reboot.
@@ -25,6 +25,14 @@ Nothing to operate: every incoming SMS is deduped, classified, matched against r
 3. `InboxCatchUp`: one scan at a time (`InboxCatchUp.lock`, also held by Log "Clear"). `catchUpFloor == 0` means first run (set floor = now, process nothing). Otherwise reads inbox since `CatchUpWindow.since(now, floor)` = max(now-24h, floor), ascending, `sentAt` = `date_sent` (fallback `date`). Thanks to the pre-check an already-logged inbox costs one indexed lookup per message.
 4. Triggers: service start (app open/resume, boot, START_STICKY restart) and the watchdog. The watchdog starts the service with `catchUp = false` and runs its own scan, so one scan per watchdog run.
 
+## WhatsApp source
+Spec: `docs/superpowers/specs/2026-10-25-whatsapp-source-design.md`.
+- `pipeline/WhatsAppNotificationListener` (NotificationListenerService, `BIND_NOTIFICATION_LISTENER_SERVICE`): `onNotificationPosted` only. Package allow-list (`NotificationText.PACKAGES`) checked before anything is read; fast return when the cached `AppGraph.whatsApp` StateFlow says off; then on `appScope`: await the migration gate, re-check the toggle, skip group summaries / ongoing / `CATEGORY_CALL`, extract via `NotificationCompat.MessagingStyle` (person, text, timestamp; own messages = null person skipped) else `EXTRA_BIG_TEXT`/`EXTRA_TEXT` under `EXTRA_TITLE`, filter with `NotificationText.accept` (blank, housekeeping, older than 10 min before post, before `waFloor`) and call `IncomingProcessor.process` with `IncomingSms(origin = WHATSAPP)`. Never logs text. `onListenerDisconnected` -> `requestRebind`.
+- Identity (`core/NotificationText`): address `WA:<chat>` / `WA:<group> · <person>`; titles cleaned (bidi marks, " (N messages)" counter) so the key is stable. `MessageKey` normalises WA addresses by trimmed lower-cased title. Sender kind: `ContactLookup.kindForName(chatOf(address))` (Contacts DISPLAY_NAME, case-insensitive) -> CONTACT / UNKNOWN_NUMBER / UNVERIFIED.
+- `MessageAnalyzer.analyze(..., origin)`: WA senders take the business path, `senderName` = chat; WA + CONTACT + IMPORTANT -> PERSONAL. Formatter shows "WhatsApp · <chat>" (`%s` = "WhatsApp: <chat>").
+- `LogEntity.origin` (0 SMS, 1 WhatsApp). Toggle on sets `waFloor = now` (`SettingsStore.setWhatsAppEnabled`); off keeps it. No catch-up for WhatsApp.
+- Debug: `InjectSmsReceiver ... --es origin whatsapp --es from Amazon --es body '...'`.
+
 ## Connections
 [[00 Index]] · [[Architecture Overview]] · [[Testing]]
 
@@ -32,3 +40,4 @@ Nothing to operate: every incoming SMS is deduped, classified, matched against r
 - Whoever turns the master switch on must set `catchUpFloor = now` (UI task), or paused-time messages could be caught up. Log "Clear" also moves the floor to now (the cleared rows were the dedupe keys).
 - Dedupe window is seconds: two identical texts from one sender in the same second collapse into one.
 - Catch-up needs READ_SMS; without it the scan is a no-op.
+- WhatsApp: a message posted while the listener is unbound is lost (no history source); previews must be on; MessagingStyle re-posts history, which the 10-min / floor rule plus the unique key absorb.
