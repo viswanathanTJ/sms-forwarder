@@ -7,6 +7,7 @@
     <string name="onb_perm_title">Permissions</string>
     <string name="onb_perm_body">The app needs to read incoming SMS, send SMS, check your contacts and show its service notice.</string>
     <string name="onb_grant">Grant</string>
+    <string name="onb_open_notifications">Open notification settings</string>
     <string name="onb_battery_title">Battery: unrestricted</string>
     <string name="onb_battery_body">So Android never puts forwarding to sleep. It uses almost no battery: nothing runs between messages.</string>
     <string name="onb_battery_action">Allow</string>

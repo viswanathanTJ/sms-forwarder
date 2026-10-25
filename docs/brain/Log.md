@@ -30,3 +30,4 @@ updated: 2026-10-25
 - 2026-10-25 Task 14: Log screen (filters, detail sheet with Resend, clear with confirm), shared LogRow with Home; see [[UI Screens]].
 - 2026-10-25 Task 14 fixes: Home counts derived via deliveryState (third tile "Not sent"), no Resend on masked rows, dated timestamps.
 - 2026-10-25 Task 15: Settings (Telegram/SMS destinations, Test a message, Health, device, PIN, export/import, update), onboarding, PIN gating via requireUnlock; core SettingsExport/PinLock/MessageCheck; see [[UI Screens]].
+- 2026-10-25 Task 15 fixes: import localizes SIM ids, update-check failure distinct (stored update kept), PIN back-off (PinBackoff), Grant only for missing runtime permissions, IO for detect/test, privacy notice after onboarding.

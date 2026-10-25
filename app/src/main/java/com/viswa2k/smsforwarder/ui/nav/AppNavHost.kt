@@ -4,7 +4,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.outlined.Rule
+import androidx.compose.material.icons.automirrored.outlined.Rule
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
@@ -39,7 +39,6 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.viswa2k.smsforwarder.AppGraph
 import com.viswa2k.smsforwarder.R
-import com.viswa2k.smsforwarder.core.PinLock
 import com.viswa2k.smsforwarder.ui.onboarding.OnboardingScreen
 import com.viswa2k.smsforwarder.ui.onboarding.needsOnboarding
 import com.viswa2k.smsforwarder.ui.settings.AppLock
@@ -60,7 +59,7 @@ private data class Tab(val route: String, val label: Int, val icon: ImageVector)
 
 private val tabs = listOf(
     Tab(Routes.HOME, R.string.nav_home, Icons.Outlined.Home),
-    Tab(Routes.RULES, R.string.nav_rules, Icons.Outlined.Rule),
+    Tab(Routes.RULES, R.string.nav_rules, Icons.AutoMirrored.Outlined.Rule),
     Tab(Routes.LOG, R.string.nav_log, Icons.Outlined.History),
     Tab(Routes.SETTINGS, R.string.nav_settings, Icons.Outlined.Settings),
 )
@@ -105,10 +104,8 @@ fun AppNavHost(navController: NavHostController = rememberNavController()) {
         }
     }
     pendingAction?.let { action ->
-        val record = (pinRecord as? PinState.Loaded)?.record
         PinEntryDialog(
             title = stringResource(R.string.pin_enter_title),
-            verify = { pin -> record != null && PinLock.verify(pin, record) },
             onSuccess = {
                 AppLock.unlocked.value = true
                 pendingAction = null
@@ -119,6 +116,8 @@ fun AppNavHost(navController: NavHostController = rememberNavController()) {
     }
 
     val startRoute = start ?: return
+    // Once the user is past onboarding (never on top of it).
+    if (current != null && current != Routes.ONBOARDING) PrivacyNotice()
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,

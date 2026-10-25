@@ -25,7 +25,6 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.viswa2k.smsforwarder.BuildConfig
 import com.viswa2k.smsforwarder.R
-import com.viswa2k.smsforwarder.core.PinLock
 import com.viswa2k.smsforwarder.update.UpdatePromptDialog
 
 @Composable
@@ -69,15 +68,12 @@ fun DeviceSection(vm: SettingsViewModel) {
         )
     }
 
-    val record by vm.pinRecord.collectAsStateWithLifecycle()
     when (pinDialog) {
         PinAction.SET -> SetPinDialog(onSet = { vm.setPin(it); AppLock.unlocked.value = true; pinDialog = null }, onDismiss = { pinDialog = null })
         PinAction.CHANGE_VERIFY, PinAction.REMOVE_VERIFY -> {
             val removing = pinDialog == PinAction.REMOVE_VERIFY
             PinEntryDialog(
                 title = stringResource(if (removing) R.string.pin_remove_title else R.string.pin_change_title),
-                // One SHA-256 of a few bytes: cheap enough to verify inline.
-                verify = { pin -> record?.let { PinLock.verify(pin, it) } ?: false },
                 onSuccess = {
                     if (removing) { vm.removePin(); pinDialog = null } else pinDialog = PinAction.SET
                 },

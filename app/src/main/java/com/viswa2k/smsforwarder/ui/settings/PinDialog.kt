@@ -29,7 +29,17 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.viswa2k.smsforwarder.R
+import com.viswa2k.smsforwarder.AppGraph
+import com.viswa2k.smsforwarder.core.PinBackoff
 import com.viswa2k.smsforwarder.core.PinLock
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 
 /** Process-wide unlock state: one correct PIN unlocks until the app goes to the background. */
@@ -65,19 +75,48 @@ private fun PinField(value: String, onChange: (String) -> Unit, label: String, i
 }
 
 /**
- * Asks for the current PIN. [verify] returns true when correct; the dialog then calls [onSuccess].
+ * Asks for the current PIN and calls [onSuccess] when it matches. Wrong entries count towards
+ * [PinBackoff] (persisted, so closing the dialog or the app does not reset it).
  */
 @Composable
 fun PinEntryDialog(
     title: String,
-    verify: (String) -> Boolean,
     onSuccess: () -> Unit,
     onDismiss: () -> Unit,
 ) {
+    val context = LocalContext.current
+    val settings = remember { AppGraph.from(context).settings }
+    val record by settings.pinHash.collectAsStateWithLifecycle(initialValue = null)
+    val attempts by remember { settings.pinAttempts.map { PinBackoff.decode(it) } }
+        .collectAsStateWithLifecycle(initialValue = null)
+    val scope = rememberCoroutineScope()
     var pin by remember { mutableStateOf("") }
     var wrong by remember { mutableStateOf(false) }
-    val submit = {
-        if (verify(pin)) onSuccess() else { wrong = true; pin = "" }
+    var busy by remember { mutableStateOf(false) }
+    var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    val state = attempts
+    val waitMs = state?.let { PinBackoff.remainingMs(it, now) } ?: 0L
+    LaunchedEffect(state?.lockedUntil) {
+        now = System.currentTimeMillis()
+        while (state != null && PinBackoff.remainingMs(state, now) > 0) {
+            delay(1_000)
+            now = System.currentTimeMillis()
+        }
+    }
+    val canSubmit = PinLock.isValid(pin) && record != null && state != null && waitMs == 0L && !busy
+    val submit: () -> Unit = submit@{
+        val stored = record ?: return@submit
+        val current = state ?: return@submit
+        if (!canSubmit) return@submit
+        busy = true
+        val entered = pin
+        scope.launch {
+            val ok = PinLock.verify(entered, stored)
+            val at = System.currentTimeMillis()
+            settings.setPinAttempts(PinBackoff.encode(if (ok) PinBackoff.onSuccess() else PinBackoff.onFailure(current, at)))
+            busy = false
+            if (ok) onSuccess() else { wrong = true; pin = ""; now = at }
+        }
     }
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -86,10 +125,16 @@ fun PinEntryDialog(
         text = {
             Column {
                 PinField(pin, { pin = it; wrong = false }, stringResource(R.string.pin_label), isError = wrong)
-                if (wrong) Text(stringResource(R.string.pin_wrong), color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 4.dp))
+                when {
+                    waitMs > 0 -> Text(
+                        stringResource(R.string.pin_wait, ((waitMs + 999) / 1000).toInt()),
+                        color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 4.dp),
+                    )
+                    wrong -> Text(stringResource(R.string.pin_wrong), color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 4.dp))
+                }
             }
         },
-        confirmButton = { TextButton(onClick = submit, enabled = PinLock.isValid(pin)) { Text(stringResource(R.string.pin_unlock)) } },
+        confirmButton = { TextButton(onClick = submit, enabled = canSubmit) { Text(stringResource(R.string.pin_unlock)) } },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) } },
     )
 }

@@ -6,6 +6,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
 
@@ -64,13 +65,17 @@ object UpdateChecker {
     private fun numericParts(version: String): List<Int> =
         Regex("\\d+").findAll(version.removePrefix("v")).map { it.value.toInt() }.toList()
 
-    /** Returns details of a newer release, or null if up to date / unavailable. */
+    /**
+     * Returns details of a newer release, or null when up to date (or no usable release exists).
+     * Throws [IOException] when GitHub could not be asked (offline, HTTP error, bad JSON), so callers
+     * can tell "no update" from "check failed".
+     */
     suspend fun checkForUpdate(currentVersion: String): UpdateInfo? = withContext(Dispatchers.IO) {
         val release = try {
             fetchLatest()
         } catch (e: Exception) {
-            Log.w("UpdateChecker", "Update check failed: ${e.message}")
-            return@withContext null
+            Log.w("UpdateChecker", "Update check failed: ${e.javaClass.simpleName}")
+            throw if (e is IOException) e else IOException("Update check failed: ${e.javaClass.simpleName}")
         }
         if (release == null || release.draft || release.prerelease) return@withContext null
 
@@ -96,7 +101,9 @@ object UpdateChecker {
             readTimeout = 10_000
         }
         try {
-            if (conn.responseCode != HttpURLConnection.HTTP_OK) return null
+            val code = conn.responseCode
+            if (code == HttpURLConnection.HTTP_NOT_FOUND) return null // no release published yet
+            if (code != HttpURLConnection.HTTP_OK) throw IOException("HTTP $code")
             val text = conn.inputStream.bufferedReader().use { it.readText() }
             return json.decodeFromString(GhRelease.serializer(), text)
         } finally {

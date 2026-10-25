@@ -49,6 +49,23 @@ object SettingsExport {
         }
     }
 
+    /**
+     * SIM ids are per phone: keeps an SMS destination's [Destination.simSubscriptionId] only when it is one
+     * of this phone's [activeSubscriptionIds] (empty when unknown), else falls back to the default SIM.
+     * Returns the destinations and how many SIM choices were reset.
+     */
+    fun localizeSims(destinations: List<Destination>, activeSubscriptionIds: Set<Int>): Pair<List<Destination>, Int> {
+        var reset = 0
+        val out = destinations.map { d ->
+            val sim = d.simSubscriptionId
+            if (sim != null && sim !in activeSubscriptionIds) {
+                reset++
+                d.copy(simSubscriptionId = null)
+            } else d
+        }
+        return out to reset
+    }
+
     private fun destination(d: Destination) = JSONObject().apply {
         put("id", d.id)
         put("channel", d.channel.code)

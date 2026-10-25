@@ -86,7 +86,8 @@ fun TelegramSection(vm: SettingsViewModel) {
 
 @Composable
 private fun TokenField(hasToken: Boolean, onSave: (String) -> Boolean) {
-    var text by rememberSaveable { mutableStateOf("") }
+    // Plain remember: the typed token must not land in the saved-instance-state Bundle.
+    var text by remember { mutableStateOf("") }
     var invalid by remember { mutableStateOf(false) }
     OutlinedTextField(
         value = text,

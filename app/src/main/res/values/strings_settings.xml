@@ -97,6 +97,7 @@
     <string name="pin_mismatch">The PINs don\'t match</string>
     <string name="pin_label">PIN</string>
     <string name="pin_wrong">Wrong PIN</string>
+    <string name="pin_wait">Too many wrong tries. Try again in %1$d s.</string>
     <string name="pin_unlock">Unlock</string>
     <string name="pin_enter_title">Enter PIN</string>
     <string name="pin_change_title">Current PIN</string>
@@ -128,6 +129,11 @@
     <string name="import_include_token">Also import the bot token</string>
     <string name="import_no_token">The file has no bot token; the current one is kept.</string>
     <string name="import_replace">Replace</string>
+    <string name="import_pending_failed">Pending sends to removed destinations will be marked failed.</string>
+    <plurals name="import_sims_reset">
+        <item quantity="one">%d SMS number will use this phone\'s default SIM (its SIM is not in this phone).</item>
+        <item quantity="other">%d SMS numbers will use this phone\'s default SIM (their SIM is not in this phone).</item>
+    </plurals>
 
     <!-- About -->
     <string name="about_version">Version %1$s (%2$d)</string>

@@ -79,4 +79,24 @@ class SettingsExportTest {
         o.getJSONArray("rules").getJSONObject(0).getJSONArray("types").put(MessageType.SPAM.code)
         assertTrue(MessageType.SPAM !in SettingsExport.fromJson(o.toString()).rules[0].types)
     }
+
+    @Test fun localizeSims_keepsOnlyActiveSubscriptions() {
+        val list = listOf(
+            Destination(1, Channel.SMS, "a", "+911", simSubscriptionId = 2),
+            Destination(2, Channel.SMS, "b", "+912", simSubscriptionId = 5),
+            Destination(3, Channel.SMS, "c", "+913"),
+            Destination(4, Channel.TELEGRAM, "d", "55"),
+        )
+        val (out, reset) = SettingsExport.localizeSims(list, setOf(2, 3))
+        assertEquals(listOf(2, null, null, null), out.map { it.simSubscriptionId })
+        assertEquals(1, reset)
+        assertEquals(list.map { it.copy(simSubscriptionId = null) }.map { it.label }, out.map { it.label })
+    }
+
+    @Test fun localizeSims_noKnownSubscriptions_clearsAll() {
+        val list = listOf(Destination(1, Channel.SMS, "a", "+911", simSubscriptionId = 2))
+        val (out, reset) = SettingsExport.localizeSims(list, emptySet())
+        assertNull(out.single().simSubscriptionId)
+        assertEquals(1, reset)
+    }
 }

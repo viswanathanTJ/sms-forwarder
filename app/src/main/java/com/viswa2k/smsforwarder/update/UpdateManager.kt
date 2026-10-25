@@ -15,7 +15,10 @@ import kotlinx.coroutines.flow.map
  */
 object UpdateManager {
 
-    /** Check GitHub and persist: store the newer release, or clear it when up to date. */
+    /**
+     * Check GitHub and persist: store the newer release, or clear it when up to date. A failed check
+     * throws (IOException) and leaves the stored release untouched.
+     */
     suspend fun refresh(prefs: SettingsStore) {
         val info = UpdateChecker.checkForUpdate(BuildConfig.VERSION_NAME)
         prefs.setStoredUpdate(if (info != null) UpdateChecker.serialize(info) else "")

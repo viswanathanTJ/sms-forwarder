@@ -68,11 +68,11 @@ fun ExportImportSection(vm: SettingsViewModel) {
         }
     }
 
-    pending?.let { ImportConfirmDialog(it, onConfirm = vm::applyImport, onDismiss = vm::cancelImport) }
+    pending?.let { ImportConfirmDialog(it.imported, it.simsReset, onConfirm = vm::applyImport, onDismiss = vm::cancelImport) }
 }
 
 @Composable
-private fun ImportConfirmDialog(imported: Imported, onConfirm: (Boolean) -> Unit, onDismiss: () -> Unit) {
+private fun ImportConfirmDialog(imported: Imported, simsReset: Int, onConfirm: (Boolean) -> Unit, onDismiss: () -> Unit) {
     var withToken by remember { mutableStateOf(false) }
     val chats = imported.destinations.count { it.channel == Channel.TELEGRAM }
     val numbers = imported.destinations.count { it.channel == Channel.SMS }
@@ -85,7 +85,9 @@ private fun ImportConfirmDialog(imported: Imported, onConfirm: (Boolean) -> Unit
                 Text(pluralStringResource(R.plurals.import_chats, chats, chats))
                 Text(pluralStringResource(R.plurals.import_numbers, numbers, numbers))
                 if (imported.deviceName.isNotBlank()) Muted(stringResource(R.string.import_device, imported.deviceName))
+                if (simsReset > 0) Muted(pluralStringResource(R.plurals.import_sims_reset, simsReset, simsReset))
                 Text(stringResource(R.string.import_replace_warning), color = MaterialTheme.colorScheme.error)
+                Muted(stringResource(R.string.import_pending_failed))
                 if (imported.token != null) {
                     Row(Modifier.clickable { withToken = !withToken }, verticalAlignment = Alignment.CenterVertically) {
                         Checkbox(checked = withToken, onCheckedChange = { withToken = it })

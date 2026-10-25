@@ -58,6 +58,9 @@ data class SettingsState(
 /** An active SIM for the SMS-destination picker. */
 data class SimOption(val subscriptionId: Int, val label: String)
 
+/** A parsed settings file plus how many SMS destinations fell back to the default SIM. */
+data class PendingImport(val imported: Imported, val simsReset: Int)
+
 sealed interface UpdateStatus {
     data object Idle : UpdateStatus
     data object Checking : UpdateStatus
@@ -148,7 +151,8 @@ class SettingsViewModel(private val graph: AppGraph) : ViewModel() {
         if (_detect.value == DetectState.Loading) return
         _detect.value = DetectState.Loading
         viewModelScope.launch {
-            val result = graph.telegram.detectChats()
+            // Token decrypt (Keystore) + network: never on Main.
+            val result = withContext(Dispatchers.IO) { graph.telegram.detectChats() }
             _detect.value = result.fold(
                 onSuccess = { if (it.isEmpty()) DetectState.Error(NO_UPDATES) else DetectState.Found(it) },
                 onFailure = { DetectState.Error(detectError(it.message)) },
@@ -194,9 +198,11 @@ class SettingsViewModel(private val graph: AppGraph) : ViewModel() {
         graph.appScope.launch {
             try {
                 val device = deviceLabel()
-                val result = when (d.channel) {
-                    Channel.TELEGRAM -> graph.telegram.test(d.address, d.topicId, device)
-                    Channel.SMS -> graph.smsSender.send(d.address, "✅ Test from $device", d.simSubscriptionId)
+                val result = withContext(Dispatchers.IO) {
+                    when (d.channel) {
+                        Channel.TELEGRAM -> graph.telegram.test(d.address, d.topicId, device)
+                        Channel.SMS -> graph.smsSender.send(d.address, "✅ Test from $device", d.simSubscriptionId)
+                    }
                 }
                 say(
                     when (result) {
@@ -217,25 +223,25 @@ class SettingsViewModel(private val graph: AppGraph) : ViewModel() {
     /** Active SIMs; empty when READ_PHONE_STATE is denied (the picker then shows "Default SIM" only). */
     val sims: StateFlow<List<SimOption>> = _sims
 
-    @SuppressLint("MissingPermission")
     fun loadSims() {
+        viewModelScope.launch { _sims.value = withContext(Dispatchers.IO) { activeSims() } }
+    }
+
+    /** Active SIMs, or empty when READ_PHONE_STATE is not granted / the query fails. Call off Main. */
+    @SuppressLint("MissingPermission")
+    private fun activeSims(): List<SimOption> {
         val context = graph.appContext
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED) {
-            _sims.value = emptyList()
-            return
+            return emptyList()
         }
-        viewModelScope.launch {
-            _sims.value = withContext(Dispatchers.IO) {
-                try {
-                    val sm = context.getSystemService(SubscriptionManager::class.java)
-                    sm?.activeSubscriptionInfoList.orEmpty().sortedBy { it.simSlotIndex }.map {
-                        val carrier = it.displayName?.toString()?.takeIf { n -> n.isNotBlank() }
-                        SimOption(it.subscriptionId, "SIM ${it.simSlotIndex + 1}" + (carrier?.let { c -> " · $c" } ?: ""))
-                    }
-                } catch (e: SecurityException) {
-                    emptyList()
-                }
+        return try {
+            val sm = context.getSystemService(SubscriptionManager::class.java)
+            sm?.activeSubscriptionInfoList.orEmpty().sortedBy { it.simSlotIndex }.map {
+                val carrier = it.displayName?.toString()?.takeIf { n -> n.isNotBlank() }
+                SimOption(it.subscriptionId, "SIM ${it.simSlotIndex + 1}" + (carrier?.let { c -> " · $c" } ?: ""))
             }
+        } catch (e: SecurityException) {
+            emptyList()
         }
     }
 
@@ -276,9 +282,6 @@ class SettingsViewModel(private val graph: AppGraph) : ViewModel() {
         say("Device name saved")
     }
 
-    /** The stored PIN record (salt:hash), for verifying entries; null when no PIN is set. */
-    val pinRecord: StateFlow<String?> = settings.pinHash.stateIn(viewModelScope, SharingStarted.Eagerly, null)
-
     fun setPin(pin: String) {
         if (!PinLock.isValid(pin)) return
         graph.appScope.launch {
@@ -317,9 +320,9 @@ class SettingsViewModel(private val graph: AppGraph) : ViewModel() {
         }
     }
 
-    private val _pendingImport = MutableStateFlow<Imported?>(null)
+    private val _pendingImport = MutableStateFlow<PendingImport?>(null)
     /** A parsed file awaiting the user's confirmation. */
-    val pendingImport: StateFlow<Imported?> = _pendingImport
+    val pendingImport: StateFlow<PendingImport?> = _pendingImport
 
     fun readImport(uri: Uri) {
         val context = graph.appContext
@@ -333,7 +336,12 @@ class SettingsViewModel(private val graph: AppGraph) : ViewModel() {
                     } ?: error("cannot open file")
                 }
                 importOnce = OneShot()
-                _pendingImport.value = withContext(Dispatchers.Default) { SettingsExport.fromJson(text) }
+                _pendingImport.value = withContext(Dispatchers.IO) {
+                    val parsed = SettingsExport.fromJson(text)
+                    // SIM ids from another phone are meaningless here: keep only this phone's active ones.
+                    val (dests, reset) = SettingsExport.localizeSims(parsed.destinations, activeSims().map { it.subscriptionId }.toSet())
+                    PendingImport(parsed.copy(destinations = dests), reset)
+                }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: IllegalArgumentException) {
@@ -350,7 +358,7 @@ class SettingsViewModel(private val graph: AppGraph) : ViewModel() {
 
     /** Replaces rules + destinations in one transaction; the token only when [includeToken] and present. */
     fun applyImport(includeToken: Boolean) {
-        val imported = _pendingImport.value ?: return
+        val imported = _pendingImport.value?.imported ?: return
         if (!importOnce.tryRun()) return
         _pendingImport.value = null
         graph.appScope.launch {

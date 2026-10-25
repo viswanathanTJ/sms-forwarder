@@ -1,6 +1,7 @@
 package com.viswa2k.smsforwarder.ui.onboarding
 
 import android.Manifest
+import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -22,6 +23,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -30,6 +32,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.LifecycleResumeEffect
@@ -128,11 +131,23 @@ fun OnboardingScreen(onDone: () -> Unit, modifier: Modifier = Modifier) {
             Step.PERMISSIONS -> {
                 StepHeader(R.string.onb_perm_title, R.string.onb_perm_body)
                 SettingsCard { HealthList(health, oem, vm::setOemConfirmed, ids = PERMISSION_IDS) }
-                val missing = health.any { it.id in PERMISSION_IDS && !it.ok }
-                if (missing) {
-                    Button(onClick = { permissions.launch(runtimePermissions()) }, modifier = Modifier.fillMaxWidth()) {
-                        Text(stringResource(R.string.onb_grant))
+                // Re-read on every health refresh (resume / permission result).
+                val missingRuntime = remember(health) {
+                    runtimePermissions().filter {
+                        ContextCompat.checkSelfPermission(context, it) != PackageManager.PERMISSION_GRANTED
                     }
+                }
+                val notif = health.firstOrNull { it.id == "notif" }
+                when {
+                    missingRuntime.isNotEmpty() -> Button(
+                        onClick = { permissions.launch(missingRuntime.toTypedArray()) },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) { Text(stringResource(R.string.onb_grant)) }
+                    // API 29-32: notifications are a settings switch, not a runtime permission.
+                    notif != null && !notif.ok && notif.fix != null -> Button(
+                        onClick = { openFirst(context, listOf(notif.fix)) },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) { Text(stringResource(R.string.onb_open_notifications)) }
                 }
             }
             Step.BATTERY -> {
@@ -180,10 +195,10 @@ private fun StepHeader(title: Int, body: Int) {
     }
 }
 
-private fun runtimePermissions(): Array<String> = buildList {
+private fun runtimePermissions(): List<String> = buildList {
     add(Manifest.permission.RECEIVE_SMS)
     add(Manifest.permission.READ_SMS)
     add(Manifest.permission.SEND_SMS)
     add(Manifest.permission.READ_CONTACTS)
     if (Build.VERSION.SDK_INT >= 33) add(Manifest.permission.POST_NOTIFICATIONS)
-}.toTypedArray()
+}

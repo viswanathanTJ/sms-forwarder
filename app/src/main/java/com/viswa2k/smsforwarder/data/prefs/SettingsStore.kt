@@ -30,6 +30,7 @@ class SettingsStore(context: Context) {
     private val alertStateKey = stringPreferencesKey("alert_state")
     private val storedUpdateKey = stringPreferencesKey("stored_update")
     private val onboardingKey = booleanPreferencesKey("onboarding_done")
+    private val pinAttemptsKey = stringPreferencesKey("pin_attempts")
 
     val masterOn: Flow<Boolean> = store.data.map { it[masterOnKey] ?: true }
     val deviceName: Flow<String> = store.data.map { it[deviceNameKey] ?: "" }
@@ -49,11 +50,19 @@ class SettingsStore(context: Context) {
     val storedUpdate: Flow<String> = store.data.map { it[storedUpdateKey] ?: "" }
     /** First-run setup finished once; onboarding still returns while a required permission is missing. */
     val onboardingDone: Flow<Boolean> = store.data.map { it[onboardingKey] ?: false }
+    /** [com.viswa2k.smsforwarder.core.PinBackoff] state, "failures:lockedUntil". */
+    val pinAttempts: Flow<String> = store.data.map { it[pinAttemptsKey] ?: "" }
 
     suspend fun setMasterOn(on: Boolean) { store.edit { it[masterOnKey] = on } }
     suspend fun setDeviceName(name: String) { store.edit { it[deviceNameKey] = name } }
     suspend fun setEncryptedToken(token: String?) { store.edit { if (token == null) it.remove(tokenKey) else it[tokenKey] = token } }
-    suspend fun setPinHash(hash: String?) { store.edit { if (hash == null) it.remove(pinKey) else it[pinKey] = hash } }
+    /** Setting or removing the PIN also clears the wrong-PIN back-off. */
+    suspend fun setPinHash(hash: String?) {
+        store.edit {
+            if (hash == null) it.remove(pinKey) else it[pinKey] = hash
+            it.remove(pinAttemptsKey)
+        }
+    }
     suspend fun setAlertsDestinationId(id: Long?) { store.edit { if (id == null) it.remove(alertsDestKey) else it[alertsDestKey] = id } }
     suspend fun setCatchUpFloor(epochMs: Long) { store.edit { it[floorKey] = epochMs } }
     suspend fun setMigrationDone(done: Boolean) { store.edit { it[migrationKey] = done } }
@@ -62,6 +71,7 @@ class SettingsStore(context: Context) {
     suspend fun setAlertState(json: String) { store.edit { it[alertStateKey] = json } }
     suspend fun setStoredUpdate(json: String) { store.edit { it[storedUpdateKey] = json } }
     suspend fun setOnboardingDone(done: Boolean) { store.edit { it[onboardingKey] = done } }
+    suspend fun setPinAttempts(state: String) { store.edit { it[pinAttemptsKey] = state } }
 
     companion object {
         fun parseAlertState(json: String): Map<String, Long> = try {
