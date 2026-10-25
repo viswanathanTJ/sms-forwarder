@@ -30,6 +30,23 @@ Diff each file against `../SMS/app/src/main/java/com/viswa2k/sms/{classify,finan
 - `caller` = first such token with spaces removed; `time` = first `h:mm` / `hh:mm AM|PM` as written; `count` = `N missed calls`, default 1.
 - Adding a carrier format: add a `Pattern` (anchored regex, group 1 = caller number via `$NUM`) to `PATTERNS` in `MissedCallDetector.kt` (and widen `NUM`/`TIME` only if the number or time looks different), then add a real sample to `MissedCallDetectorTest`. Samples can be pasted via the Test tool later.
 
+## Message types (Task 4)
+`core/MessageAnalyzer(lists?).analyze(sender, body, senderKind): Analysis` maps the classifier output to `MessageType` (codes stored, never renumber). Order: missed call (detector) first, then the table below. `lists == null` (asset failed): missed call, else business -> Other important, phone -> Personal, `classifierAvailable = false`.
+
+| MessageType | Source |
+|---|---|
+| Missed call (1) | `MissedCallDetector` |
+| Spam (9) | `FraudLevel.SCAM` or `inSpamStore` (PROMOTIONAL, BLOCKED_DELETE); checked before OTP so scam OTPs are never forwarded |
+| OTP (2) | `isOtp` (OTP, OTP_TRANSACTION, OTP_VARIANT); a payment OTP is OTP only, no txn parse |
+| Transaction (3) | TRANSACTION with parsed amount > 0, else Other important |
+| Balance alert (4) | BALANCE_ALERT (txn parsed for balance) |
+| Bills & dues (5) | SMART_ALERT |
+| Delivery (6) | DELIVERY |
+| Personal (8) | phone-number sender, none of the above |
+| Other important (7) | anything else from a business sender |
+
+`senderName` = `BankSenderResolver` name when bank/brand resolved, else `SenderInfo.canonicalId`. `SenderKind.CONTACT` feeds `isKnown`.
+
 ## Connections
 [[00 Index]] · [[Architecture Overview]] · [[Testing]]
 
