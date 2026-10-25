@@ -11,6 +11,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.viswa2k.smsforwarder.AppGraph
+import com.viswa2k.smsforwarder.BuildConfig
 import com.viswa2k.smsforwarder.classify.SenderIds
 import com.viswa2k.smsforwarder.core.Channel
 import com.viswa2k.smsforwarder.core.CheckResult
@@ -39,6 +40,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
@@ -113,8 +115,13 @@ class SettingsViewModel(private val graph: AppGraph) : ViewModel() {
     private val _health = MutableStateFlow<List<HealthItem>>(emptyList())
     val health: StateFlow<List<HealthItem>> = _health
 
+    private val _notifShown = MutableStateFlow(true)
+    /** The status notification is visible; refreshed with the health list (on resume). */
+    val notifShown: StateFlow<Boolean> = _notifShown
+
     fun refreshHealth() {
         _notifAccess.value = healthChecker.notificationAccessOk()
+        _notifShown.value = healthChecker.statusNotificationShown()
         viewModelScope.launch { _health.value = withContext(Dispatchers.Default) { healthChecker.items() } }
     }
 
@@ -452,6 +459,19 @@ class SettingsViewModel(private val graph: AppGraph) : ViewModel() {
     }
 
     fun dismissUpdate() { _update.value = UpdateStatus.Idle }
+
+    // ---- Root rows ------------------------------------------------------------------------------
+
+    /** Supporting line of every Settings root row; empty until the stored settings have loaded. */
+    val summaries: StateFlow<Map<SettingsSection, RowText>> = combine(
+        state.filter { it.loaded },
+        _health,
+        combine(settings.whatsAppEnabled, settings.whatsAppTypes) { on, types -> on to types },
+        _update,
+        _notifShown,
+    ) { s, health, (waOn, waTypes), update, shown ->
+        SettingsSummary.rows(s, health, waOn, waTypes, update, shown, Build.MANUFACTURER, Build.MODEL, BuildConfig.VERSION_NAME)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(30_000), emptyMap())
 
     private suspend fun deviceLabel(): String = settings.deviceName.first().ifBlank { Build.MODEL }
 

@@ -43,12 +43,15 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.viswa2k.smsforwarder.AppGraph
 import com.viswa2k.smsforwarder.R
-import com.viswa2k.smsforwarder.ui.onboarding.OnboardingScreen
+import com.viswa2k.smsforwarder.ui.onboarding.OnboardingPager
 import com.viswa2k.smsforwarder.ui.onboarding.needsOnboarding
 import com.viswa2k.smsforwarder.ui.settings.AppLock
 import com.viswa2k.smsforwarder.ui.settings.LockedPane
 import com.viswa2k.smsforwarder.ui.settings.PinEntryDialog
-import com.viswa2k.smsforwarder.ui.settings.SettingsScreen
+import com.viswa2k.smsforwarder.ui.settings.SettingsRoot
+import com.viswa2k.smsforwarder.ui.settings.SettingsSection
+import com.viswa2k.smsforwarder.ui.settings.SettingsSectionPage
+import com.viswa2k.smsforwarder.ui.settings.settingsViewModel
 import com.viswa2k.smsforwarder.ui.home.HomeScreen
 import com.viswa2k.smsforwarder.ui.log.LogScreen
 import com.viswa2k.smsforwarder.ui.rules.RuleEditorScreen
@@ -119,6 +122,12 @@ fun AppNavHost(navController: NavHostController = rememberNavController()) {
         )
     }
 
+    // Settings and every settings/{section} page show the lock pane while a PIN is set and the app is locked.
+    val settingsLocked = when (val pin = pinRecord) {
+        PinState.Loading -> true
+        is PinState.Loaded -> pin.record != null && !unlocked
+    }
+
     val startRoute = start ?: return
     // Once the user is past onboarding (never on top of it).
     if (current != null && current != Routes.ONBOARDING) PrivacyNotice()
@@ -126,12 +135,19 @@ fun AppNavHost(navController: NavHostController = rememberNavController()) {
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
-            if (current in Routes.TABS) {
+            if (current in Routes.TABS || current == Routes.SETTINGS_SECTION) {
                 NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
                     tabs.forEach { tab ->
+                        val onSettingsPage = tab.route == Routes.SETTINGS && current == Routes.SETTINGS_SECTION
                         NavigationBarItem(
-                            selected = current == tab.route,
-                            onClick = { if (current != tab.route) navController.navigateToTab(tab.route) },
+                            selected = current == tab.route || onSettingsPage,
+                            onClick = {
+                                when {
+                                    // Settings tab on a Settings sub-page: back to the Settings root.
+                                    onSettingsPage -> navController.popBackStack(Routes.SETTINGS, inclusive = false)
+                                    current != tab.route -> navController.navigateToTab(tab.route)
+                                }
+                            },
                             icon = { Icon(tab.icon, contentDescription = null) },
                             label = { Text(stringResource(tab.label)) },
                             colors = NavigationBarItemDefaults.colors(
@@ -176,7 +192,7 @@ fun AppNavHost(navController: NavHostController = rememberNavController()) {
                 Routes.ONBOARDING,
                 exitTransition = { if (reduceMotion) ExitTransition.None else fadeAway() },
             ) {
-                OnboardingScreen(onDone = {
+                OnboardingPager(onDone = {
                     navController.navigate(Routes.HOME) {
                         popUpTo(Routes.ONBOARDING) { inclusive = true }
                         launchSingleTop = true
@@ -222,12 +238,39 @@ fun AppNavHost(navController: NavHostController = rememberNavController()) {
                 )
             }
             composable(Routes.LOG) { LogScreen() }
-            composable(Routes.SETTINGS) {
-                val locked = when (val pin = pinRecord) {
-                    PinState.Loading -> true
-                    is PinState.Loaded -> pin.record != null && !unlocked
+            composable(Routes.SETTINGS) { entry ->
+                if (settingsLocked) {
+                    LockedPane(onUnlock = { requireUnlock { } })
+                } else {
+                    SettingsRoot(
+                        vm = settingsViewModel(entry),
+                        onOpen = { section ->
+                            // Only from the settled root: a quick second tap does not stack two pages.
+                            if (navController.currentBackStackEntry == entry) navController.navigate(Routes.settingsSection(section.key))
+                        },
+                    )
                 }
-                if (locked) LockedPane(onUnlock = { requireUnlock { } }) else SettingsScreen()
+            }
+            composable(
+                Routes.SETTINGS_SECTION,
+                arguments = listOf(navArgument(Routes.SECTION_ARG) { type = NavType.StringType }),
+                enterTransition = { pushIn() },
+                exitTransition = { pushOut() },
+                popEnterTransition = { pushIn() },
+                popExitTransition = { pushOut() },
+            ) { entry ->
+                val section = SettingsSection.fromKey(entry.arguments?.getString(Routes.SECTION_ARG))
+                // Shares the root's ViewModel; falls back to this entry if the root is not on the stack.
+                val owner = remember(entry) { runCatching { navController.getBackStackEntry(Routes.SETTINGS) }.getOrDefault(entry) }
+                when {
+                    // A child of the Settings gate: deep navigation never bypasses the PIN.
+                    settingsLocked -> LockedPane(onUnlock = { requireUnlock { } })
+                    section == null -> LaunchedEffect(entry) { navController.popBackStack() }
+                    else -> SettingsSectionPage(section, settingsViewModel(owner), onBack = {
+                        // Ignore a second tap while the page is already closing.
+                        if (navController.currentBackStackEntry == entry) navController.popBackStack()
+                    })
+                }
             }
         }
         }

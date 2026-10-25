@@ -5,13 +5,6 @@
     <string name="common_delete">Delete</string>
     <string name="common_save">Save</string>
 
-    <string name="settings_section_telegram">Telegram</string>
-    <string name="settings_section_sms">SMS</string>
-    <string name="settings_section_test">Test a message</string>
-    <string name="settings_section_health">Health</string>
-    <string name="settings_section_device">Device</string>
-    <string name="settings_section_backup">Backup</string>
-    <string name="settings_section_about">About</string>
 
     <!-- Telegram -->
     <string name="settings_bot_token">Bot token</string>
@@ -150,7 +143,6 @@
     <string name="about_check_failed">Could not check (offline?)</string>
 
     <!-- Sources (WhatsApp notification source) -->
-    <string name="settings_section_sources">Sources</string>
     <string name="sources_sms">SMS</string>
     <string name="sources_sms_hint">Incoming text messages</string>
     <string name="sources_always_on">Always on</string>
@@ -164,4 +156,62 @@
     <string name="test_source">Source</string>
     <string name="test_chat_name">Chat name</string>
     <string name="wa_listener_label">SMS Forwarder (WhatsApp messages)</string>
+
+    <!-- Task 22: Settings root rows -->
+    <string name="settings_group_forwarding">Forwarding</string>
+    <string name="settings_group_tools">Tools</string>
+    <string name="settings_group_phone">Phone</string>
+    <string name="settings_group_data">Data</string>
+    <string name="settings_row_telegram">Telegram</string>
+    <string name="settings_row_sms">SMS numbers</string>
+    <string name="settings_row_sources">Sources</string>
+    <string name="settings_row_test_title">Test a message</string>
+    <string name="settings_row_health">Health</string>
+    <string name="settings_row_autostart">Auto-start &amp; battery</string>
+    <string name="settings_row_notification">Status notification</string>
+    <string name="settings_row_device">Device name</string>
+    <string name="settings_row_pin">App lock (PIN)</string>
+    <string name="settings_row_backup_title">Export / Import</string>
+    <string name="settings_row_about">About &amp; updates</string>
+    <string name="settings_row_not_set_up">Not set up</string>
+    <string name="settings_row_tg_no_chats">Bot set · no chats yet</string>
+    <plurals name="settings_row_tg_chats">
+        <item quantity="one">Bot set · %d chat</item>
+        <item quantity="other">Bot set · %d chats</item>
+    </plurals>
+    <plurals name="settings_row_tg_no_token">
+        <item quantity="one">No bot token · %d chat</item>
+        <item quantity="other">No bot token · %d chats</item>
+    </plurals>
+    <string name="settings_row_none">None</string>
+    <plurals name="settings_row_numbers">
+        <item quantity="one">%d number</item>
+        <item quantity="other">%d numbers</item>
+    </plurals>
+    <string name="settings_row_sources_sms_only">SMS only</string>
+    <string name="settings_row_sources_wa_only">SMS · WhatsApp (%1$s only)</string>
+    <string name="settings_row_sources_wa">SMS · WhatsApp (%1$s)</string>
+    <string name="settings_row_test">Check how a message is handled</string>
+    <string name="settings_row_all_good">All good</string>
+    <plurals name="settings_row_attention">
+        <item quantity="one">%d needs attention</item>
+        <item quantity="other">%d need attention</item>
+    </plurals>
+    <string name="settings_row_oem_done">%1$s · Done</string>
+    <string name="settings_row_oem_not_done">%1$s · Not done</string>
+    <string name="settings_row_shown">Shown</string>
+    <string name="settings_row_hidden">Hidden</string>
+    <string name="settings_row_plain">%1$s</string>
+    <string name="settings_row_on">On</string>
+    <string name="settings_row_off">Off</string>
+    <string name="settings_row_backup">Back up rules and chats</string>
+    <string name="settings_row_about_check">v%1$s · Check for update</string>
+    <string name="settings_row_about_checking">v%1$s · Checking…</string>
+    <string name="settings_row_about_latest">v%1$s · Latest version</string>
+    <string name="settings_row_about_failed">v%1$s · Could not check</string>
+    <string name="settings_row_about_available">v%1$s · Update available</string>
+    <string name="settings_back">Back</string>
+    <string name="settings_autostart_body">Some phones stop apps in the background. Follow the steps for your phone brand, then tick Done.</string>
+    <string name="settings_status_done">Done</string>
+    <string name="settings_status_needed">Needed</string>
 </resources>

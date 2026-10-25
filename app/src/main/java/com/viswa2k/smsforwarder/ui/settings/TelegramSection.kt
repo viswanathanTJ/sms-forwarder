@@ -49,8 +49,9 @@ import com.viswa2k.smsforwarder.core.Channel
 import com.viswa2k.smsforwarder.core.Destination
 import com.viswa2k.smsforwarder.ui.theme.ForwarderTheme
 
+/** Bot token, chats (Test / delete), Add chat (Detect or manual); [compact] (onboarding) leaves out the alerts picker. */
 @Composable
-fun TelegramSection(vm: SettingsViewModel) {
+fun TelegramSection(vm: SettingsViewModel, compact: Boolean = false) {
     val state by vm.state.collectAsStateWithLifecycle()
     val testing by vm.testingIds.collectAsStateWithLifecycle()
     var adding by rememberSaveable { mutableStateOf(false) }
@@ -71,7 +72,7 @@ fun TelegramSection(vm: SettingsViewModel) {
         OutlinedButton(onClick = { vm.resetDetect(); adding = true }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
             Text(stringResource(R.string.settings_add_chat))
         }
-        if (state.telegram.isNotEmpty()) {
+        if (!compact && state.telegram.isNotEmpty()) {
             AlertsPicker(state.telegram, state.alertsDestinationId, vm::setAlertsDestination)
         }
     }

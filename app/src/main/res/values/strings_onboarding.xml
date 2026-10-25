@@ -1,15 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="onb_welcome">Set up SMS Forwarder</string>
     <string name="onb_step_of">Step %1$d of %2$d</string>
     <string name="onb_next">Next</string>
     <string name="onb_back">Back</string>
     <string name="onb_perm_title">Permissions</string>
-    <string name="onb_perm_body">The app needs to read incoming SMS, send SMS, check your contacts. It also asks to show a small status notice, which is optional.</string>
-    <string name="onb_grant">Grant</string>
+    <string name="onb_perm_body">SMS and Contacts are required to read, classify and forward your messages. Notifications are optional: they only show a small status notice.</string>
     <string name="onb_battery_title">Battery: unrestricted</string>
     <string name="onb_battery_body">So Android never puts forwarding to sleep. It uses almost no battery: nothing runs between messages.</string>
-    <string name="onb_battery_action">Allow</string>
     <string name="onb_oem_title">Auto-start</string>
     <string name="onb_oem_body">Some phones stop apps that are swiped away. Follow the steps for your phone brand (switch brand if it is wrong), then tick Done.</string>
     <string name="onb_oem_item">Auto-start allowed (%1$s)</string>
@@ -17,6 +14,34 @@
     <string name="onb_finish_body_off">Forwarding is paused until you start it. Only messages received from now on are forwarded. Add Telegram chats or SMS numbers in Settings.</string>
     <string name="onb_finish_body_on">Forwarding is on.</string>
     <string name="onb_start">Start forwarding</string>
-    <string name="onb_not_now">Not now</string>
     <string name="onb_continue">Continue</string>
+
+    <!-- Task 22: paged onboarding -->
+    <string name="onb_welcome_tagline">Forward OTPs, bank alerts and missed calls to Telegram.</string>
+    <string name="onb_get_started">Get started</string>
+    <string name="onb_perm_sms">SMS</string>
+    <string name="onb_perm_sms_sub">Receive, read and send messages</string>
+    <string name="onb_perm_contacts">Contacts</string>
+    <string name="onb_perm_contacts_sub">Tell contacts from businesses</string>
+    <string name="onb_perm_notif">Notifications</string>
+    <string name="onb_perm_notif_sub">Small status notice</string>
+    <string name="onb_status_granted">Granted</string>
+    <string name="onb_status_needed">Needed</string>
+    <string name="onb_status_optional">Optional</string>
+    <string name="onb_allow">Allow</string>
+    <string name="onb_open_app_settings">Open app settings</string>
+    <string name="onb_perm_settings_hint">Allow SMS and Contacts under Permissions, then come back.</string>
+    <string name="onb_show_notification">Show notification</string>
+    <string name="onb_battery_row">Battery: Unrestricted</string>
+    <string name="onb_open">Open</string>
+    <string name="onb_skip_hint">You can skip this; Health in Settings keeps track of it.</string>
+    <string name="onb_tg_title">Connect Telegram</string>
+    <string name="onb_tg_body">Paste the token from @BotFather, send /start to your bot, then Add chat and tap Detect. Optional: you can do this later in Settings.</string>
+    <string name="onb_tg_locked">Telegram settings are protected by your PIN. Change them in Settings.</string>
+    <string name="onb_skip_later">Skip — set up later</string>
+    <string name="onb_check_permissions">Permissions</string>
+    <string name="onb_check_battery">Battery unrestricted</string>
+    <string name="onb_check_autostart">Auto-start</string>
+    <string name="onb_check_telegram">Telegram connected</string>
+    <string name="onb_later">Later</string>
 </resources>
