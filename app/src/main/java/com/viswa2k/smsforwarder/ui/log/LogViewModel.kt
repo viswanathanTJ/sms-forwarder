@@ -16,9 +16,8 @@ data class LogState(
     val loaded: Boolean = false,
     val filter: LogFilter = LogFilter.ALL,
     val all: List<LogRowData> = emptyList(),
-) {
-    val visible: List<LogRowData> get() = all.filter { filter.matches(it.state) }
-}
+    val visible: List<LogRowData> = emptyList(),
+)
 
 /** Shared row mapping: labels and rule names are looked up by id. Used by Home and Log. */
 fun AppGraph.logRows(limit: Int) = combine(logs.recent(limit), destinations.destinations, rules.rules) { logs, dests, rules ->
@@ -31,7 +30,7 @@ class LogViewModel(private val graph: AppGraph) : ViewModel() {
     private val filter = MutableStateFlow(LogFilter.ALL)
 
     val state: StateFlow<LogState> = combine(graph.logRows(LIMIT), filter) { rows, f ->
-        LogState(loaded = true, filter = f, all = rows)
+        LogState(loaded = true, filter = f, all = rows, visible = rows.filter { f.matches(it.state) })
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), LogState())
 
     fun setFilter(f: LogFilter) { filter.value = f }

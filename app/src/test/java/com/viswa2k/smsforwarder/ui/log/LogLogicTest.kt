@@ -89,5 +89,35 @@ class LogLogicTest {
         assertTrue(row.masked)
         assertEquals("****** is your code", row.body)
         assertFalse(row.body.contains("482913"))
+        assertEquals(DeliveryState.SKIPPED, row.state)
+    }
+
+    private fun counts(vararg sends: List<Int>) = homeCounts(sends.map { deliveryState(null, it) })
+
+    @Test fun homeBucketsAreExclusive() {
+        assertEquals(HomeCounts(0, 0, 1), counts(listOf(F)))            // failed-only
+        assertEquals(HomeCounts(0, 0, 1), counts(listOf(S, F)))         // sent + failed
+        assertEquals(HomeCounts(0, 0, 1), counts(listOf(S, P)))         // sent + pending
+        assertEquals(HomeCounts(1, 1, 2), counts(listOf(S), emptyList(), listOf(P), listOf(F)))
+        val states = listOf(listOf(S), listOf(S, F), listOf(F, P), emptyList())
+        val c = counts(*states.toTypedArray())
+        assertEquals(states.size, c.forwarded + c.skipped + c.notSent)
+    }
+
+    @Test fun resendOnlyForFailedUnmasked() {
+        assertTrue(canResend(F, masked = false))
+        assertFalse(canResend(F, masked = true))
+        assertFalse(canResend(S, masked = false))
+        assertFalse(canResend(P, masked = false))
+    }
+
+    @Test fun dayBuckets() {
+        val z = java.time.ZoneOffset.UTC
+        val now = java.time.LocalDateTime.of(2026, 10, 25, 10, 0).toInstant(z).toEpochMilli()
+        fun at(d: Int, h: Int) = java.time.LocalDateTime.of(2026, 10, d, h, 0).toInstant(z).toEpochMilli()
+        assertEquals(DayBucket.TODAY, dayBucket(at(25, 0), now, z))
+        assertEquals(DayBucket.YESTERDAY, dayBucket(at(24, 23), now, z))
+        assertEquals(DayBucket.OLDER, dayBucket(at(23, 12), now, z))
+        assertEquals(at(25, 0), startOfDay(now, z))
     }
 }

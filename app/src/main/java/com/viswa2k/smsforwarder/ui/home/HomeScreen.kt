@@ -189,7 +189,7 @@ private fun HeroCard(state: HomeState, issues: Int, onToggle: (Boolean) -> Unit,
         Row(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Stat(state.counts.forwarded, R.string.home_stat_forwarded, Modifier.weight(1f))
             Stat(state.counts.skipped, R.string.home_stat_skipped, Modifier.weight(1f))
-            Stat(state.counts.retrying, R.string.home_stat_retrying, Modifier.weight(1f))
+            Stat(state.counts.notSent, R.string.home_stat_not_sent, Modifier.weight(1f))
         }
         if (issues > 0) {
             Row(

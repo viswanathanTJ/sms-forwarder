@@ -28,3 +28,4 @@ updated: 2026-10-25
 - 2026-10-25 Task 12: UI shell, theme, navigation and Home; UserPreferences removed, stored update moved to SettingsStore (see [[UI Screens]]).
 - 2026-10-25 Task 13: Rules list and rule editor (RuleEditorState reducer, live preview with real analyzer/formatter); see [[Rules]], [[UI Screens]].
 - 2026-10-25 Task 14: Log screen (filters, detail sheet with Resend, clear with confirm), shared LogRow with Home; see [[UI Screens]].
+- 2026-10-25 Task 14 fixes: Home counts derived via deliveryState (third tile "Not sent"), no Resend on masked rows, dated timestamps.

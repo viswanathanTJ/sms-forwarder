@@ -12,7 +12,7 @@
     <string name="home_needs_attention">Needs attention: %1$d to fix</string>
     <string name="home_stat_forwarded">Forwarded</string>
     <string name="home_stat_skipped">Skipped</string>
-    <string name="home_stat_retrying">Retrying</string>
+    <string name="home_stat_not_sent">Not sent</string>
     <string name="home_section_rules">Rules</string>
     <string name="home_section_recent">Recent</string>
     <string name="home_manage">Manage</string>

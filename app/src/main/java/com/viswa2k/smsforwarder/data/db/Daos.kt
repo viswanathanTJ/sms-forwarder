@@ -66,19 +66,6 @@ abstract class LogDao {
     @Query("SELECT * FROM logs ORDER BY receivedAt DESC, id DESC LIMIT :limit")
     abstract fun recent(limit: Int): Flow<List<LogWithSends>>
 
-    @Query(
-        """
-        SELECT
-          (SELECT COUNT(*) FROM logs WHERE receivedAt >= :from
-             AND id IN (SELECT logId FROM outbox WHERE state = 1)) AS forwarded,
-          (SELECT COUNT(*) FROM logs WHERE receivedAt >= :from
-             AND (skip IS NOT NULL OR id NOT IN (SELECT logId FROM outbox))) AS skipped,
-          (SELECT COUNT(*) FROM logs WHERE receivedAt >= :from
-             AND id IN (SELECT logId FROM outbox WHERE state = 0)) AS retrying
-        """,
-    )
-    abstract fun counts(from: Long): Flow<Counts>
-
     /** Outbox rows go with their log (foreign key cascade). */
     @Query("DELETE FROM logs WHERE receivedAt < :cutoff") abstract suspend fun deleteOlderThan(cutoff: Long)
     @Query("SELECT * FROM logs WHERE type = :otpType AND masked = 0 AND receivedAt < :cutoff")

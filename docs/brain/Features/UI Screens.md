@@ -7,7 +7,7 @@ updated: 2026-10-25
 > Four-tab UI: Home, Rules, Log, Settings, plus onboarding (Tasks 12-15). Task 12 delivers the shell, theme, navigation and Home; Settings is a title-only stub (`ui/nav/StubScreens.kt`) until Task 15. Task 14 adds the Log screen. Task 13 adds Rules and the rule editor (`ui/rules/`, see [[Rules]]).
 
 ## What the user can do
-- Home: switch forwarding on/off (hero switch), see today's Forwarded / Skipped / Retrying, toggle each rule, open a rule, see the 3 latest messages, jump to Settings when something needs attention.
+- Home: switch forwarding on/off (hero switch), see today's Forwarded / Skipped / Not sent (Retrying + Failed), toggle each rule, open a rule, see the 3 latest messages, jump to Settings when something needs attention.
 - With no destinations, a "Set up Telegram or SMS" card points to Settings.
 
 - Log: filter chips All / Forwarded / Skipped / Failed-retrying, up to 200 newest entries, tap for a detail sheet (full body, detected line, per-destination status + error, **Resend** for FAILED sends), "Clear log" (confirm dialog).
@@ -22,7 +22,7 @@ updated: 2026-10-25
 
 ## Data
 - `HomeViewModel` (factory over `AppGraph`) combines `SettingsStore.masterOn/deviceName`, `LogRepository.todayCounts/recent(3)`, `RuleRepository.rules`, `DestinationRepository.destinations`. Health comes from `HealthChecker.items()` (suspend), refreshed in `viewModelScope` on every resume.
-- Status of a log row: skip set or no sends -> Skipped; any pending send -> Retrying; any failed -> Failed; else Forwarded.
+- Status of a log row (`deliveryState`, the one function behind Log chips AND Home tiles, so each row is in exactly one bucket): skip set or no sends -> Skipped; any pending send -> Retrying; any failed -> Failed; else Forwarded. Home tiles: Forwarded / Skipped / Not sent (= Retrying + Failed), computed from today's rows via `homeCounts` (no separate SQL count). Resend is hidden for masked rows (body no longer holds the code). Rows from earlier days show "Yesterday 10:41" / "24 Oct 10:41".
 
 ## How it works
 - Master switch ON: `catchUpFloor = now`, `masterOn = true`, `ForwarderService.start`. OFF: `masterOn = false`, `ForwarderService.stop`. Both go through `requireUnlock { }` (defined in `AppNavHost`, currently just runs the action) so Task 15 can add PIN gating in one place; rule switches use the same hook.

@@ -8,7 +8,10 @@ import com.viswa2k.smsforwarder.ui.common.DeliveryState
 
 /** Pure Log/Home row logic (no Android types), shared by both screens. */
 
-/** Same semantics as the Home counts: skip or no sends -> Skipped; any pending -> Retrying; any failed -> Failed. */
+/**
+ * The single status of a log row (Home tiles and the Log chip both use this, so every row is in exactly one bucket):
+ * skip or no sends -> Skipped; else any pending -> Retrying; else any failed -> Failed; else Forwarded.
+ */
 fun deliveryState(skip: SkipReason?, sendStates: List<Int>): DeliveryState = when {
     skip != null || sendStates.isEmpty() -> DeliveryState.SKIPPED
     OutboxEntity.STATE_PENDING in sendStates -> DeliveryState.RETRYING
@@ -83,3 +86,31 @@ fun LogWithSends.toRowData(destinationLabels: Map<Long, String>, ruleNames: Map<
         sends = sends.map { SendRow(it.id, destinationLabels[it.destinationId], it.state, it.lastError) },
     )
 }
+
+/** Home tiles: every row in exactly one bucket. [notSent] = Retrying + Failed. */
+data class HomeCounts(val forwarded: Int = 0, val skipped: Int = 0, val notSent: Int = 0)
+
+fun homeCounts(states: List<DeliveryState>) = HomeCounts(
+    forwarded = states.count { it == DeliveryState.FORWARDED },
+    skipped = states.count { it == DeliveryState.SKIPPED },
+    notSent = states.count { it == DeliveryState.RETRYING || it == DeliveryState.FAILED },
+)
+
+/** Local midnight of [now]. */
+fun startOfDay(now: Long, zone: java.time.ZoneId = java.time.ZoneId.systemDefault()): Long =
+    java.time.Instant.ofEpochMilli(now).atZone(zone).toLocalDate().atStartOfDay(zone).toInstant().toEpochMilli()
+
+enum class DayBucket { TODAY, YESTERDAY, OLDER }
+
+fun dayBucket(epochMs: Long, now: Long, zone: java.time.ZoneId = java.time.ZoneId.systemDefault()): DayBucket {
+    val day = java.time.Instant.ofEpochMilli(epochMs).atZone(zone).toLocalDate()
+    val today = java.time.Instant.ofEpochMilli(now).atZone(zone).toLocalDate()
+    return when {
+        day == today -> DayBucket.TODAY
+        day == today.minusDays(1) -> DayBucket.YESTERDAY
+        else -> DayBucket.OLDER
+    }
+}
+
+/** A masked body is not the real message (the OTP is gone), so resending it would be wrong. */
+fun canResend(sendState: Int, masked: Boolean): Boolean = sendState == OutboxEntity.STATE_FAILED && !masked

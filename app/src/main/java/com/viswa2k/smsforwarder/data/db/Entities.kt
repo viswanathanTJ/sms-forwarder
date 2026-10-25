@@ -93,8 +93,6 @@ data class LogWithSends(
     @Relation(parentColumn = "id", entityColumn = "logId") val sends: List<OutboxEntity>,
 )
 
-data class Counts(val forwarded: Int, val skipped: Int, val retrying: Int)
-
 fun Rule.toEntity() = RuleEntity(
     id = id, name = name, enabled = enabled, allMessages = allMessages,
     types = Converters.typesToCsv(types), sender = sender.code,

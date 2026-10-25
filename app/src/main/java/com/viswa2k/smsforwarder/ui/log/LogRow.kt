@@ -26,11 +26,19 @@ import com.viswa2k.smsforwarder.ui.common.StatusChip
 import com.viswa2k.smsforwarder.ui.common.TypeChip
 import java.util.Date
 
-/** Local time of day ("10:41") in the user's 12/24 h format. */
+/** "10:41" today, "Yesterday 10:41" or "24 Oct 10:41" otherwise, in the user's 12/24 h format. */
 @Composable
 fun rememberTime(epochMs: Long): String {
     val context = LocalContext.current
-    return remember(epochMs) { DateFormat.getTimeFormat(context).format(Date(epochMs)) }
+    val yesterday = stringResource(R.string.log_yesterday)
+    return remember(epochMs) {
+        val time = DateFormat.getTimeFormat(context).format(Date(epochMs))
+        when (dayBucket(epochMs, System.currentTimeMillis())) {
+            DayBucket.TODAY -> time
+            DayBucket.YESTERDAY -> "$yesterday $time"
+            DayBucket.OLDER -> "${java.text.SimpleDateFormat("d MMM", java.util.Locale.getDefault()).format(Date(epochMs))} $time"
+        }
+    }
 }
 
 @Composable

@@ -57,6 +57,9 @@ fun LogDetailSheet(row: LogRowData, onResend: (Long) -> Unit, onDismiss: () -> U
             }
 
             Label(R.string.log_detail_destinations)
+            if (row.masked && row.sends.any { it.state == OutboxEntity.STATE_FAILED }) {
+                Text(stringResource(R.string.log_resend_masked), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.5.sp)
+            }
             if (row.sends.isEmpty()) {
                 Text(stringResource(R.string.log_detail_no_sends), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
             }
@@ -79,7 +82,7 @@ fun LogDetailSheet(row: LogRowData, onResend: (Long) -> Unit, onDismiss: () -> U
                             Text(send.error, color = MaterialTheme.colorScheme.error, fontSize = 12.5.sp)
                         }
                     }
-                    if (send.state == OutboxEntity.STATE_FAILED) {
+                    if (canResend(send.state, row.masked)) {
                         OutlinedButton(onClick = { onResend(send.outboxId) }) { Text(stringResource(R.string.log_resend)) }
                     }
                 }
