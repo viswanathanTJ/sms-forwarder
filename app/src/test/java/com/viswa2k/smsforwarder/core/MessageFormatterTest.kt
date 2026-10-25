@@ -148,4 +148,33 @@ class MessageFormatterTest {
         // receivedAt 2000 ms = 05:30:02 IST
         assertEquals("📞 Missed call\n+919962055555 at 05:30\nPixel 8 · via JM-AIRTEL", fmt(callSms, SMART, TELEGRAM, a = noTime))
     }
+
+    // ---- WhatsApp origin ----------------------------------------------------------------------
+
+    private val waOtp = IncomingSms("WA:Amazon", "482913 is your Amazon OTP. Do not share it.", 1_000L, 2_000L, null, Origin.WHATSAPP)
+    private fun waA(s: IncomingSms, kind: SenderKind = SenderKind.UNKNOWN_NUMBER) = analyzer.analyze(s.sender, s.body, kind, Origin.WHATSAPP)
+
+    @Test fun whatsApp_telegramSmartOtp() = assertEquals(
+        "🔐 OTP <code>482913</code>\nWhatsApp · Amazon · Pixel 8\n<i>482913 is your Amazon OTP. Do not share it.</i>",
+        fmt(waOtp, SMART, TELEGRAM, a = waA(waOtp)),
+    )
+
+    @Test fun whatsApp_smsSmartOtp() = assertEquals("OTP 482913 - Amazon (Pixel 8)", fmt(waOtp, SMART, SMS, a = waA(waOtp)))
+
+    @Test fun whatsApp_customSenderToken() = assertEquals(
+        "WhatsApp: Amazon | 482913",
+        fmt(waOtp, CUSTOM, SMS, "%s | %o", a = waA(waOtp)),
+    )
+
+    @Test fun whatsApp_original() {
+        assertEquals("From WhatsApp · Amazon: 482913 is your Amazon OTP. Do not share it.", fmt(waOtp, ORIGINAL, SMS, a = waA(waOtp)))
+        assertTrue(fmt(waOtp, ORIGINAL, TELEGRAM, a = waA(waOtp)).startsWith("<b>WhatsApp · Amazon</b> · Pixel 8\n"))
+    }
+
+    @Test fun whatsApp_smartFallbackShowsDisplayName() {
+        val s = IncomingSms("WA:Acme <Corp>", "Your cheque book request has been received.", 1_000L, 2_000L, null, Origin.WHATSAPP)
+        val out = fmt(s, SMART, TELEGRAM, a = waA(s))
+        assertTrue(out, out.contains("WhatsApp · Acme &lt;Corp&gt; · Pixel 8"))
+        assertFalse(out, out.contains("WA:"))
+    }
 }

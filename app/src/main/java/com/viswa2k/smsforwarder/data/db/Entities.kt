@@ -1,5 +1,6 @@
 package com.viswa2k.smsforwarder.data.db
 
+import androidx.room.ColumnInfo
 import androidx.room.Embedded
 import androidx.room.Entity
 import androidx.room.ForeignKey
@@ -61,6 +62,8 @@ data class LogEntity(
     val simSlot: Int?,
     val masked: Boolean = false,
     val otpCode: String? = null,
+    /** [com.viswa2k.smsforwarder.core.Origin.code]: 0 SMS, 1 WhatsApp (schema v2, `MIGRATION_1_2`). */
+    @ColumnInfo(defaultValue = "0") val origin: Int = 0,
 )
 
 /** [state]: 0 PENDING, 1 SENT, 2 FAILED. */

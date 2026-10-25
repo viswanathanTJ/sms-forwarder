@@ -8,14 +8,21 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
-/** One received SMS (already joined from its PDUs). Times are epoch milliseconds. */
+/**
+ * One received message (an SMS already joined from its PDUs, or a WhatsApp notification message whose
+ * [sender] is a `WA:` address). Times are epoch milliseconds.
+ */
 data class IncomingSms(
     val sender: String,
     val body: String,
     val sentAt: Long,
     val receivedAt: Long,
     val subscriptionId: Int?,
-)
+    val origin: Origin = Origin.SMS,
+) {
+    /** What the forwarded text shows as the sender: the SMS address, or "WhatsApp · <chat>". */
+    val displaySender: String get() = if (origin == Origin.WHATSAPP) NotificationText.displayName(sender) else sender
+}
 
 /**
  * Renders a forwarded message (spec 5.5). Telegram text is HTML: every piece of user / SMS text goes
@@ -52,9 +59,9 @@ object MessageFormatter {
 
     private fun original(sms: IncomingSms, device: String, html: Boolean): String =
         if (html) {
-            withTail("<b>${escapeHtml(sms.sender)}</b> · ${escapeHtml(device)}\n", sms.body, "")
+            withTail("<b>${escapeHtml(sms.displaySender)}</b> · ${escapeHtml(device)}\n", sms.body, "")
         } else {
-            "From ${sms.sender}: ${sms.body}"
+            "From ${sms.displaySender}: ${sms.body}"
         }
 
     // ---- Custom ---------------------------------------------------------------------------
@@ -64,7 +71,7 @@ object MessageFormatter {
         val tpl = esc(template.replace("\\n", "\n"))
         fun render(message: String): String = TOKEN.replace(tpl) { m ->
             when (m.value) {
-                "%s" -> esc(sms.sender)
+                "%s" -> esc(if (sms.origin == Origin.WHATSAPP) NotificationText.templateName(sms.sender) else sms.sender)
                 "%m" -> message
                 "%r" -> esc(device)
                 "%o" -> esc(a.otp?.code.orEmpty())
@@ -86,7 +93,7 @@ object MessageFormatter {
     // ---- Smart (Telegram) ---------------------------------------------------------------------
 
     private fun smartTelegram(sms: IncomingSms, a: Analysis, device: String, zone: ZoneId): String {
-        val sender = escapeHtml(sms.sender)
+        val sender = escapeHtml(sms.displaySender)
         val dev = escapeHtml(device)
         val warn = fraudLabel(a.fraud)?.let { "⚠ $it\n" }.orEmpty()
         val txn = a.txn
@@ -97,8 +104,9 @@ object MessageFormatter {
                 "📞 $head\n$warn${escapeHtml(callerLine(mc.caller, mc.time, sms, zone))}\n$dev · via $sender"
             }
             a.type == MessageType.OTP && a.otp != null -> {
-                val name = escapeHtml(a.senderName)
-                withTail("🔐 OTP <code>${escapeHtml(a.otp.code)}</code>\n$warn$name · $sender · $dev\n<i>", sms.body, "</i>")
+                // "WhatsApp · Amazon" already names the sender; SMS shows "Amazon · AD-AMAZON".
+                val from = if (sms.origin == Origin.WHATSAPP) sender else "${escapeHtml(a.senderName)} · $sender"
+                withTail("🔐 OTP <code>${escapeHtml(a.otp.code)}</code>\n$warn$from · $dev\n<i>", sms.body, "</i>")
             }
             a.type == MessageType.TRANSACTION && txn != null && txn.amount > 0 && txn.direction != TxnDirection.NONE -> {
                 val lines = mutableListOf("💸 ${directionWord(txn)} ${rupees(txn.amountMinor)}")
@@ -132,7 +140,7 @@ object MessageFormatter {
                 txn.balanceMinor?.let { parts += "Bal ${Money.format(it).replace("₹ ", "Rs ")}" }
                 "$warn${parts.joinToString(", ")} ($device)"
             }
-            else -> "$warn${a.type.label} from ${sms.sender} ($device): ${sms.body}"
+            else -> "$warn${a.type.label} from ${sms.displaySender} ($device): ${sms.body}"
         }
     }
 

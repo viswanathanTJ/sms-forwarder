@@ -7,7 +7,7 @@ import androidx.room.RoomDatabase
 
 @Database(
     entities = [RuleEntity::class, DestinationEntity::class, LogEntity::class, OutboxEntity::class],
-    version = 1,
+    version = 2,
     exportSchema = true,
 )
 abstract class ForwarderDatabase : RoomDatabase() {
@@ -18,6 +18,8 @@ abstract class ForwarderDatabase : RoomDatabase() {
 
     companion object {
         fun create(context: Context): ForwarderDatabase =
-            Room.databaseBuilder(context.applicationContext, ForwarderDatabase::class.java, "forwarder.db").build()
+            Room.databaseBuilder(context.applicationContext, ForwarderDatabase::class.java, "forwarder.db")
+                .addMigrations(MIGRATION_1_2)
+                .build()
     }
 }

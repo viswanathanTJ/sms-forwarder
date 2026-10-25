@@ -34,11 +34,12 @@ object MessageCheck {
         now: Long,
         masterOn: Boolean,
         zone: ZoneId = ZoneId.systemDefault(),
+        origin: Origin = Origin.SMS,
     ): CheckResult {
-        val analysis = analyzer.analyze(sender, body, senderKind)
+        val analysis = analyzer.analyze(sender, body, senderKind, origin)
         val decision = RuleEngine.decide(analysis.type, senderKind, sender, masterOn = true, rules, destinations)
         val names = rules.associate { it.id to it.name }
-        val sms = IncomingSms(sender, body, now, now, null)
+        val sms = IncomingSms(sender, body, now, now, null, origin)
         fun preview(channel: Channel) = decision.sends.firstOrNull { it.destination.channel == channel }?.let {
             MessageFormatter.format(sms, analysis, it.style, it.template, channel, deviceName, zone)
         }

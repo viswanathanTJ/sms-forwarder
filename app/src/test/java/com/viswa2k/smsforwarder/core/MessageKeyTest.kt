@@ -33,4 +33,11 @@ class MessageKeyTest {
         assertFalse(MessageKey.isLooseDuplicate(listOf(1_000_000L), 1_000_000L + 120_001))
         assertFalse(MessageKey.isLooseDuplicate(emptyList(), 5L))
     }
+
+    @Test fun `whatsapp chats compare by trimmed lower-cased title, digits kept`() {
+        assertEquals(MessageKey.of("WA:Amazon", 5_000, "x"), MessageKey.of("WA: amazon ", 5_000, "x"))
+        assertTrue(MessageKey.of("WA:+91 98400 12345", 5_000, "x").startsWith("wa:+91 98400 12345|"))
+        assertNotEquals(MessageKey.of("WA:Amazon", 5_000, "x"), MessageKey.of("AMAZON", 5_000, "x"))
+        assertEquals(MessageKey.loose("WA:Amazon", "x"), MessageKey.loose("wa:AMAZON", "x"))
+    }
 }

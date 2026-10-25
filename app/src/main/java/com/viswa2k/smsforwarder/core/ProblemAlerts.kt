@@ -8,6 +8,7 @@ enum class Problem(val key: String, val text: String) {
     BATTERY_OPTIMIZED("battery", "Battery optimisation is back on"),
     CLASSIFIER("classifier", "Message filter failed to load"),
     PAUSED("paused", "Forwarding is switched off"),
+    NOTIF_ACCESS("notif_access", "WhatsApp notification access was removed"),
 }
 
 /** Decides which problem alerts to send: once when new, again after 24 h, and a "resolved" when gone. */

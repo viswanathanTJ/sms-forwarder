@@ -92,4 +92,40 @@ class MessageAnalyzerTest {
         assertEquals(MessageType.IMPORTANT, r.type)
         assertNull(r.txn)
     }
+
+    // ---- WhatsApp origin ----------------------------------------------------------------------
+
+    private fun wa(sender: String, body: String, kind: SenderKind = SenderKind.UNKNOWN_NUMBER) =
+        analyzer.analyze(sender, body, kind, Origin.WHATSAPP)
+
+    @Test fun whatsApp_otpFromAmazon() {
+        val r = wa("WA:Amazon", "482913 is your Amazon OTP. Do not share it.")
+        assertEquals(MessageType.OTP, r.type)
+        assertEquals("482913", r.otp!!.code)
+        assertEquals("Amazon", r.senderName)
+    }
+
+    @Test fun whatsApp_personalChatFromContact() {
+        assertEquals(MessageType.PERSONAL, wa("WA:Ravi", "Lunch ready, come home by 1", SenderKind.CONTACT).type)
+    }
+
+    @Test fun whatsApp_contactOtpStaysOtp() {
+        assertEquals(MessageType.OTP, wa("WA:Ravi", "482913 is your Amazon OTP. Do not share it.", SenderKind.CONTACT).type)
+    }
+
+    @Test fun whatsApp_unknownChatTakesBusinessPath() {
+        assertEquals(MessageType.IMPORTANT, wa("WA:Acme Corp", "Your cheque book request has been received.").type)
+    }
+
+    @Test fun whatsApp_bankDebit() {
+        val r = wa("WA:HDFC Bank", "Rs.1250.00 debited from A/c XX4521 on 25-10-26 to VPA swiggy@icici (UPI Ref 4291). Avl Bal Rs.23410.55 -HDFC Bank")
+        assertEquals(MessageType.TRANSACTION, r.type)
+        assertEquals(1250.0, r.txn!!.amount, 0.001)
+    }
+
+    @Test fun whatsApp_reducedModeContactIsPersonal() {
+        val reduced = MessageAnalyzer(null)
+        assertEquals(MessageType.PERSONAL, reduced.analyze("WA:Ravi", "hi", SenderKind.CONTACT, Origin.WHATSAPP).type)
+        assertEquals(MessageType.IMPORTANT, reduced.analyze("WA:Amazon", "hi", SenderKind.UNKNOWN_NUMBER, Origin.WHATSAPP).type)
+    }
 }

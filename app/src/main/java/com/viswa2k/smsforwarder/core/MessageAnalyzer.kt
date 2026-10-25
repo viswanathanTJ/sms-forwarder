@@ -6,7 +6,9 @@ import com.viswa2k.smsforwarder.classify.KeywordLists
 import com.viswa2k.smsforwarder.classify.MessageCategory
 import com.viswa2k.smsforwarder.classify.MessageClassifier
 import com.viswa2k.smsforwarder.classify.OtpResult
+import com.viswa2k.smsforwarder.classify.DltSuffix
 import com.viswa2k.smsforwarder.classify.SenderInfo
+import com.viswa2k.smsforwarder.classify.SenderType
 import com.viswa2k.smsforwarder.classify.SenderIds
 import com.viswa2k.smsforwarder.finance.BankSender
 import com.viswa2k.smsforwarder.finance.BankSenderResolver
@@ -46,10 +48,28 @@ class MessageAnalyzer(lists: KeywordLists?) {
     private val parser = lists?.let { TransactionParser(it) }
     private val resolver = lists?.let { BankSenderResolver(it) }
 
-    fun analyze(sender: String, body: String, senderKind: SenderKind): Analysis {
-        val info = SenderIds.parse(sender)
-        val name = resolver?.resolve(sender)?.takeIf { it.source != BankSender.Source.UNKNOWN && it.source != BankSender.Source.PHONE }?.name
-            ?: titleCase(info)
+    /**
+     * [origin] WHATSAPP (spec addendum §4): `WA:` senders take the business path and are named by their chat
+     * title; a chat from a CONTACT that would end up IMPORTANT is PERSONAL instead.
+     */
+    fun analyze(sender: String, body: String, senderKind: SenderKind, origin: Origin = Origin.SMS): Analysis {
+        val a = analyzeSms(sender, body, senderKind, origin)
+        return if (origin == Origin.WHATSAPP && senderKind == SenderKind.CONTACT && a.type == MessageType.IMPORTANT) {
+            a.copy(type = MessageType.PERSONAL)
+        } else {
+            a
+        }
+    }
+
+    private fun analyzeSms(sender: String, body: String, senderKind: SenderKind, origin: Origin): Analysis {
+        val wa = origin == Origin.WHATSAPP
+        val info = if (wa) whatsAppInfo(sender) else SenderIds.parse(sender)
+        val name = if (wa) {
+            NotificationText.chatOf(sender)
+        } else {
+            resolver?.resolve(sender)?.takeIf { it.source != BankSender.Source.UNKNOWN && it.source != BankSender.Source.PHONE }?.name
+                ?: titleCase(info)
+        }
 
         MissedCallDetector.detect(sender, body)?.let {
             return Analysis(MessageType.MISSED_CALL, info, name, null, null, it, FraudLevel.NONE, classifier != null)
@@ -85,6 +105,10 @@ class MessageAnalyzer(lists: KeywordLists?) {
         }
         return Analysis(type, info, name, c.otp.takeIf { type == MessageType.OTP }, txn, null, c.fraudLevel, true)
     }
+
+    /** A `WA:` chat is treated like a business header (its text decides the type). */
+    private fun whatsAppInfo(sender: String): SenderInfo =
+        SenderInfo(sender, SenderType.ALPHANUMERIC, NotificationText.chatOf(sender).uppercase(), null, DltSuffix.NONE, isBusiness = true, isServiceStyle = false)
 
     /** Unknown business header "AMAZON" -> "Amazon"; phone numbers and short codes stay as they are. */
     private fun titleCase(info: SenderInfo): String =
