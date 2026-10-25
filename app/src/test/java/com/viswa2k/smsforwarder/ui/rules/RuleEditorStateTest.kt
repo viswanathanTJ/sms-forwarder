@@ -96,6 +96,23 @@ class RuleEditorStateTest {
     }
 }
 
+class OneShotAndDestinationsTest {
+    @Test fun oneShot_runsOnce() {
+        val o = OneShot()
+        assertFalse(o.isFired)
+        assertTrue(o.tryRun())
+        assertFalse(o.tryRun())
+        assertTrue(o.isFired)
+    }
+
+    @Test fun retainDestinations_dropsDeletedIds_andCanSaveFollows() {
+        val s = RuleEditorState(name = "R", allMessages = true, destinationIds = setOf(1L, 2L))
+        assertEquals(setOf(1L), s.retainDestinations(setOf(1L, 5L)).destinationIds)
+        assertTrue(s.retainDestinations(setOf(1L)).canSave)
+        assertFalse(s.retainDestinations(setOf(9L)).canSave)
+    }
+}
+
 class TelegramHtmlTest {
     @Test fun boldItalicCodeAndEntities() {
         val a = telegramHtmlToAnnotated("🔐 <b>A &amp; B</b> <code>123</code> <i>x &lt;y&gt;</i>")

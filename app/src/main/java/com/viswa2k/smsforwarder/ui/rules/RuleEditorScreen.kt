@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -83,11 +84,12 @@ fun RuleEditorScreen(
     var confirmDelete by remember { mutableStateOf(false) }
 
     LaunchedEffect(missing) { if (missing) onClose() }
-    val s = state
+    val finished by vm.finished.collectAsStateWithLifecycle()
     val dests = destinations
+    val s = state?.let { st -> dests?.let { st.retainDestinations(it.map { d -> d.id }.toSet()) } }
     if (s == null || dests == null) return
 
-    Column(modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 14.dp).padding(bottom = 24.dp)) {
+    Column(modifier.fillMaxWidth().imePadding().verticalScroll(rememberScrollState()).padding(horizontal = 14.dp).padding(bottom = 24.dp)) {
         Row(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onClose) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.editor_back))
@@ -97,7 +99,7 @@ fun RuleEditorScreen(
                 fontSize = 20.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f),
             )
             if (ruleId != 0L) {
-                IconButton(onClick = { confirmDelete = true }) {
+                IconButton(onClick = { confirmDelete = true }, enabled = !finished) {
                     Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.editor_delete))
                 }
             }
@@ -214,8 +216,8 @@ fun RuleEditorScreen(
         }
 
         Button(
-            onClick = { requireUnlock { vm.save(); onClose() } },
-            enabled = s.canSave,
+            onClick = { requireUnlock { if (vm.save()) onClose() } },
+            enabled = s.canSave && !finished,
             modifier = Modifier.fillMaxWidth().padding(top = 20.dp),
         ) { Text(stringResource(R.string.editor_save)) }
     }
@@ -226,9 +228,9 @@ fun RuleEditorScreen(
             title = { Text(stringResource(R.string.editor_delete_title)) },
             text = { Text(stringResource(R.string.editor_delete_body, s.name)) },
             confirmButton = {
-                TextButton(onClick = {
+                TextButton(enabled = !finished, onClick = {
                     confirmDelete = false
-                    requireUnlock { vm.delete(); onClose() }
+                    requireUnlock { if (vm.delete()) onClose() }
                 }) { Text(stringResource(R.string.editor_delete_confirm), color = MaterialTheme.colorScheme.error) }
             },
             dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text(stringResource(R.string.editor_cancel)) } },
