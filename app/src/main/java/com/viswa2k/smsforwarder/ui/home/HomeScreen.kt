@@ -49,13 +49,13 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.viswa2k.smsforwarder.AppGraph
 import com.viswa2k.smsforwarder.R
 import com.viswa2k.smsforwarder.ui.nav.contentEnter
-import com.viswa2k.smsforwarder.ui.rules.RuleCard
 import com.viswa2k.smsforwarder.ui.nav.contentExit
 import com.viswa2k.smsforwarder.core.SenderCondition
 import com.viswa2k.smsforwarder.ui.common.SectionTitle
 import com.viswa2k.smsforwarder.ui.common.TypeBadge
 import com.viswa2k.smsforwarder.ui.log.LogRow
 import com.viswa2k.smsforwarder.ui.theme.BrandPrimary
+import com.viswa2k.smsforwarder.ui.rules.RuleCard
 import com.viswa2k.smsforwarder.ui.theme.HeroGradientEnd
 
 @Composable

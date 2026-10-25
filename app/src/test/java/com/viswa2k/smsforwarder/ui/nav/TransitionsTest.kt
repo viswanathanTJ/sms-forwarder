@@ -33,7 +33,7 @@ class TransitionsTest {
     @Test fun allDurationsAtMost250() {
         val all = listOf(
             Transitions.TAB_MS, Transitions.TAB_EXIT_FADE_MS, Transitions.PUSH_MS,
-            Transitions.PUSH_UNDER_FADE_MS, Transitions.FADE_MS, Transitions.CONTENT_MS,
+            Transitions.FADE_MS, Transitions.CONTENT_MS,
         )
         assertTrue(all.all { it in 1..250 })
     }

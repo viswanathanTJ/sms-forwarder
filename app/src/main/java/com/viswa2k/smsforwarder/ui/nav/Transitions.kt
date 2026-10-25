@@ -23,7 +23,6 @@ object Transitions {
     const val TAB_MS = 200
     const val TAB_EXIT_FADE_MS = 120
     const val PUSH_MS = 220
-    const val PUSH_UNDER_FADE_MS = 100
     const val FADE_MS = 250
     const val CONTENT_MS = 150
 
@@ -61,7 +60,7 @@ fun tabEnter(fromRoute: String?, toRoute: String?): EnterTransition = when (tabD
 fun tabExit(fromRoute: String?, toRoute: String?): ExitTransition = when (tabDirection(fromRoute, toRoute)) {
     // Pushed screen on top (or one is not a tab): keep the underlying screen drawn until the push finishes.
     // A fade to 0.85 keeps it composed (and visible) until the whole transition ends.
-    TabDirection.NONE -> fadeOut(tween(Transitions.PUSH_UNDER_FADE_MS), targetAlpha = Transitions.UNDER_ALPHA)
+    TabDirection.NONE -> fadeOut(tween(Transitions.PUSH_MS), targetAlpha = Transitions.UNDER_ALPHA)
     TabDirection.RIGHT -> slideOutHorizontally(tabSpec(Transitions.TAB_MS)) { -it / Transitions.SLIDE_FRACTION } +
         fadeOut(tabSpec(Transitions.TAB_EXIT_FADE_MS))
     TabDirection.LEFT -> slideOutHorizontally(tabSpec(Transitions.TAB_MS)) { it / Transitions.SLIDE_FRACTION } +
@@ -70,7 +69,7 @@ fun tabExit(fromRoute: String?, toRoute: String?): ExitTransition = when (tabDir
 
 /** Back/pop enter: a screen revealed under a closing pushed screen stays put (it never left). */
 fun popTabEnter(fromRoute: String?, toRoute: String?): EnterTransition =
-    if (tabDirection(fromRoute, toRoute) == TabDirection.NONE) fadeIn(tween(Transitions.PUSH_UNDER_FADE_MS), initialAlpha = Transitions.UNDER_ALPHA)
+    if (tabDirection(fromRoute, toRoute) == TabDirection.NONE) fadeIn(tween(Transitions.PUSH_MS), initialAlpha = Transitions.UNDER_ALPHA)
     else tabEnter(fromRoute, toRoute)
 
 /** Shared-axis Z for a pushed screen (rule editor). */
