@@ -28,6 +28,8 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.viswa2k.smsforwarder.R
 import com.viswa2k.smsforwarder.ui.home.HomeScreen
+import com.viswa2k.smsforwarder.ui.rules.RuleEditorScreen
+import com.viswa2k.smsforwarder.ui.rules.RulesScreen
 
 private data class Tab(val route: String, val label: Int, val icon: ImageVector)
 
@@ -87,11 +89,24 @@ fun AppNavHost(navController: NavHostController = rememberNavController()) {
                     onOpenRule = { id -> navController.navigate(Routes.ruleEdit(id)) },
                 )
             }
-            composable(Routes.RULES) { StubScreen(stringResource(R.string.title_rules)) }
+            composable(Routes.RULES) {
+                RulesScreen(
+                    requireUnlock = requireUnlock,
+                    onOpenRule = { id -> navController.navigate(Routes.ruleEdit(id)) },
+                    onNewRule = { navController.navigate(Routes.ruleEdit(0)) },
+                )
+            }
             composable(
                 Routes.RULE_EDIT,
                 arguments = listOf(navArgument(Routes.RULE_ID_ARG) { type = NavType.LongType }),
-            ) { StubScreen(stringResource(R.string.title_rule_edit)) }
+            ) { entry ->
+                RuleEditorScreen(
+                    ruleId = entry.arguments?.getLong(Routes.RULE_ID_ARG) ?: 0L,
+                    requireUnlock = requireUnlock,
+                    onClose = { navController.popBackStack() },
+                    onOpenSettings = { navController.navigateToTab(Routes.SETTINGS) },
+                )
+            }
             composable(Routes.LOG) { StubScreen(stringResource(R.string.title_log)) }
             composable(Routes.SETTINGS) { StubScreen(stringResource(R.string.title_settings)) }
         }

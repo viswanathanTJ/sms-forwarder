@@ -10,7 +10,7 @@ updated: 2026-10-25
 Define rules: message types (or all) + sender condition (anyone / not in contacts / contacts only) -> destinations, with a style. Reorder rules; the first matching rule decides a shared destination's style.
 
 ## Screens & entry points
-None yet (pure core). UI arrives in the rules screen task; default rules are created on first run / migration.
+Rules tab (`ui/rules/RulesScreen`): list with enable switch and move up/down per rule, FAB "New rule", fixed "Never forwarded" card. Editor (`rules/{id}`, 0 = new, `RuleEditorScreen`): name, type chips (All messages exclusive, SPAM never offered), sender segmented, destination checklist (empty -> "Add a Telegram chat or SMS number in Settings" + button, Save disabled), style segmented + custom template with token help, live Telegram preview from the real analyzer + formatter, Save, Delete with confirm. Save/delete/move/enable go through `requireUnlock`. A rule without destinations cannot be switched on. Pure reducer: `RuleEditorState` (tested). Default rules are created on first run / migration.
 
 ## Data
 `core/Rule.kt`: `Rule`, `Destination`, enums `SenderCondition`/`Style`/`Channel` (stored codes, never renumber). `core/DefaultRules`: OTPs, Bank transactions, Missed calls (enabled only if destinations exist), Unknown senders (all messages, not in contacts, disabled).

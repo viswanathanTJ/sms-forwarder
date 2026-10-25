@@ -1,0 +1,174 @@
+package com.viswa2k.smsforwarder.ui.rules
+
+import android.os.Build
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewModelScope
+import com.viswa2k.smsforwarder.AppGraph
+import com.viswa2k.smsforwarder.core.Destination
+import com.viswa2k.smsforwarder.core.IncomingSms
+import com.viswa2k.smsforwarder.core.Channel
+import com.viswa2k.smsforwarder.core.MessageAnalyzer
+import com.viswa2k.smsforwarder.core.MessageFormatter
+import com.viswa2k.smsforwarder.core.MessageType
+import com.viswa2k.smsforwarder.core.Rule
+import com.viswa2k.smsforwarder.core.SenderCondition
+import com.viswa2k.smsforwarder.core.SenderKind
+import com.viswa2k.smsforwarder.core.Style
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.mapLatest
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
+import java.time.ZoneId
+
+/** Editable copy of a [Rule]; every change returns a new state (pure, unit-tested). */
+data class RuleEditorState(
+    val id: Long = 0,
+    val name: String = "",
+    val enabled: Boolean = true,
+    val allMessages: Boolean = false,
+    val types: Set<MessageType> = emptySet(),
+    val sender: SenderCondition = SenderCondition.ANYONE,
+    val destinationIds: Set<Long> = emptySet(),
+    val style: Style = Style.SMART,
+    val customTemplate: String = DEFAULT_TEMPLATE,
+    val position: Int = 0,
+) {
+    val canSave: Boolean get() = name.isNotBlank() && (allMessages || types.isNotEmpty()) && destinationIds.isNotEmpty()
+
+    /** SPAM is never selectable; selecting a type clears "All messages". */
+    fun toggleType(t: MessageType): RuleEditorState {
+        if (t == MessageType.SPAM) return this
+        return copy(allMessages = false, types = if (t in types) types - t else types + t)
+    }
+
+    /** Selecting "All messages" clears the types; selecting it again turns it off. */
+    fun toggleAll(): RuleEditorState = copy(allMessages = !allMessages, types = emptySet())
+
+    fun toggleDestination(id: Long): RuleEditorState =
+        copy(destinationIds = if (id in destinationIds) destinationIds - id else destinationIds + id)
+
+    fun toRule(): Rule = Rule(
+        id = id,
+        name = name.trim(),
+        enabled = enabled,
+        allMessages = allMessages,
+        types = if (allMessages) emptySet() else types,
+        sender = sender,
+        destinationIds = destinationIds.sorted(),
+        style = style,
+        customTemplate = customTemplate.takeIf { style == Style.CUSTOM },
+        position = position,
+    )
+
+    /**
+     * Up to two sample messages (OTP, Transaction, Missed call; the Transaction one when nothing
+     * else applies) run through the real [analyzer] and [MessageFormatter] for Telegram.
+     */
+    fun preview(analyzer: MessageAnalyzer, deviceName: String, zone: ZoneId = ZoneId.systemDefault()): List<String> {
+        val picked = SAMPLES.filter { !allMessages && it.type in types }.ifEmpty { SAMPLES.filter { it.type == MessageType.TRANSACTION } }
+        return picked.take(2).map { s ->
+            val sms = IncomingSms(s.sender, s.body, SAMPLE_TIME, SAMPLE_TIME, null)
+            val analysis = analyzer.analyze(s.sender, s.body, SenderKind.BUSINESS)
+            MessageFormatter.format(sms, analysis, style, customTemplate.takeIf { style == Style.CUSTOM }, Channel.TELEGRAM, deviceName, zone)
+        }
+    }
+
+    private class Sample(val type: MessageType, val sender: String, val body: String)
+
+    companion object {
+        /** Literal `\n` is the newline token (spec 5.5). */
+        const val DEFAULT_TEMPLATE = "%r · %s\\n%m"
+        private const val SAMPLE_TIME = 1_792_922_460_000L // 2026-10-25 10:41 UTC-ish; only used for call time fallback
+
+        private val SAMPLES = listOf(
+            Sample(MessageType.OTP, "AD-AMAZON", "482913 is your Amazon OTP. Do not share it with anyone."),
+            Sample(
+                MessageType.TRANSACTION, "VM-HDFCBK",
+                "Rs.1250.00 debited from A/c XX4521 on 25-10-26 to VPA swiggy@icici (UPI Ref 4291). Avl Bal Rs.23410.55 -HDFC Bank",
+            ),
+            Sample(MessageType.MISSED_CALL, "JM-AIRTEL", "You have a missed call from +91 99620 55555 at 10:11 on 25-Oct. -Airtel"),
+        )
+
+        fun from(rule: Rule) = RuleEditorState(
+            id = rule.id,
+            name = rule.name,
+            enabled = rule.enabled,
+            allMessages = rule.allMessages,
+            types = rule.types,
+            sender = rule.sender,
+            destinationIds = rule.destinationIds.toSet(),
+            style = rule.style,
+            customTemplate = rule.customTemplate ?: DEFAULT_TEMPLATE,
+            position = rule.position,
+        )
+    }
+}
+
+class RuleEditorViewModel(private val graph: AppGraph, private val ruleId: Long) : ViewModel() {
+    private val _state = MutableStateFlow<RuleEditorState?>(null)
+    val state: StateFlow<RuleEditorState?> = _state
+
+    /** True when an existing rule id was not found (deleted meanwhile): the screen closes. */
+    private val _missing = MutableStateFlow(false)
+    val missing: StateFlow<Boolean> = _missing
+
+    val destinations: StateFlow<List<Destination>?> =
+        graph.destinations.destinations.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val preview: StateFlow<List<String>> = combine(_state.filterNotNull(), graph.settings.deviceName) { s, name ->
+        s to name.ifBlank { Build.MODEL }
+    }.mapLatest { (s, device) ->
+        try {
+            withContext(Dispatchers.Default) { s.preview(graph.analyzer, device) }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    init {
+        viewModelScope.launch {
+            if (ruleId == 0L) {
+                // New rule: pre-select the first destination, as in the mock.
+                val first = graph.destinations.all().firstOrNull()
+                _state.value = RuleEditorState(destinationIds = setOfNotNull(first?.id))
+            } else {
+                val rule = graph.rules.all().firstOrNull { it.id == ruleId }
+                if (rule == null) _missing.value = true else _state.value = RuleEditorState.from(rule)
+            }
+        }
+    }
+
+    fun update(change: (RuleEditorState) -> RuleEditorState) = _state.update { it?.let(change) }
+
+    // Writes run on the app scope (leaving the screen cannot cancel them) and in order.
+    fun save() {
+        val rule = _state.value?.takeIf { it.canSave }?.toRule() ?: return
+        graph.appScope.launch { writeLock.withLock { graph.rules.save(rule) } }
+    }
+
+    fun delete() {
+        if (ruleId == 0L) return
+        graph.appScope.launch { writeLock.withLock { graph.rules.delete(ruleId) } }
+    }
+
+    companion object {
+        private val writeLock = Mutex()
+
+        fun factory(graph: AppGraph, ruleId: Long) = object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : ViewModel> create(modelClass: Class<T>): T = RuleEditorViewModel(graph, ruleId) as T
+        }
+    }
+}

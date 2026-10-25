@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="rules_intro">Every rule is checked for each incoming SMS. A message is forwarded once to every destination of every rule it matches.</string>
+    <string name="rules_new">New rule</string>
+    <string name="rules_empty">No rules yet. Tap New rule to add one.</string>
+    <string name="rules_never_title">Never forwarded</string>
+    <string name="rules_never_body">Spam / promotions and anything no rule matches</string>
+    <string name="rules_always">Always</string>
+    <string name="rules_move_up">Move %1$s up</string>
+    <string name="rules_move_down">Move %1$s down</string>
+
+    <string name="editor_title_new">New rule</string>
+    <string name="editor_title_edit">Edit rule</string>
+    <string name="editor_back">Back</string>
+    <string name="editor_delete">Delete rule</string>
+    <string name="editor_name">Rule name</string>
+    <string name="editor_types">Message types</string>
+    <string name="editor_sender">Sender</string>
+    <string name="editor_send_to">Send to</string>
+    <string name="editor_no_destinations">Add a Telegram chat or SMS number in Settings</string>
+    <string name="editor_open_settings">Open Settings</string>
+    <string name="editor_style">Message style</string>
+    <string name="editor_style_smart">Smart summary</string>
+    <string name="editor_style_original">Original text</string>
+    <string name="editor_style_custom">Custom</string>
+    <string name="editor_template">Template</string>
+    <string name="editor_token_help">%s sender · %m message · %r device · %o OTP · %a amount · %t type</string>
+    <string name="editor_preview">Preview in Telegram</string>
+    <string name="editor_save">Save rule</string>
+    <string name="editor_sms_sub">SMS · %1$s</string>
+    <string name="editor_telegram_sub">Telegram</string>
+    <string name="editor_delete_title">Delete this rule?</string>
+    <string name="editor_delete_body">"%1$s" will no longer forward anything. This cannot be undone.</string>
+    <string name="editor_delete_confirm">Delete</string>
+    <string name="editor_cancel">Cancel</string>
+</resources>

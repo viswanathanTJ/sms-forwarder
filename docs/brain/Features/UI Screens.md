@@ -4,7 +4,7 @@ updated: 2026-10-25
 ---
 # UI Screens
 
-> Four-tab UI: Home, Rules, Log, Settings, plus onboarding (Tasks 12-15). Task 12 delivers the shell, theme, navigation and Home; Rules, rule editor, Log and Settings are title-only stubs (`ui/nav/StubScreens.kt`) until Tasks 13-15.
+> Four-tab UI: Home, Rules, Log, Settings, plus onboarding (Tasks 12-15). Task 12 delivers the shell, theme, navigation and Home; Log and Settings are title-only stubs (`ui/nav/StubScreens.kt`) until Tasks 14-15. Task 13 adds Rules and the rule editor (`ui/rules/`, see [[Rules]]).
 
 ## What the user can do
 - Home: switch forwarding on/off (hero switch), see today's Forwarded / Skipped / Retrying, toggle each rule, open a rule, see the 3 latest messages, jump to Settings when something needs attention.
@@ -12,6 +12,7 @@ updated: 2026-10-25
 
 ## Screens & entry points
 - `MainActivity` (edge-to-edge) -> `AppNavHost`: bottom bar Home, Rules, Log, Settings. Routes in `ui/nav/Routes.kt`: `home`, `rules`, `rules/{id}` (0 = new), `log`, `settings`, `onboarding` (not registered yet).
+- Rules (`ui/rules/RulesScreen`) and editor (`RuleEditorScreen`; HTML preview rendered by `telegramHtmlToAnnotated`): see [[Rules]].
 - Home (`ui/home/HomeScreen`): gradient hero (#2F5BEA to #5B3FE0), stats row, Rules card (type badge, "types · sender -> destinations", switch; tap opens `rules/{id}`), Recent card (sender, time, body line, type chip, status chip, note).
 - Shared: `ui/common/TypeBadge`, `TypeChip`, `StatusChip(DeliveryState)`, `SectionTitle`.
 
