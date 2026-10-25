@@ -63,3 +63,4 @@ datastore/
 .kotlin
 app/release
 .superpowers/
+.fuse_hidden*

@@ -17,7 +17,9 @@ import com.viswa2k.smsforwarder.core.DeliveryOrder
 import com.viswa2k.smsforwarder.core.Destination
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
+import kotlin.coroutines.coroutineContext
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.util.concurrent.TimeUnit
@@ -43,6 +45,7 @@ class Dispatcher(private val graph: AppGraph) {
                     pending.map { DeliveryOrder.Row(it.id, it.destinationId, it.firstAttemptAt, it.nextAttemptAt) }, now,
                 )
                 while (true) {
+                    coroutineContext.ensureActive()
                     val next = order.next() ?: break
                     val row = byId.getValue(next.id)
                     // A send that was started is always recorded, even if the caller is cancelled.
@@ -101,23 +104,25 @@ class Dispatcher(private val graph: AppGraph) {
         /**
          * (Re)enqueues the unique delivery job to run at the earliest pending row's due time, once the
          * network is available. REPLACE keeps the delay tracking the earliest row, but a RUNNING job is
-         * left alone unless [replaceRunning] (the worker re-schedules itself when its pass ends).
+         * not cancelled unless [replaceRunning]: an outside caller appends a follow-up that runs after it (APPEND_OR_REPLACE),
+         * while the worker's own end-of-pass call replaces.
          * No-op without pending rows.
          */
         suspend fun schedule(context: Context, replaceRunning: Boolean = false) {
             val graph = AppGraph.from(context)
             val earliest = graph.outbox.earliestPendingAt() ?: return
             val manager = WorkManager.getInstance(context.applicationContext)
-            if (!replaceRunning) {
-                val infos = withContext(Dispatchers.IO) { manager.getWorkInfosForUniqueWork(WORK_NAME).get() }
-                if (infos.any { it.state == WorkInfo.State.RUNNING }) return
+            // An outside caller must not cancel a RUNNING worker: queue a follow-up behind it instead.
+            val workerRunning = !replaceRunning && withContext(Dispatchers.IO) {
+                manager.getWorkInfosForUniqueWork(WORK_NAME).get().any { it.state == WorkInfo.State.RUNNING }
             }
+            val policy = if (workerRunning) ExistingWorkPolicy.APPEND_OR_REPLACE else ExistingWorkPolicy.REPLACE
             val delay = (earliest - System.currentTimeMillis()).coerceAtLeast(0)
             val request = OneTimeWorkRequestBuilder<DeliveryWorker>()
                 .setInitialDelay(delay, TimeUnit.MILLISECONDS)
                 .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
                 .build()
-            manager.enqueueUniqueWork(WORK_NAME, ExistingWorkPolicy.REPLACE, request)
+            manager.enqueueUniqueWork(WORK_NAME, policy, request)
         }
     }
 }
