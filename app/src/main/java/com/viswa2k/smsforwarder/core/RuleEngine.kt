@@ -1,0 +1,56 @@
+package com.viswa2k.smsforwarder.core
+
+enum class SkipReason { PAUSED, SPAM, NO_RULE, CONTACTS_PERMISSION_MISSING }
+
+data class PlannedSend(val destination: Destination, val ruleId: Long, val style: Style, val template: String?)
+
+/**
+ * Outcome of rule evaluation. [skip] is null when at least one rule matched, even if
+ * the loop guard then left [sends] empty (the Log shows "matched, nothing sent").
+ */
+data class Decision(val matchedRuleIds: List<Long>, val sends: List<PlannedSend>, val skip: SkipReason?)
+
+/** Pure rule evaluation (spec 5.3). */
+object RuleEngine {
+    fun decide(
+        type: MessageType,
+        senderKind: SenderKind,
+        senderAddress: String,
+        masterOn: Boolean,
+        rules: List<Rule>,
+        destinations: List<Destination>,
+    ): Decision {
+        if (!masterOn) return Decision(emptyList(), emptyList(), SkipReason.PAUSED)
+        if (type == MessageType.SPAM) return Decision(emptyList(), emptyList(), SkipReason.SPAM)
+
+        val byId = destinations.associateBy { it.id }
+        val matched = rules
+            .sortedWith(compareBy<Rule> { it.position }.thenBy { it.id })
+            .filter { r -> r.enabled && r.destinationIds.any { it in byId } }
+            .filter { it.allMessages || type in it.types }
+            .filter { senderMatches(it.sender, senderKind) }
+
+        if (matched.isEmpty()) {
+            val reason = if (senderKind == SenderKind.UNVERIFIED) SkipReason.CONTACTS_PERMISSION_MISSING else SkipReason.NO_RULE
+            return Decision(emptyList(), emptyList(), reason)
+        }
+
+        val chosen = LinkedHashMap<Long, PlannedSend>()
+        for (rule in matched) {
+            for (id in rule.destinationIds) {
+                val dest = byId[id] ?: continue
+                if (id !in chosen) chosen[id] = PlannedSend(dest, rule.id, rule.style, rule.customTemplate)
+            }
+        }
+        val sends = chosen.values.filterNot {
+            it.destination.channel == Channel.SMS && PhoneNumbers.same(senderAddress, it.destination.address)
+        }
+        return Decision(matched.map { it.id }, sends, null)
+    }
+
+    private fun senderMatches(cond: SenderCondition, kind: SenderKind): Boolean = when (cond) {
+        SenderCondition.ANYONE -> true
+        SenderCondition.NOT_IN_CONTACTS -> kind == SenderKind.BUSINESS || kind == SenderKind.UNKNOWN_NUMBER
+        SenderCondition.CONTACTS_ONLY -> kind == SenderKind.CONTACT
+    }
+}
