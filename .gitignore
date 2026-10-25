@@ -56,9 +56,6 @@ captures/
 *.orig
 *.log
 
-# Firebase files
-firebase-debug.log
-app/google-services.json
 
 # DataStore files
 datastore/

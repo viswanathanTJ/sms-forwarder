@@ -1,11 +1,11 @@
 import java.util.Properties
 
 plugins {
-    alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
-    alias(libs.plugins.kotlin.compose)
-    alias(libs.plugins.kotlin.serialization)
-    alias(libs.plugins.google.services)
+    id("com.android.application")
+    id("org.jetbrains.kotlin.android")
+    id("org.jetbrains.kotlin.plugin.compose")
+    id("org.jetbrains.kotlin.plugin.serialization")
+    id("com.google.devtools.ksp")
 }
 
 val localProps = Properties().apply {
@@ -16,25 +16,18 @@ fun prop(name: String): String = (localProps.getProperty(name) ?: project.findPr
 
 android {
     namespace = "com.viswa2k.smsforwarder"
-    compileSdk = 34
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.viswa2k.smsforwarder"
         minSdk = 29
-        targetSdk = 34
+        targetSdk = 36
         // Overridable from CI (e.g. -PVERSION_NAME=1.2.0 -PVERSION_CODE=12 derived from the git tag).
-        versionCode = prop("VERSION_CODE").toIntOrNull() ?: 1
-        versionName = prop("VERSION_NAME").ifBlank { "1.1" }
-
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"${prop("GOOGLE_WEB_CLIENT_ID")}\"")
-        // Local-only: point Firebase at the emulator suite. Enable with -PuseEmulator=true.
-        // Always false for production/CI builds.
-        buildConfigField("boolean", "USE_EMULATOR", "${prop("useEmulator").ifBlank { "false" }}")
+        versionCode = prop("VERSION_CODE").toIntOrNull() ?: 20
+        versionName = prop("VERSION_NAME").ifBlank { "2.0.0" }
 
         // Security settings
         ndk.debugSymbolLevel = "FULL"
-        resourceConfigurations.addAll(listOf("en"))
     }
 
     // Release signing is driven by environment variables (set by CI from secrets).
@@ -99,57 +92,41 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
-        isCoreLibraryDesugaringEnabled = true
     }
-    kotlinOptions { jvmTarget = "17" }
+    testOptions { unitTests.isReturnDefaultValues = true }
     buildFeatures {
         compose = true
         buildConfig = true
     }
 }
 
+kotlin { compilerOptions { jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17) } }
+
+ksp { arg("room.schemaLocation", "$projectDir/schemas") }
+
 dependencies {
-
-    implementation("androidx.datastore:datastore-preferences:1.1.1")
-    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.6")
-
-    // Firebase
-    implementation(platform("com.google.firebase:firebase-bom:33.1.2"))
-    implementation("com.google.firebase:firebase-auth")
-    implementation("com.google.firebase:firebase-firestore")
-    implementation("com.google.firebase:firebase-messaging")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.8.1")
-
-    // Crypto
-    implementation("com.google.crypto.tink:tink-android:1.13.0")
-    implementation("androidx.biometric:biometric:1.1.0")
-
-    // Serialization (payload), Navigation, Google sign-in
+    val compose = "1.10.0"
+    val room = "2.8.4"
+    implementation("androidx.core:core-ktx:1.17.0")
+    implementation("androidx.activity:activity-compose:1.12.2")
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.10.0")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.10.0")
+    implementation("androidx.lifecycle:lifecycle-process:2.10.0")
+    implementation("androidx.navigation:navigation-compose:2.9.6")
+    implementation("androidx.compose.ui:ui:$compose")
+    implementation("androidx.compose.ui:ui-graphics:$compose")
+    implementation("androidx.compose.ui:ui-tooling-preview:$compose")
+    implementation("androidx.compose.foundation:foundation:$compose")
+    implementation("androidx.compose.material3:material3:1.4.0")
+    implementation("androidx.compose.material:material-icons-extended:1.7.8")
+    debugImplementation("androidx.compose.ui:ui-tooling:$compose")
+    implementation("androidx.room:room-runtime:$room")
+    implementation("androidx.room:room-ktx:$room")
+    ksp("androidx.room:room-compiler:$room")
+    implementation("androidx.work:work-runtime-ktx:2.10.5")
+    implementation("androidx.datastore:datastore-preferences:1.1.7")
+    // Updater only (GitHub releases JSON)
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
-    implementation("androidx.navigation:navigation-compose:2.7.7")
-    implementation("androidx.credentials:credentials:1.3.0")
-    implementation("androidx.credentials:credentials-play-services-auth:1.3.0")
-    implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")
-
-    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
-
-    // JVM crypto for unit tests
-    testImplementation("com.google.crypto.tink:tink:1.13.0")
-    testImplementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
-
-    implementation(libs.androidx.core.ktx)
-    implementation(libs.androidx.lifecycle.runtime.ktx)
-    implementation(libs.androidx.activity.compose)
-    implementation(platform(libs.androidx.compose.bom))
-    implementation(libs.androidx.ui)
-    implementation(libs.androidx.ui.graphics)
-    implementation(libs.androidx.ui.tooling.preview)
-    implementation(libs.androidx.material3)
-    testImplementation(libs.junit)
-    androidTestImplementation(libs.androidx.junit)
-    androidTestImplementation(libs.androidx.espresso.core)
-    androidTestImplementation(platform(libs.androidx.compose.bom))
-    androidTestImplementation(libs.androidx.ui.test.junit4)
-    debugImplementation(libs.androidx.ui.tooling)
-    debugImplementation(libs.androidx.ui.test.manifest)
+    testImplementation("junit:junit:4.13.2")
+    testImplementation("org.json:json:20240303")
 }

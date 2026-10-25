@@ -4,7 +4,6 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -26,11 +25,7 @@ class UserPreferences(private val dataStore: DataStore<Preferences>) {
     private val TELEGRAM_API_KEY_KEY = stringPreferencesKey("TELEGRAM_API_KEY")
     private val TELEGRAM_USER_IDS_KEY = stringPreferencesKey("TELEGRAM_USER_IDS")
 
-    private val IS_CLOUD_CHANNEL_ENABLED = booleanPreferencesKey("IS_CLOUD_CHANNEL_ENABLED")
-    private val IS_RECEIVE_ENABLED = booleanPreferencesKey("IS_RECEIVE_ENABLED")
-    private val CLOUD_DEVICE_ID = stringPreferencesKey("CLOUD_DEVICE_ID")
     private val STORED_UPDATE = stringPreferencesKey("STORED_UPDATE") // last-known newer release (JSON) or ""
-    private val LAST_KEY_ROTATION = longPreferencesKey("LAST_KEY_ROTATION") // epoch ms of last identity-key rotation
 
     // Initialize defaults
     suspend fun initializeDefaults() {
@@ -68,15 +63,6 @@ class UserPreferences(private val dataStore: DataStore<Preferences>) {
             if (preferences[TELEGRAM_USER_IDS_KEY] == null) {
                 preferences[TELEGRAM_USER_IDS_KEY] = ""
             }
-            if (preferences[IS_CLOUD_CHANNEL_ENABLED] == null) {
-                preferences[IS_CLOUD_CHANNEL_ENABLED] = false
-            }
-            if (preferences[IS_RECEIVE_ENABLED] == null) {
-                preferences[IS_RECEIVE_ENABLED] = false
-            }
-            if (preferences[CLOUD_DEVICE_ID] == null) {
-                preferences[CLOUD_DEVICE_ID] = ""
-            }
         }
     }
 
@@ -95,11 +81,7 @@ class UserPreferences(private val dataStore: DataStore<Preferences>) {
     val telegramApiKey: Flow<String> = dataStore.data.map { it[TELEGRAM_API_KEY_KEY] ?: "" }
     val telegramUserIds: Flow<String> = dataStore.data.map { it[TELEGRAM_USER_IDS_KEY] ?: "" }
 
-    val isCloudChannelEnabled: Flow<Boolean> = dataStore.data.map { it[IS_CLOUD_CHANNEL_ENABLED] ?: false }
-    val isReceiveEnabled: Flow<Boolean> = dataStore.data.map { it[IS_RECEIVE_ENABLED] ?: false }
-    val cloudDeviceId: Flow<String> = dataStore.data.map { it[CLOUD_DEVICE_ID] ?: "" }
     val storedUpdate: Flow<String> = dataStore.data.map { it[STORED_UPDATE] ?: "" }
-    val lastKeyRotation: Flow<Long> = dataStore.data.map { it[LAST_KEY_ROTATION] ?: 0L }
 
     // Save preferences
     suspend fun saveSmsServiceEnabled(enabled: Boolean) {
@@ -168,33 +150,9 @@ class UserPreferences(private val dataStore: DataStore<Preferences>) {
         }
     }
 
-    suspend fun saveCloudChannelEnabled(enabled: Boolean) {
-        dataStore.edit { preferences ->
-            preferences[IS_CLOUD_CHANNEL_ENABLED] = enabled
-        }
-    }
-
-    suspend fun saveReceiveEnabled(enabled: Boolean) {
-        dataStore.edit { preferences ->
-            preferences[IS_RECEIVE_ENABLED] = enabled
-        }
-    }
-
-    suspend fun saveCloudDeviceId(id: String) {
-        dataStore.edit { preferences ->
-            preferences[CLOUD_DEVICE_ID] = id
-        }
-    }
-
     suspend fun saveStoredUpdate(json: String) {
         dataStore.edit { preferences ->
             preferences[STORED_UPDATE] = json
-        }
-    }
-
-    suspend fun saveLastKeyRotation(epochMs: Long) {
-        dataStore.edit { preferences ->
-            preferences[LAST_KEY_ROTATION] = epochMs
         }
     }
 }

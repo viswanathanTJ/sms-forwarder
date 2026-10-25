@@ -40,7 +40,7 @@ class SmsReceiver : BroadcastReceiver() {
         val messages = mutableListOf<Pair<String?, String>>()
         if (BuildConfig.DEBUG && intent.action == TEST_ACTION) {
             // Debug-only: simulate an incoming SMS without the telephony stack (the emulator's
-            // free license blocks SMS injection). Exercises the exact forward/upload path.
+            // free license blocks SMS injection). Exercises the exact forward path.
             messages.add((intent.getStringExtra("sender") ?: "TEST") to (intent.getStringExtra("body") ?: ""))
         } else {
             // Parse PDUs synchronously (fast, no I/O) before handing off to a background coroutine.
@@ -105,9 +105,8 @@ class SmsReceiver : BroadcastReceiver() {
         val prefs: Preferences = context.dataStore.data.first()
 
         // Master switch: the receiver is always registered (static), but only forward when the
-        // user has turned forwarding on. With the master on, each channel (SMS/Telegram/Cloud)
-        // is gated by its own flag below — so a cloud-only setup just needs Enable Service +
-        // Upload to cloud.
+        // user has turned forwarding on. With the master on, each channel (SMS/Telegram)
+        // is gated by its own flag below.
         val serviceEnabled = prefs[booleanPreferencesKey("SMS_FORWARD_SERVICE")] ?: false
         if (!serviceEnabled) {
             Log.d("SmsReceiver", "Forwarding master switch off; ignoring SMS")
@@ -140,16 +139,6 @@ class SmsReceiver : BroadcastReceiver() {
             val telegramUserIds = prefs[stringPreferencesKey("TELEGRAM_USER_IDS")] ?: ""
             if (telegramApiKey.isNotEmpty() && telegramUserIds.isNotEmpty()) {
                 sendTelegramMessage(telegramApiKey, telegramUserIds, senderNumber.toString(), messageBody, telegramMessageFormat)
-            }
-        }
-
-        val isCloudEnabled = prefs[booleanPreferencesKey("IS_CLOUD_CHANNEL_ENABLED")] ?: false
-        if (isCloudEnabled) {
-            try {
-                com.viswa2k.smsforwarder.cloud.data.SmsCloudUploader.get(context)
-                    .upload(senderNumber.toString(), messageBody, System.currentTimeMillis())
-            } catch (e: Exception) {
-                Log.e("SmsReceiver", "Cloud upload error", e)
             }
         }
     }

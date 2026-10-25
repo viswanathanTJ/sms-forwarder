@@ -8,20 +8,13 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
 import android.content.pm.ServiceInfo
-import android.net.ConnectivityManager
-import android.net.Network
-import android.net.NetworkCapabilities
-import android.net.NetworkRequest
 import android.os.Build
 import android.os.IBinder
 import android.os.SystemClock
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
-import com.viswa2k.smsforwarder.cloud.data.CloudInboxNotifier
-import com.viswa2k.smsforwarder.cloud.data.SmsCloudUploader
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -31,24 +24,13 @@ import kotlinx.coroutines.launch
 
 class SmsForwarderService : Service() {
 
-    // SMS reception is handled by the statically-registered SmsReceiver in the manifest, so the
-    // service no longer registers it at runtime (that runtime-only path dropped SMS whenever the
-    // service wasn't alive). This service now only runs the connectivity flush + inbox notifier.
+    // SMS reception is handled by the statically-registered SmsReceiver in the manifest, so this
+    // service only keeps the process alive as a foreground service.
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private var connectivityManager: ConnectivityManager? = null
-    private var networkCallback: ConnectivityManager.NetworkCallback? = null
-    private var inboxNotifier: CloudInboxNotifier? = null
 
     override fun onCreate() {
         super.onCreate()
         Log.d("SmsForwarderService", "Service created.")
-
-        // Flush any queued cloud uploads as soon as the network comes back, instead of
-        // waiting for the next app launch / sign-in.
-        registerConnectivityFlush()
-
-        // Local push: notify on new cloud inbox messages while this service is alive.
-        inboxNotifier = CloudInboxNotifier(this, serviceScope).also { it.start() }
 
         // Reset retry count on successful service creation
         getSharedPreferences("service_prefs", Context.MODE_PRIVATE)
@@ -57,39 +39,17 @@ class SmsForwarderService : Service() {
             .apply()
     }
 
-    private fun registerConnectivityFlush() {
-        val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager ?: return
-        connectivityManager = cm
-        val request = NetworkRequest.Builder()
-            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-            .build()
-        val callback = object : ConnectivityManager.NetworkCallback() {
-            override fun onAvailable(network: Network) {
-                serviceScope.launch {
-                    runCatching { SmsCloudUploader.get(applicationContext).flushQueue() }
-                        .onFailure { Log.w("SmsForwarderService", "Connectivity flush failed", it) }
-                }
-            }
-        }
-        networkCallback = callback
-        runCatching { cm.registerNetworkCallback(request, callback) }
-            .onFailure { Log.w("SmsForwarderService", "registerNetworkCallback failed", it) }
-    }
-
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         // Promote to foreground. On API 29+ we MUST pass the service type that matches the
         // manifest (dataSync); omitting it makes the platform log "FGS stop call ... has no
         // types!" and tear the service down almost immediately (observed on Android 15).
         startForegroundCompat(createNotification())
 
-        // Read the live prefs (the intent extra is absent on alarm/boot restarts). Keep the
-        // service alive if SMS forwarding OR cloud receive is enabled; stop only if neither is.
+        // Read the live prefs (the intent extra is absent on alarm/boot restarts); stop if
+        // forwarding is off.
         serviceScope.launch {
             val prefs = UserPreferences(applicationContext.dataStore)
-            val smsEnabled = prefs.isSmsForwarderService.first()
-            val receiveEnabled = prefs.isReceiveEnabled.first()
-            if (receiveEnabled) inboxNotifier?.start()
-            if (!smsEnabled && !receiveEnabled) stopSelf()
+            if (!prefs.isSmsForwarderService.first()) stopSelf()
         }
 
         // Schedule a restart if the service gets killed
@@ -192,10 +152,6 @@ class SmsForwarderService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
-        networkCallback?.let { cb -> runCatching { connectivityManager?.unregisterNetworkCallback(cb) } }
-        networkCallback = null
-        inboxNotifier?.stop()
-        inboxNotifier = null
         serviceScope.cancel()
         Log.d("SmsForwarderService", "Service destroyed.")
     }

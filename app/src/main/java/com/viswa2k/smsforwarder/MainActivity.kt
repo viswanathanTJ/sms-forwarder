@@ -23,12 +23,10 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStore
 import androidx.lifecycle.lifecycleScope
-import com.viswa2k.smsforwarder.ui.SettingsScreen
+import com.viswa2k.smsforwarder.ui.PlaceholderScreen
+import com.viswa2k.smsforwarder.update.UpdateDialogHost
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.rememberNavController
 
 // Create an extension property for DataStore
 val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
@@ -54,11 +52,6 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch {
             userPreferences.initializeDefaults()
             checkAndStartService()
-            try {
-                if (userPreferences.isCloudChannelEnabled.first()) {
-                    com.viswa2k.smsforwarder.cloud.data.SmsCloudUploader.get(applicationContext).flushQueue()
-                }
-            } catch (e: Exception) { Log.e("MainActivity", "queue flush failed", e) }
         }
 
         // Debug-only: a dynamic, exported receiver for the test-SMS action so `adb broadcast`
@@ -82,19 +75,9 @@ class MainActivity : ComponentActivity() {
         setContent {
             com.viswa2k.smsforwarder.ui.theme.SMSForwarderTheme {
                 Surface(color = MaterialTheme.colorScheme.background) {
-                    val cloudVm: com.viswa2k.smsforwarder.cloud.ui.CloudViewModel =
-                        androidx.lifecycle.viewmodel.compose.viewModel()
-                    val nav = rememberNavController()
-                    NavHost(nav, startDestination = "settings") {
-                        composable("settings") {
-                            SettingsScreen(userPreferences, onOpenCloud = { nav.navigate("cloud") })
-                        }
-                        composable("cloud") {
-                            com.viswa2k.smsforwarder.cloud.ui.CloudNav(cloudVm)
-                        }
-                    }
+                    PlaceholderScreen()
                     // Checks GitHub Releases on launch; prompts to install if a newer APK exists.
-                    com.viswa2k.smsforwarder.cloud.update.UpdateDialogHost()
+                    UpdateDialogHost()
                 }
             }
         }
@@ -190,15 +173,12 @@ class MainActivity : ComponentActivity() {
 
     private suspend fun checkAndStartService() {
         val smsForwardServiceEnabled = userPreferences.isSmsForwarderService.first()
-        // Cloud-receive users (who don't forward SMS) still need the service alive so it can
-        // post local notifications for new cloud messages.
-        val receiveEnabled = userPreferences.isReceiveEnabled.first()
 
         val serviceIntent = Intent(this, SmsForwarderService::class.java).apply {
             putExtra("SMS_FORWARD_SERVICE_ENABLED", smsForwardServiceEnabled)
         }
 
-        if (smsForwardServiceEnabled || receiveEnabled) {
+        if (smsForwardServiceEnabled) {
             ContextCompat.startForegroundService(this, serviceIntent) // Start the service
         } else {
             this.stopService(serviceIntent) // Stop the service
