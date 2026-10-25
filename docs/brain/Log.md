@@ -20,3 +20,4 @@ updated: 2026-10-25
 - 2026-10-25 Task 4: MessageType + MessageAnalyzer (type mapping in Features/Classification).
 - 2026-10-25 Task 5: Rule model, RuleEngine, PhoneNumbers, DefaultRules (see [[Rules]]).
 - 2026-10-25 Task 6: MessageFormatter (smart/original/custom, Telegram HTML + SMS), senderName title-casing (see [[Formatting]]).
+- 2026-10-25 Task 7: Room storage, SettingsStore, TokenCipher, repositories, AppGraph (see [[Data Layer]]).
