@@ -9,13 +9,19 @@ import com.viswa2k.smsforwarder.AppGraph
 import com.viswa2k.smsforwarder.core.CatchUpWindow
 import com.viswa2k.smsforwarder.core.IncomingSms
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /**
  * Gap filler (spec 5.8): feeds inbox messages the live receiver missed through [IncomingProcessor]. Dedupe
- * keys make already-forwarded messages no-ops.
+ * keys make already-forwarded messages no-ops; the processor checks the key before analysing, so a
+ * re-scan of an already-logged inbox stays cheap.
  */
 class InboxCatchUp(private val graph: AppGraph, private val processor: IncomingProcessor = IncomingProcessor(graph)) {
-    suspend fun run(now: Long) {
+    /** One scan at a time; also held by the Log "Clear" action while it moves the floor and deletes. */
+    suspend fun run(now: Long) = lock.withLock { scan(now) }
+
+    private suspend fun scan(now: Long) {
         val plan = CatchUpWindow.plan(now, graph.settings.catchUpFloor.first())
         if (plan !is CatchUpWindow.Plan.Scan) {
             // First run: never forward the old inbox.
@@ -55,5 +61,9 @@ class InboxCatchUp(private val graph: AppGraph, private val processor: IncomingP
             return
         }
         for ((sms, sentAtKnown) in found) processor.process(sms, Source.CATCH_UP, sentAtKnown)
+    }
+
+    companion object {
+        val lock = Mutex()
     }
 }

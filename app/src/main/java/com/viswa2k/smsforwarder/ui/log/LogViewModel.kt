@@ -4,7 +4,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.viswa2k.smsforwarder.AppGraph
+import com.viswa2k.smsforwarder.core.LogClearPolicy
 import com.viswa2k.smsforwarder.delivery.Dispatcher
+import com.viswa2k.smsforwarder.pipeline.InboxCatchUp
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -52,8 +56,18 @@ class LogViewModel(private val graph: AppGraph) : ViewModel() {
         }
     }
 
+    /**
+     * Clears the Log ([LogClearPolicy]). The deleted rows were the dedupe keys, so the catch-up floor moves
+     * to now first, under the catch-up lock (a scan in progress cannot re-insert what is being cleared).
+     */
     fun clear() {
-        graph.appScope.launch { graph.logs.clear() }
+        graph.appScope.launch {
+            InboxCatchUp.lock.withLock {
+                val now = System.currentTimeMillis()
+                graph.settings.setCatchUpFloor(LogClearPolicy.floorAfterClear(now, graph.settings.catchUpFloor.first()))
+                graph.logs.clear()
+            }
+        }
     }
 
     companion object {

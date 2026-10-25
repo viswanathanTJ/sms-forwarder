@@ -1,6 +1,7 @@
 package com.viswa2k.smsforwarder.delivery
 
 import android.content.Context
+import android.util.Log
 import androidx.work.Constraints
 import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
@@ -15,6 +16,7 @@ import com.viswa2k.smsforwarder.data.db.OutboxEntity
 import androidx.work.WorkInfo
 import com.viswa2k.smsforwarder.core.DeliveryOrder
 import com.viswa2k.smsforwarder.core.Destination
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.ensureActive
@@ -37,6 +39,14 @@ class Dispatcher(private val graph: AppGraph) {
      */
     suspend fun sendDue(now: Long, fromWorker: Boolean = false) {
         lock.withLock {
+            // Ruling 30: OTP sends still queued 1 h after receipt are failed (and masked) before anything is sent.
+            try {
+                graph.logs.prune(now)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.e("Dispatcher", "prune failed: ${e.javaClass.simpleName}")
+            }
             val pending = graph.outbox.pending()
             if (pending.isNotEmpty()) {
                 val byId = pending.associateBy { it.id }

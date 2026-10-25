@@ -1,5 +1,7 @@
 package com.viswa2k.smsforwarder.data.repo
 
+import com.viswa2k.smsforwarder.core.MessageType
+import com.viswa2k.smsforwarder.core.OtpExpiry
 import com.viswa2k.smsforwarder.data.db.OutboxDao
 import com.viswa2k.smsforwarder.data.db.OutboxEntity
 
@@ -17,6 +19,16 @@ class OutboxRepository(private val dao: OutboxDao) {
     suspend fun markFailed(id: Long, error: String?) = dao.markFailed(id, error)
     suspend fun failingSince(destinationId: Long): Long? = dao.failingSince(destinationId)
     suspend fun lastErrorFor(destinationId: Long): String? = dao.lastErrorFor(destinationId)
-    /** Puts a FAILED row back in the queue as new; no-op for any other state. */
-    suspend fun resend(outboxId: Long) = dao.resend(outboxId, System.currentTimeMillis())
+    /**
+     * Puts a FAILED row back in the queue as new; no-op for any other state, and refused for an OTP that is
+     * masked or older than 1 h ([OtpExpiry], ruling 30). Returns true when the row was re-queued.
+     */
+    suspend fun resend(outboxId: Long): Boolean {
+        val now = System.currentTimeMillis()
+        val log = dao.logOf(outboxId) ?: return false
+        val type = MessageType.fromCode(log.type) ?: MessageType.IMPORTANT // unknown code: not an OTP
+        if (!OtpExpiry.mayResend(log.masked, type, log.receivedAt, now)) return false
+        dao.resend(outboxId, now)
+        return true
+    }
 }

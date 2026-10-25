@@ -2,6 +2,8 @@ package com.viswa2k.smsforwarder.data.prefs
 
 import android.content.Context
 import androidx.datastore.core.DataStore
+import androidx.datastore.core.handlers.ReplaceFileCorruptionHandler
+import androidx.datastore.preferences.core.preferencesOf
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
@@ -13,18 +15,25 @@ import kotlinx.coroutines.flow.map
 import org.json.JSONObject
 
 // Distinct from v1's "settings" store (V1MigrationRunner.dataStore); never reuse that name.
-private val Context.settingsV2: DataStore<Preferences> by preferencesDataStore(name = "settings_v2")
+// A corrupt file is replaced instead of crashing every reader: migration counts as done (a corrupt v2 store
+// must not re-import or wipe v1 leftovers) and forwarding starts PAUSED so the owner notices and re-checks.
+private val Context.settingsV2: DataStore<Preferences> by preferencesDataStore(
+    name = "settings_v2",
+    corruptionHandler = ReplaceFileCorruptionHandler {
+        preferencesOf(booleanPreferencesKey(SettingsStore.MIGRATION_DONE) to true, booleanPreferencesKey(SettingsStore.MASTER_ON) to false)
+    },
+)
 
 class SettingsStore(context: Context) {
     private val store = context.applicationContext.settingsV2
 
-    private val masterOnKey = booleanPreferencesKey("master_on")
+    private val masterOnKey = booleanPreferencesKey(MASTER_ON)
     private val deviceNameKey = stringPreferencesKey("device_name")
     private val tokenKey = stringPreferencesKey("encrypted_token")
     private val pinKey = stringPreferencesKey("pin_hash")
     private val alertsDestKey = longPreferencesKey("alerts_destination_id")
     private val floorKey = longPreferencesKey("catch_up_floor")
-    private val migrationKey = booleanPreferencesKey("migration_done")
+    private val migrationKey = booleanPreferencesKey(MIGRATION_DONE)
     private val oemKey = booleanPreferencesKey("setup_confirmed_oem")
     private val pendingRebootKey = longPreferencesKey("pending_reboot_at")
     private val alertStateKey = stringPreferencesKey("alert_state")
@@ -74,6 +83,9 @@ class SettingsStore(context: Context) {
     suspend fun setPinAttempts(state: String) { store.edit { it[pinAttemptsKey] = state } }
 
     companion object {
+        internal const val MASTER_ON = "master_on"
+        internal const val MIGRATION_DONE = "migration_done"
+
         fun parseAlertState(json: String): Map<String, Long> = try {
             val o = JSONObject(json)
             o.keys().asSequence().associateWith { o.getLong(it) }

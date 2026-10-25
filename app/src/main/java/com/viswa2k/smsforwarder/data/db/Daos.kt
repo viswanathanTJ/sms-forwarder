@@ -6,8 +6,10 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
 import androidx.room.Upsert
+import com.viswa2k.smsforwarder.core.LogClearPolicy
 import com.viswa2k.smsforwarder.core.LogMasker
 import com.viswa2k.smsforwarder.core.MessageType
+import com.viswa2k.smsforwarder.core.OtpExpiry
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -61,6 +63,9 @@ abstract class LogDao {
     /** Returns the new row id, or -1 when [LogEntity.key] already exists. */
     @Insert(onConflict = OnConflictStrategy.IGNORE) abstract suspend fun insert(entry: LogEntity): Long
 
+    /** Cheap pre-check before analysing an SMS; [insert]'s unique key stays the authority. */
+    @Query("SELECT EXISTS(SELECT 1 FROM logs WHERE key = :key)") abstract suspend fun exists(key: String): Boolean
+
     @Query("SELECT receivedAt FROM logs WHERE looseKey = :looseKey")
     abstract suspend fun receivedAtByLooseKey(looseKey: String): List<Long>
 
@@ -76,15 +81,38 @@ abstract class LogDao {
     abstract suspend fun markMasked(id: Long, body: String, extracted: String)
     @Query("SELECT * FROM outbox WHERE logId = :logId") abstract suspend fun outboxFor(logId: Long): List<OutboxEntity>
     @Query("UPDATE outbox SET text = :text WHERE id = :id") abstract suspend fun setOutboxText(id: Long, text: String)
-    @Query("DELETE FROM logs") abstract suspend fun clear()
+    /** Expires a still-queued send (no attempt is counted). */
+    @Query("UPDATE outbox SET state = 2, lastError = :error WHERE id = :id AND state = 0")
+    abstract suspend fun expireSend(id: Long, error: String)
     @Query("SELECT body FROM logs WHERE id = :id") abstract suspend fun bodyOf(id: Long): String?
 
+    @Query("SELECT id FROM logs") abstract suspend fun allIds(): List<Long>
+    @Query("SELECT DISTINCT logId FROM outbox WHERE state = 0") abstract suspend fun logIdsWithPendingSends(): List<Long>
+    @Query("DELETE FROM logs WHERE id IN (:ids)") abstract suspend fun deleteIds(ids: List<Long>)
+
+    /** Log "Clear": deletes every row except those with a queued send ([LogClearPolicy]). */
+    @Transaction
+    open suspend fun clear() {
+        val pending = logIdsWithPendingSends().toSet()
+        val rows = allIds().map { id -> LogClearPolicy.Row(id, listOf(id in pending)) }
+        // Chunked: API 29's SQLite allows 999 bound variables.
+        LogClearPolicy.toDelete(rows).chunked(500).forEach { deleteIds(it) }
+    }
+
+    /**
+     * Deletes rows older than [deleteBefore]; masks OTP rows received before [maskBefore]. Ruling 30: the
+     * masked log's still-queued sends become FAILED ([OtpExpiry.EXPIRED_ERROR]) first, so masked text is
+     * never sent.
+     */
     @Transaction
     open suspend fun prune(deleteBefore: Long, maskBefore: Long) {
         deleteOlderThan(deleteBefore)
         for (row in unmaskedOtpBefore(MessageType.OTP.code, maskBefore)) {
+            val sends = outboxFor(row.id)
+            OtpExpiry.sendsToFail(sends.map { OtpExpiry.Send(it.id, it.state == OutboxEntity.STATE_PENDING) })
+                .forEach { expireSend(it, OtpExpiry.EXPIRED_ERROR) }
             markMasked(row.id, LogMasker.mask(row.body, row.otpCode), LogMasker.mask(row.extracted, row.otpCode))
-            for (send in outboxFor(row.id)) setOutboxText(send.id, LogMasker.mask(send.text, row.otpCode))
+            for (send in sends) setOutboxText(send.id, LogMasker.mask(send.text, row.otpCode))
         }
     }
 }
@@ -130,6 +158,16 @@ interface OutboxDao {
     @Query("SELECT lastError FROM outbox WHERE destinationId = :destinationId AND state IN (0, 2) AND lastError IS NOT NULL ORDER BY id DESC LIMIT 1")
     suspend fun lastErrorFor(destinationId: Long): String?
 
-    @Query("UPDATE outbox SET state = 0, attempts = 0, firstAttemptAt = :now, nextAttemptAt = :now, lastError = NULL WHERE id = :id AND state = 2")
+    /** The log row an outbox row belongs to. */
+    @Query("SELECT logs.* FROM logs JOIN outbox ON outbox.logId = logs.id WHERE outbox.id = :outboxId")
+    suspend fun logOf(outboxId: Long): LogEntity?
+
+    /** FAILED -> new PENDING. Never for a masked log (atomic backstop for [com.viswa2k.smsforwarder.core.OtpExpiry.mayResend]). */
+    @Query(
+        """
+        UPDATE outbox SET state = 0, attempts = 0, firstAttemptAt = :now, nextAttemptAt = :now, lastError = NULL
+        WHERE id = :id AND state = 2 AND logId IN (SELECT id FROM logs WHERE masked = 0)
+        """,
+    )
     suspend fun resend(id: Long, now: Long)
 }

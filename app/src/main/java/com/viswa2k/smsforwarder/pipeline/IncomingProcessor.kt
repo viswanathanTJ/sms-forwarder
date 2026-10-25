@@ -34,6 +34,9 @@ class IncomingProcessor(private val graph: AppGraph) {
     suspend fun process(sms: IncomingSms, source: Source, sentAtKnown: Boolean = true) {
         try {
             V1MigrationRunner.awaitDone(graph)
+            val key = MessageKey.of(sms.sender, sms.sentAt, sms.body)
+            // Cheap dedupe pre-check before contact lookup / classification; the insert stays the authority.
+            if (graph.logs.exists(key)) return
             val loose = MessageKey.loose(sms.sender, sms.body)
             if (!sentAtKnown &&
                 MessageKey.isLooseDuplicate(graph.logs.receivedAtByLooseKey(loose), sms.receivedAt)
@@ -51,7 +54,7 @@ class IncomingProcessor(private val graph: AppGraph) {
                 MessageFormatter.format(sms, analysis, it.style, it.template, it.destination.channel, device)
             }
             val entry = LogEntity(
-                key = MessageKey.of(sms.sender, sms.sentAt, sms.body), looseKey = loose,
+                key = key, looseKey = loose,
                 sender = sms.sender, body = sms.body, receivedAt = sms.receivedAt,
                 type = analysis.type.code, senderKind = kind.code, extracted = MessageCheck.extractedLine(analysis),
                 matchedRules = decision.matchedRuleIds.joinToString(","), skip = decision.skip?.code,

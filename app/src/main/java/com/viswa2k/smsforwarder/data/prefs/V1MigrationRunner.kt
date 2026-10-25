@@ -2,7 +2,13 @@ package com.viswa2k.smsforwarder.data.prefs
 
 import android.content.Context
 import android.util.Log
+import android.app.AlarmManager
+import android.app.PendingIntent
+import android.content.ComponentName
+import android.content.Intent
 import androidx.datastore.core.DataStore
+import androidx.datastore.core.handlers.ReplaceFileCorruptionHandler
+import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStore
 import androidx.datastore.preferences.core.booleanPreferencesKey
@@ -18,7 +24,11 @@ import kotlinx.coroutines.flow.first
 import java.io.File
 
 // The v1 "settings" store; its only reader is this migration. Exactly one delegate for this name may exist.
-private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
+// A corrupt v1 file reads as empty (nothing to import) instead of failing every launch.
+private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(
+    name = "settings",
+    corruptionHandler = ReplaceFileCorruptionHandler { emptyPreferences() },
+)
 
 /**
  * One-time import of the v1 settings (spec 5.10). Idempotent via `migrationDone`; never throws: on
@@ -87,6 +97,7 @@ object V1MigrationRunner {
         if (steps.markDone) graph.settings.setMigrationDone(true)
         if (steps.cleanup) {
             try {
+                cancelV1Alarms(graph.appContext)
                 File(graph.appContext.filesDir, "cloud_upload_queue").deleteRecursively()
                 graph.appContext.dataStore.edit { p ->
                     p.clear()
@@ -96,6 +107,25 @@ object V1MigrationRunner {
             } catch (e: Exception) {
                 Log.w(TAG, "v1 cleanup failed: ${e.javaClass.simpleName}")
             }
+        }
+    }
+
+    /**
+     * v1 scheduled AlarmManager broadcasts to its removed `ServiceRestartReceiver` (hourly repeating from
+     * MainActivity, request code 1, explicit component; one-shot restart from the service, request code 0,
+     * implicit action). Both fire into nothing in v2, so cancel them once. Same request codes and intents
+     * as v1, else the PendingIntents would not match.
+     */
+    private fun cancelV1Alarms(context: Context) {
+        val alarms = context.getSystemService(AlarmManager::class.java) ?: return
+        val action = "${context.packageName}.RESTART_SERVICE"
+        val hourly = Intent(action).setComponent(ComponentName(context.packageName, "com.viswa2k.smsforwarder.ServiceRestartReceiver"))
+        val restart = Intent(action)
+        for ((code, intent) in listOf(1 to hourly, 0 to restart)) {
+            val pi = PendingIntent.getBroadcast(context, code, intent, PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE)
+                ?: continue
+            alarms.cancel(pi)
+            pi.cancel()
         }
     }
 }
