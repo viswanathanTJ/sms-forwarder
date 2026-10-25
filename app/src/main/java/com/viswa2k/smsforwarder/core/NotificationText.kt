@@ -5,7 +5,7 @@ data class WaMessage(val chat: String, val person: String?, val text: String, va
 
 /**
  * A MessagingStyle message as plain fields. [hasPerson] false = no Person (the phone owner's own message);
- * [personKey] equal to the style's user key also marks the owner.
+ * [personKey] equal to the style's user key, or a person named "You", also marks the owner.
  */
 data class StyleMessage(val text: String?, val timestamp: Long, val personName: String?, val personKey: String?, val hasPerson: Boolean)
 
@@ -39,6 +39,9 @@ object NotificationText {
         Regex("""^(calling|ringing)(…|\.\.\.)?$"""),
         Regex("""^(this message was deleted|you deleted this message)\.?$"""),
         Regex(SYMBOLS + """(photo|voice message|audio|document|video|sticker|gif)( \(\d{1,2}:\d{2}\))?$"""),
+        // Reactions: `Reacted 🙇 to "…"`, `Reacted to "…"`, `👍 reacted to your message`.
+        Regex("""^reacted( \S+)? to:? ["“'‘]"""),
+        Regex("""^\S+ reacted( \S+)? to your (message|photo|video|voice message|audio|document|sticker|gif|status)\b"""),
     )
 
     /** WhatsApp's own texts (counters, backup, calls, deletions, media placeholders): not messages. */
@@ -65,7 +68,7 @@ object NotificationText {
         val t = title.orEmpty()
         if (!messages.isNullOrEmpty()) {
             return messages.mapNotNull { m ->
-                if (!m.hasPerson || (userKey != null && m.personKey == userKey)) return@mapNotNull null
+                if (!m.hasPerson || (userKey != null && m.personKey == userKey) || isOwnName(m.personName)) return@mapNotNull null
                 val text = m.text ?: return@mapNotNull null
                 if (isGroup) WaMessage(conversationTitle ?: t, m.personName, text, m.timestamp)
                 else WaMessage(m.personName ?: t, null, text, m.timestamp)
@@ -73,6 +76,11 @@ object NotificationText {
         }
         return if (fallbackText == null) emptyList() else listOf(WaMessage(t, null, fallbackText, fallbackTs))
     }
+
+    /** WhatsApp labels the phone owner's own messages "You" (seen on real devices without a matching user key). */
+    private fun isOwnName(name: String?): Boolean = name?.trim().equals(OWN_NAME, ignoreCase = true)
+
+    private const val OWN_NAME = "You"
 
     private val COUNT_SUFFIX = Regex("""\s*\(\d+ (new )?messages?\)$""", RegexOption.IGNORE_CASE)
     private val BIDI = Regex("[\u200E\u200F\u202A-\u202E\u2066-\u2069]")

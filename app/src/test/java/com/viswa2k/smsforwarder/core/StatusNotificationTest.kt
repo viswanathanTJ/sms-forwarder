@@ -6,8 +6,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class StatusNotificationTest {
-    @Test fun `never a problem`() = assertFalse(StatusNotification.isProblem())
-
     @Test fun `shown when app enabled and channel not none`() {
         assertTrue(StatusNotification.isShown(true, 1))
         assertTrue(StatusNotification.isShown(true, null))

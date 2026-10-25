@@ -68,12 +68,7 @@ class ForwarderService : Service() {
      * with IMPORTANCE_MIN on new installs only; an existing channel keeps the user's setting (immutable).
      */
     private fun promote() {
-        val manager = getSystemService(NotificationManager::class.java)
-        manager.createNotificationChannel(
-            NotificationChannel(CHANNEL_ID, "Forwarder status", NotificationManager.IMPORTANCE_MIN).apply {
-                setShowBadge(false)
-            },
-        )
+        ensureChannel(this)
         val open = PendingIntent.getActivity(
             this, 0, Intent(this, MainActivity::class.java),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
@@ -111,6 +106,15 @@ class ForwarderService : Service() {
         const val CHANNEL_ID = "forwarder_status"
         private const val NOTIFICATION_ID = 1
         private const val EXTRA_SKIP_CATCH_UP = "skip_catch_up"
+
+        /** Creates the status channel (IMPORTANCE_MIN) when absent; an existing channel keeps the user's setting. */
+        fun ensureChannel(context: Context) {
+            context.getSystemService(NotificationManager::class.java).createNotificationChannel(
+                NotificationChannel(CHANNEL_ID, "Forwarder status", NotificationManager.IMPORTANCE_MIN).apply {
+                    setShowBadge(false)
+                },
+            )
+        }
 
         /** Stops the service (master switch off). The watchdog and boot receiver check `masterOn` themselves. */
         fun stop(context: Context) {

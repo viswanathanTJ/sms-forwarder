@@ -91,14 +91,20 @@ class HealthChecker(context: Context) {
     }
 
     companion object {
-        /** Status-notification channel settings, then the app's notification settings, then App info. */
-        fun statusNotificationIntents(context: Context): List<Intent> = listOf(
+        /**
+         * Status-notification channel settings, then the app's notification settings, then App info. Creates the
+         * channel first when it does not exist yet, so the channel page is never empty.
+         */
+        fun statusNotificationIntents(context: Context): List<Intent> = run {
+            ForwarderService.ensureChannel(context)
+            listOf(
             Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS)
                 .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
                 .putExtra(Settings.EXTRA_CHANNEL_ID, ForwarderService.CHANNEL_ID),
             Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName),
             Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${context.packageName}")),
-        ).map { it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
+            ).map { it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
+        }
 
         /** The system Notification access screen: on API 30+ this app's own page first, then the full list. */
         fun notificationAccessIntents(context: Context): List<Intent> = listOfNotNull(

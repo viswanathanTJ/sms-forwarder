@@ -103,6 +103,19 @@ class NotificationTextTest {
         ).forEach { assertFalse(it, NotificationText.housekeeping(it)) }
     }
 
+    @Test fun `reactions are housekeeping`() {
+        listOf(
+            "Reacted 🙇 to \"Sure my pleasure..\"", "Reacted to \"…\"", "Reacted 👍🏽 to “Thanks”",
+            "❤️ reacted to your message", "👍 reacted to your photo", "Reacted 😂 to: \"lol\"",
+        ).forEach { assertTrue(it, NotificationText.housekeeping(it)) }
+    }
+
+    @Test fun `messages that merely start with reacted are kept`() {
+        listOf("Reacted quickly, OTP 123456", "Reacted to the alert? OTP 482913", "reacted").forEach {
+            assertFalse(it, NotificationText.housekeeping(it))
+        }
+    }
+
     // ---- select(): which (chat, person, text, time) a notification carries ------------------------
 
     private fun msg(text: String?, ts: Long = 1_000, name: String? = "Ravi", key: String? = null, person: Boolean = true) =
@@ -136,6 +149,17 @@ class NotificationTextTest {
             fallbackText = null, fallbackTs = 0,
         )
         assertEquals(listOf(WaMessage("Ravi", null, "theirs", 1_000)), out)
+    }
+
+    @Test fun `messages labelled You are the owner's own`() {
+        val out = NotificationText.select(
+            title = "Family", isGroup = true, conversationTitle = "Family", userKey = "me",
+            messages = listOf(msg("mine", name = "You", key = "other"), msg("mine too", name = " you "), msg("OTP 1234", name = "Mom")),
+            fallbackText = null, fallbackTs = 0,
+        )
+        assertEquals(listOf(WaMessage("Family", "Mom", "OTP 1234", 1_000)), out)
+        // A 1:1 chat with no user key either.
+        assertEquals(emptyList<WaMessage>(), NotificationText.select("Ravi", false, null, null, listOf(msg("hey", name = "YOU")), null, 0))
     }
 
     @Test fun `without messaging style the big or plain text is used under the title`() {

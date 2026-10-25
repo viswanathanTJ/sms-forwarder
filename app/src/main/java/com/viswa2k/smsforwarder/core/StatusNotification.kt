@@ -2,9 +2,6 @@ package com.viswa2k.smsforwarder.core
 
 /** Pure rules for the foreground-service status notification, which is optional for the owner. */
 object StatusNotification {
-    /** Notifications are never a problem: the service runs, and forwards, whether or not the notice is visible. */
-    fun isProblem(): Boolean = false
-
     /** Visible when the app's notifications are on and the channel is not switched off (null = not created yet). */
     fun isShown(appEnabled: Boolean, channelImportance: Int?): Boolean =
         appEnabled && channelImportance != IMPORTANCE_NONE
