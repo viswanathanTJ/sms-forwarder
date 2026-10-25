@@ -40,7 +40,7 @@ data class DestinationEntity(
 
 /**
  * One received SMS. [key] identifies the message (spec review focus 2): the unique index makes a
- * second insert of the same SMS a no-op. [skip] is the ordinal of `SkipReason` (never reorder it).
+ * second insert of the same SMS a no-op. [skip] is `SkipReason.code`, [senderKind] is `SenderKind.code`.
  * [otpCode] exists only until the row is masked, then is nulled.
  */
 @Entity(tableName = "logs", indices = [Index(value = ["key"], unique = true), Index("receivedAt")])

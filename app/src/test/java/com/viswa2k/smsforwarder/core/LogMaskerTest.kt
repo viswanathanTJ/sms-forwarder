@@ -18,4 +18,13 @@ class LogMaskerTest {
 
     @Test fun blankOtpFallsBackToDigitRuns() =
         assertEquals("•••• x", LogMasker.mask("1234 x", ""))
+
+    @Test fun codeNotLiterallyPresentFallsBackToDigitRuns() =
+        assertEquals("OTP ••••••, ••• ••• ok", LogMasker.mask("OTP 482913, 482 913 ok", "999999").let { it })
+
+    @Test fun separatedCodeMaskedKeepingSeparator() =
+        assertEquals("code •••-••• now", LogMasker.mask("code 482-913 now", "482913"))
+
+    @Test fun extractedLineMasked() =
+        assertEquals("Code ••••••", LogMasker.mask("Code 482913", "482913"))
 }

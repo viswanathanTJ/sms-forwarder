@@ -80,15 +80,18 @@ abstract class LogDao {
     @Query("DELETE FROM logs WHERE receivedAt < :cutoff") abstract suspend fun deleteOlderThan(cutoff: Long)
     @Query("SELECT * FROM logs WHERE type = :otpType AND masked = 0 AND receivedAt < :cutoff")
     abstract suspend fun unmaskedOtpBefore(otpType: Int, cutoff: Long): List<LogEntity>
-    @Query("UPDATE logs SET body = :body, masked = 1, otpCode = NULL WHERE id = :id")
-    abstract suspend fun markMasked(id: Long, body: String)
+    @Query("UPDATE logs SET body = :body, extracted = :extracted, masked = 1, otpCode = NULL WHERE id = :id")
+    abstract suspend fun markMasked(id: Long, body: String, extracted: String)
+    @Query("SELECT * FROM outbox WHERE logId = :logId") abstract suspend fun outboxFor(logId: Long): List<OutboxEntity>
+    @Query("UPDATE outbox SET text = :text WHERE id = :id") abstract suspend fun setOutboxText(id: Long, text: String)
     @Query("DELETE FROM logs") abstract suspend fun clear()
 
     @Transaction
     open suspend fun prune(deleteBefore: Long, maskBefore: Long) {
         deleteOlderThan(deleteBefore)
         for (row in unmaskedOtpBefore(MessageType.OTP.code, maskBefore)) {
-            markMasked(row.id, LogMasker.mask(row.body, row.otpCode))
+            markMasked(row.id, LogMasker.mask(row.body, row.otpCode), LogMasker.mask(row.extracted, row.otpCode))
+            for (send in outboxFor(row.id)) setOutboxText(send.id, LogMasker.mask(send.text, row.otpCode))
         }
     }
 }
@@ -120,6 +123,6 @@ interface OutboxDao {
     )
     suspend fun failingSince(destinationId: Long): Long?
 
-    @Query("UPDATE outbox SET state = 0, attempts = 0, firstAttemptAt = :now, nextAttemptAt = :now, lastError = NULL WHERE id = :id")
+    @Query("UPDATE outbox SET state = 0, attempts = 0, firstAttemptAt = :now, nextAttemptAt = :now, lastError = NULL WHERE id = :id AND state = 2")
     suspend fun resend(id: Long, now: Long)
 }

@@ -14,7 +14,13 @@ import com.viswa2k.smsforwarder.finance.ParsedTransaction
 import com.viswa2k.smsforwarder.finance.TransactionParser
 
 /** `UNVERIFIED` = phone number while the contacts permission is missing. */
-enum class SenderKind { BUSINESS, CONTACT, UNKNOWN_NUMBER, UNVERIFIED }
+enum class SenderKind(val code: Int) {
+    BUSINESS(0), CONTACT(1), UNKNOWN_NUMBER(2), UNVERIFIED(3);
+
+    companion object {
+        fun fromCode(code: Int): SenderKind? = entries.firstOrNull { it.code == code }
+    }
+}
 
 data class Analysis(
     val type: MessageType,

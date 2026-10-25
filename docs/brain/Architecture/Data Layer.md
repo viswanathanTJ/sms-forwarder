@@ -14,5 +14,7 @@ updated: 2026-10-25
 - **SettingsStore** (`settings_v2`, separate from v1 `settings`): master switch (default on), device name, encrypted token, PIN hash, alerts destination, catch-up floor, migration/OEM flags, `alertState` JSON (org.json helpers `parseAlertState`/`encodeAlertState`).
 - **TokenCipher:** Keystore AES-256/GCM, alias `forwarder_token`, Base64(iv + ct); `decrypt` returns null on any failure.
 - **AppGraph:** `by lazy` DI created by `ForwarderApp`; `AppGraph.from(context)`. `analyzer` loads keywords from assets, falls back to null lists.
+- **Testing gaps:** DAO SQL (counts, prune, failingSince, resend) has no JVM tests (no Robolectric). Task 9 must insert a log row and its outbox rows in one transaction.
+- **Stored codes:** `SkipReason.code`, `SenderKind.code`, `MessageType.code` are pinned by tests. OTP masking also covers `extracted` and the log's outbox `text`; if the code is not literally in the text it falls back to 4-8 digit runs.
 
 See [[Architecture Overview]] · [[00 Index]]
