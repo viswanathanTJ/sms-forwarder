@@ -104,7 +104,7 @@ class HomeViewModel(private val graph: AppGraph) : ViewModel() {
         recentFlow,
     ) { (master, device), counts, info, recent ->
         HomeState(master, device, counts, info.rows, recent, info.hasDestinations, info.canForward, loaded = true)
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeState())
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(30_000), HomeState())
 
     private val _health = MutableStateFlow<List<HealthItem>>(emptyList())
     val health: StateFlow<List<HealthItem>> = _health

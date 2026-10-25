@@ -1,5 +1,6 @@
 package com.viswa2k.smsforwarder.ui.rules
 
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -10,9 +11,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -45,6 +47,7 @@ import com.viswa2k.smsforwarder.core.SenderCondition
 import com.viswa2k.smsforwarder.ui.common.Pill
 import com.viswa2k.smsforwarder.ui.common.TypeBadge
 import com.viswa2k.smsforwarder.ui.home.RuleRow
+import com.viswa2k.smsforwarder.ui.nav.Transitions
 
 @Composable
 fun RulesScreen(
@@ -57,37 +60,43 @@ fun RulesScreen(
     val rules by vm.rules.collectAsStateWithLifecycle()
 
     Box(modifier.fillMaxSize()) {
-        Column(
-            Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 14.dp)
-                .padding(bottom = 88.dp),
+        val spec = tween<androidx.compose.ui.unit.IntOffset>(Transitions.CONTENT_MS)
+        LazyColumn(
+            Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(start = 14.dp, end = 14.dp, bottom = 88.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text(
-                stringResource(R.string.title_rules),
-                fontSize = 22.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(start = 2.dp, top = 8.dp, bottom = 12.dp),
-            )
-            Text(
-                stringResource(R.string.rules_intro),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 13.sp,
-                modifier = Modifier.padding(start = 4.dp, end = 4.dp, bottom = 12.dp),
-            )
+            item(key = "title") {
+                Text(
+                    stringResource(R.string.title_rules),
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(start = 2.dp, top = 8.dp, bottom = 4.dp),
+                )
+            }
+            item(key = "intro") {
+                Text(
+                    stringResource(R.string.rules_intro),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 13.sp,
+                    modifier = Modifier.padding(start = 4.dp, end = 4.dp, bottom = 4.dp),
+                )
+            }
             val list = rules
             if (list != null) {
-                RuleCard {
-                    if (list.isEmpty()) {
-                        Text(
-                            stringResource(R.string.rules_empty),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = 13.sp,
-                        )
+                if (list.isEmpty()) {
+                    item(key = "empty") {
+                        RuleCard {
+                            Text(
+                                stringResource(R.string.rules_empty),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontSize = 13.sp,
+                            )
+                        }
                     }
-                    list.forEachIndexed { i, row ->
-                        if (i > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.padding(vertical = 10.dp))
+                }
+                itemsIndexed(list, key = { _, row -> row.rule.id }) { i, row ->
+                    RuleCard(Modifier.animateItem(fadeInSpec = tween(Transitions.CONTENT_MS), placementSpec = spec, fadeOutSpec = tween(Transitions.CONTENT_MS))) {
                         RuleListItem(
                             row = row,
                             canMoveUp = i > 0,
@@ -99,22 +108,24 @@ fun RulesScreen(
                     }
                 }
             }
-            Surface(
-                modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
-                shape = RoundedCornerShape(18.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant,
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-            ) {
-                Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text(stringResource(R.string.rules_never_title), fontWeight = FontWeight.SemiBold)
-                        Text(
-                            stringResource(R.string.rules_never_body),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = 12.5.sp,
-                        )
+            item(key = "never") {
+                Surface(
+                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                    shape = RoundedCornerShape(18.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                ) {
+                    Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text(stringResource(R.string.rules_never_title), fontWeight = FontWeight.SemiBold)
+                            Text(
+                                stringResource(R.string.rules_never_body),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontSize = 12.5.sp,
+                            )
+                        }
+                        Pill(stringResource(R.string.rules_always), MaterialTheme.colorScheme.onSurfaceVariant, MaterialTheme.colorScheme.surface)
                     }
-                    Pill(stringResource(R.string.rules_always), MaterialTheme.colorScheme.onSurfaceVariant, MaterialTheme.colorScheme.surface)
                 }
             }
         }

@@ -96,7 +96,7 @@ class SettingsViewModel(private val graph: AppGraph) : ViewModel() {
             oemConfirmed = oem,
             loaded = true,
         )
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SettingsState())
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(30_000), SettingsState())
 
     /** One-line feedback for a toast (test results, save confirmations, errors). */
     private val _messages = EventChannel<String>(EventChannel.BUFFERED)

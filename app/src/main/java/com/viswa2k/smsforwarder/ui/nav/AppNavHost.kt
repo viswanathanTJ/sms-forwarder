@@ -1,5 +1,8 @@
 package com.viswa2k.smsforwarder.ui.nav
 
+import android.provider.Settings
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.History
@@ -143,8 +146,31 @@ fun AppNavHost(navController: NavHostController = rememberNavController()) {
             }
         },
     ) { padding ->
-        NavHost(navController, startDestination = startRoute, modifier = Modifier.padding(padding)) {
-            composable(Routes.ONBOARDING) {
+        // "Remove animations" in system settings: no transitions at all.
+        val reduceMotion = remember {
+            Settings.Global.getFloat(context.contentResolver, Settings.Global.TRANSITION_ANIMATION_SCALE, 1f) == 0f
+        }
+        val enter: (String?, String?) -> EnterTransition = { from, to ->
+            if (reduceMotion) EnterTransition.None else tabEnter(from, to)
+        }
+        val exit: (String?, String?) -> ExitTransition = { from, to ->
+            if (reduceMotion) ExitTransition.None else tabExit(from, to)
+        }
+        val pushIn: () -> EnterTransition = { if (reduceMotion) EnterTransition.None else pushEnter() }
+        val pushOut: () -> ExitTransition = { if (reduceMotion) ExitTransition.None else pushPopExit() }
+        NavHost(
+            navController,
+            startDestination = startRoute,
+            modifier = Modifier.padding(padding),
+            enterTransition = { enter(initialState.destination.route, targetState.destination.route) },
+            exitTransition = { exit(initialState.destination.route, targetState.destination.route) },
+            popEnterTransition = { enter(initialState.destination.route, targetState.destination.route) },
+            popExitTransition = { exit(initialState.destination.route, targetState.destination.route) },
+        ) {
+            composable(
+                Routes.ONBOARDING,
+                exitTransition = { if (reduceMotion) ExitTransition.None else fadeAway() },
+            ) {
                 OnboardingScreen(onDone = {
                     navController.navigate(Routes.HOME) {
                         popUpTo(Routes.ONBOARDING) { inclusive = true }
@@ -152,7 +178,14 @@ fun AppNavHost(navController: NavHostController = rememberNavController()) {
                     }
                 })
             }
-            composable(Routes.HOME) {
+            composable(
+                Routes.HOME,
+                enterTransition = {
+                    if (initialState.destination.route == Routes.ONBOARDING) {
+                        if (reduceMotion) EnterTransition.None else fade()
+                    } else enter(initialState.destination.route, targetState.destination.route)
+                },
+            ) {
                 HomeScreen(
                     requireUnlock = requireUnlock,
                     onOpenSettings = { navController.navigateToTab(Routes.SETTINGS) },
@@ -171,6 +204,10 @@ fun AppNavHost(navController: NavHostController = rememberNavController()) {
             composable(
                 Routes.RULE_EDIT,
                 arguments = listOf(navArgument(Routes.RULE_ID_ARG) { type = NavType.LongType }),
+                enterTransition = { pushIn() },
+                exitTransition = { pushOut() },
+                popEnterTransition = { pushIn() },
+                popExitTransition = { pushOut() },
             ) { entry ->
                 RuleEditorScreen(
                     ruleId = entry.arguments?.getLong(Routes.RULE_ID_ARG) ?: 0L,

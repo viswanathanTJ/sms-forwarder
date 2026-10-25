@@ -1,5 +1,7 @@
 package com.viswa2k.smsforwarder.ui.log
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -40,6 +42,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.viswa2k.smsforwarder.AppGraph
 import com.viswa2k.smsforwarder.R
+import com.viswa2k.smsforwarder.ui.nav.Transitions
+import com.viswa2k.smsforwarder.ui.nav.contentEnter
+import com.viswa2k.smsforwarder.ui.nav.contentExit
 
 @Composable
 fun LogScreen(modifier: Modifier = Modifier) {
@@ -81,25 +86,29 @@ fun LogScreen(modifier: Modifier = Modifier) {
                 )
             }
         }
-        if (visible.isEmpty()) {
-            if (state.loaded) {
-                Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.TopCenter) {
-                    Text(
-                        stringResource(if (state.all.isEmpty()) R.string.log_empty else R.string.log_empty_filtered),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp,
-                    )
-                }
+        AnimatedVisibility(visible = state.loaded && visible.isEmpty(), enter = contentEnter(), exit = contentExit()) {
+            Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.TopCenter) {
+                Text(
+                    stringResource(if (state.all.isEmpty()) R.string.log_empty else R.string.log_empty_filtered),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp,
+                )
             }
-        } else {
+        }
+        AnimatedVisibility(
+            visible = visible.isNotEmpty(),
+            enter = contentEnter(),
+            exit = contentExit(),
+            modifier = Modifier.weight(1f, fill = false),
+        ) {
             Surface(
-                modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp).fillMaxWidth().weight(1f, fill = false),
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp).fillMaxWidth(),
                 shape = RoundedCornerShape(18.dp),
                 color = MaterialTheme.colorScheme.surface,
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
             ) {
                 LazyColumn(contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp)) {
                     items(visible, key = { it.id }) { row ->
-                        Column {
+                        Column(Modifier.animateItem(fadeInSpec = tween(Transitions.CONTENT_MS), placementSpec = tween(Transitions.CONTENT_MS), fadeOutSpec = tween(Transitions.CONTENT_MS))) {
                             LogRow(row, Modifier.padding(vertical = 10.dp), onClick = { openId = row.id })
                             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                         }

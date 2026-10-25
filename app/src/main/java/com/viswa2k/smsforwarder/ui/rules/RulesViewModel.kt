@@ -19,7 +19,7 @@ class RulesViewModel(private val graph: AppGraph) : ViewModel() {
         val labels = dests.associate { it.id to it.label }
         rules.sortedWith(compareBy({ it.position }, { it.id }))
             .map { r -> RuleRow(r, r.destinationIds.mapNotNull { labels[it] }) }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(30_000), null)
 
     private val writeLock = Mutex()
 

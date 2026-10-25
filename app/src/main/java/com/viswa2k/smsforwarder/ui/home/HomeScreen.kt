@@ -1,5 +1,6 @@
 package com.viswa2k.smsforwarder.ui.home
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -47,6 +48,8 @@ import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.viswa2k.smsforwarder.AppGraph
 import com.viswa2k.smsforwarder.R
+import com.viswa2k.smsforwarder.ui.nav.contentEnter
+import com.viswa2k.smsforwarder.ui.nav.contentExit
 import com.viswa2k.smsforwarder.core.SenderCondition
 import com.viswa2k.smsforwarder.ui.common.SectionTitle
 import com.viswa2k.smsforwarder.ui.common.TypeBadge
@@ -101,14 +104,16 @@ fun HomeScreen(
             onNoDestinationRule = onOpenRules,
         )
 
-        if (state.loaded && !state.hasDestinations) {
-            Spacer(Modifier.height(12.dp))
-            SetupCard(onOpenSettings)
+        AnimatedVisibility(visible = state.loaded && !state.hasDestinations, enter = contentEnter(), exit = contentExit()) {
+            Column {
+                Spacer(Modifier.height(12.dp))
+                SetupCard(onOpenSettings)
+            }
         }
 
         SectionTitle(stringResource(R.string.home_section_rules), actionLabel = stringResource(R.string.home_manage), onAction = onOpenRules)
         AppCard {
-            if (state.rules.isEmpty()) {
+            if (state.loaded && state.rules.isEmpty()) {
                 MutedText(stringResource(R.string.home_no_rules))
             }
             state.rules.forEachIndexed { index, row ->
@@ -119,7 +124,7 @@ fun HomeScreen(
 
         SectionTitle(stringResource(R.string.home_section_recent), actionLabel = stringResource(R.string.home_see_all), onAction = onOpenLog)
         AppCard {
-            if (state.recent.isEmpty()) {
+            if (state.loaded && state.recent.isEmpty()) {
                 MutedText(stringResource(R.string.home_no_recent))
             }
             state.recent.forEachIndexed { index, row ->
@@ -199,10 +204,10 @@ private fun HeroCard(
             Stat(state.counts.notSent, R.string.home_stat_not_sent, Modifier.weight(1f))
         }
         // Forwarding "on" but no enabled rule has a destination: nothing would be forwarded.
-        if (state.loaded && state.masterOn && !state.canForward) {
+        AnimatedVisibility(visible = state.loaded && state.masterOn && !state.canForward, enter = contentEnter(), exit = contentExit()) {
             HeroWarning(stringResource(R.string.home_no_destination_rule), onNoDestinationRule)
         }
-        if (issues > 0) {
+        AnimatedVisibility(visible = issues > 0, enter = contentEnter(), exit = contentExit()) {
             Row(
                 Modifier
                     .padding(top = 10.dp)

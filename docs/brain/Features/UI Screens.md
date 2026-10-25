@@ -42,6 +42,15 @@ updated: 2026-10-25
 - "Needs attention: N to fix" shows in the hero when any health item is not ok and links to Settings.
 - Theme (`ui/theme`): M3 light/dark schemes from the mock plus `ForwarderTheme.extra` (type, ok/warn tones, Telegram blue). `values-night/themes.xml` removes the white flash in dark mode. Strings live in `strings_shell.xml`, `strings_home.xml`, `strings_rules.xml`, `strings_log.xml`, `strings_settings.xml`, `strings_onboarding.xml`.
 
+## Transitions
+Declared once in `ui/nav/Transitions.kt` (all <= 250 ms; constants in `Transitions`, asserted by `TransitionsTest`). `AppNavHost` passes them to `NavHost` and per-`composable` overrides.
+- Tabs: 200 ms shared-axis X (`tabEnter`/`tabExit`, direction from `tabDirection` = tab index order Home, Rules, Log, Settings); slide 1/10 width + fade; exit fade ends at 120 ms. Bottom bar sits outside the NavHost, so it never re-animates.
+- Rule editor (pushed): 220 ms shared-axis Z (`pushEnter`/`pushPopExit`, fade + scale 0.94); the screen under it stays put (`ExitTransition.None`/`EnterTransition.None` for non-tab pairs).
+- Onboarding to Home: 250 ms fade.
+- Reduce motion: `Settings.Global.TRANSITION_ANIMATION_SCALE == 0` (read once in `AppNavHost`) gives `None` everywhere.
+- In-screen show/hide: `AnimatedVisibility(contentEnter(), contentExit())` (150 ms fade + expand/shrink) for Home setup card, hero warning, attention row, Log empty/list; `animateItem()` on Rules (now a `LazyColumn`, one card per rule) and Log rows.
+- No empty flash: empty states gated on `loaded`/null first emission; the four tab ViewModels use `WhileSubscribed(30_000)`; tab nav uses `saveState`/`restoreState` so the ViewModel survives tab switches.
+
 ## Connections
 [[00 Index]] · [[Architecture Overview]] · [[Testing]]
 

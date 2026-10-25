@@ -35,7 +35,7 @@ class LogViewModel(private val graph: AppGraph) : ViewModel() {
 
     val state: StateFlow<LogState> = combine(graph.logRows(LIMIT), filter) { rows, f ->
         LogState(loaded = true, filter = f, all = rows, visible = rows.filter { f.matches(it.state) })
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), LogState())
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(30_000), LogState())
 
     fun setFilter(f: LogFilter) { filter.value = f }
 
