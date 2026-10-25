@@ -49,6 +49,7 @@
     <!-- Test a message -->
     <string name="test_sender">Sender</string>
     <string name="test_message">Message</string>
+    <string name="test_paused_note">Forwarding is paused: this is what would happen when it is on.</string>
     <string name="test_nothing_sent">Nothing is sent. Shows what would happen.</string>
     <string name="test_check">Check</string>
     <string name="test_detected">Detected</string>

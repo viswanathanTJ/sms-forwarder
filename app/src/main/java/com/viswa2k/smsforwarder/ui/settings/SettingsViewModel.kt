@@ -262,7 +262,7 @@ class SettingsViewModel(private val graph: AppGraph) : ViewModel() {
                     val kind = ContactLookup(graph.appContext).kind(sender.trim(), SenderIds.parse(sender.trim()))
                     MessageCheck.run(
                         sender.trim(), body, kind, graph.analyzer, graph.rules.all(), graph.destinations.all(),
-                        deviceLabel(), System.currentTimeMillis(),
+                        deviceLabel(), System.currentTimeMillis(), masterOn = graph.settings.masterOn.first(),
                     )
                 }
             } catch (e: CancellationException) {

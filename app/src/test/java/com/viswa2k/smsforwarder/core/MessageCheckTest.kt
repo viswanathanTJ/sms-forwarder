@@ -18,8 +18,10 @@ class MessageCheckTest {
     private val debit = "Rs.1250.00 debited from A/c XX4521 on 25-10-26 to VPA swiggy@icici (UPI Ref 4291). Avl Bal Rs.23410.55 -HDFC Bank"
     private val zone = ZoneId.of("Asia/Kolkata")
 
-    private fun run(sender: String, body: String, kind: SenderKind = SenderKind.BUSINESS, rules: List<Rule> = listOf(money, otps)) =
-        MessageCheck.run(sender, body, kind, analyzer, rules, dests, "Pixel 8", now = 1_792_922_460_000L, zone = zone)
+    private fun run(
+        sender: String, body: String, kind: SenderKind = SenderKind.BUSINESS, rules: List<Rule> = listOf(money, otps),
+        masterOn: Boolean = true,
+    ) = MessageCheck.run(sender, body, kind, analyzer, rules, dests, "Pixel 8", now = 1_792_922_460_000L, masterOn = masterOn, zone = zone)
 
     @Test fun mockDebitSample() {
         val r = run("VM-HDFCBK", debit)
@@ -52,9 +54,14 @@ class MessageCheckTest {
         assertNull(r.smsPreview)
     }
 
-    @Test fun alwaysEvaluatedAsIfMasterOn() {
-        // The check ignores the pause switch: it shows what the rules would do.
-        assertEquals(null, run("VM-HDFCBK", debit).skip)
+    @Test fun pausedStillDecidesAsIfOn() {
+        // Real paused state: the check still shows what the rules would do, and says forwarding is paused.
+        val r = run("VM-HDFCBK", debit, masterOn = false)
+        assertNull(r.skip)
+        assertEquals(listOf("Money alerts"), r.matchedRules)
+        assertEquals(listOf("Family group", "Backup phone"), r.destinations)
+        assertTrue(r.paused)
+        assertEquals(false, run("VM-HDFCBK", debit).paused)
     }
 
     @Test fun ruleNameOrderFollowsPosition() {

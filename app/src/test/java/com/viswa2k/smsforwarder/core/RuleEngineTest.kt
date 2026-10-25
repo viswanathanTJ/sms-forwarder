@@ -137,4 +137,31 @@ class RuleEngineTest {
         assertEquals(listOf(tg2, tg1), d.sends.map { it.destination })
         assertEquals(2L, d.sends.first { it.destination == tg2 }.ruleId)
     }
+
+    // Spec 5.3: a sender equal to ANY configured SMS destination gets no SMS sends at all (Telegram still goes).
+    @Test fun loopGuardSenderIsAnotherSmsDestinationDropsAllSmsSends() {
+        val backup = Destination(5, Channel.SMS, "Backup", "+91 90000 11111")
+        val all = listOf(tg1, sms, backup)
+        // The rule only targets "Backup"; the sender is "Wife" (another SMS destination): no SMS at all.
+        val d = RuleEngine.decide(MessageType.OTP, SenderKind.CONTACT, "+919840012345", true,
+            listOf(rule(1, dest = listOf(1, 5))), all)
+        assertEquals(listOf(tg1), d.sends.map { it.destination })
+        assertEquals(listOf(1L), d.matchedRuleIds)
+        assertNull(d.skip)
+    }
+
+    @Test fun loopGuardSenderNotAnSmsDestinationKeepsBothSmsSends() {
+        val backup = Destination(5, Channel.SMS, "Backup", "+91 90000 11111")
+        val d = RuleEngine.decide(MessageType.OTP, SenderKind.CONTACT, "+919812345678", true,
+            listOf(rule(1, dest = listOf(3, 5))), listOf(sms, backup))
+        assertEquals(listOf(sms, backup), d.sends.map { it.destination })
+    }
+
+    @Test fun canForwardNeedsAnEnabledRuleWithAnExistingDestination() {
+        assertTrue(RuleEngine.canForward(listOf(rule(1, dest = listOf(1))), dests))
+        assertEquals(false, RuleEngine.canForward(listOf(rule(1, enabled = false, dest = listOf(1))), dests))
+        assertEquals(false, RuleEngine.canForward(listOf(rule(1, dest = emptyList())), dests))
+        assertEquals(false, RuleEngine.canForward(listOf(rule(1, dest = listOf(99))), dests))
+        assertEquals(false, RuleEngine.canForward(emptyList(), dests))
+    }
 }

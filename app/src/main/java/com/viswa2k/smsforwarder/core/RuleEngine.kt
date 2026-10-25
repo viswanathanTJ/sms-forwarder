@@ -54,10 +54,20 @@ object RuleEngine {
                 if (id !in chosen) chosen[id] = PlannedSend(dest, rule.id, rule.style, rule.customTemplate)
             }
         }
-        val sends = chosen.values.filterNot {
-            it.destination.channel == Channel.SMS && PhoneNumbers.same(senderAddress, it.destination.address)
+        // Loop guard: a sender that is ANY configured SMS destination gets no SMS sends at all (Telegram still goes).
+        val senderIsSmsDestination = destinations.any {
+            it.channel == Channel.SMS && PhoneNumbers.same(senderAddress, it.address)
         }
+        val sends = if (senderIsSmsDestination) {
+            chosen.values.filterNot { it.destination.channel == Channel.SMS }
+        } else chosen.values.toList()
         return Decision(matched.map { it.id }, sends, null)
+    }
+
+    /** True when at least one enabled rule has a destination that exists (otherwise nothing can forward). */
+    fun canForward(rules: List<Rule>, destinations: List<Destination>): Boolean {
+        val ids = destinations.map { it.id }.toSet()
+        return rules.any { r -> r.enabled && r.destinationIds.any { it in ids } }
     }
 
     private fun senderMatches(cond: SenderCondition, kind: SenderKind): Boolean = when (cond) {

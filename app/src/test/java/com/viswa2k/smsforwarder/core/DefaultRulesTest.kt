@@ -32,4 +32,24 @@ class DefaultRulesTest {
         val any = DefaultRules.create(listOf(1L), SenderCondition.ANYONE)
         assertEquals(SenderCondition.NOT_IN_CONTACTS, any[3].sender)
     }
+
+    @Test fun firstDestinationAttachesToDefaultRulesWithoutDestinationsAndEnablesTheFirstThree() {
+        val created = DefaultRules.create(emptyList(), SenderCondition.ANYONE).mapIndexed { i, r -> r.copy(id = i + 1L) }
+        val custom = Rule(9, "Mine", false, false, setOf(MessageType.OTP), SenderCondition.ANYONE, emptyList(), Style.SMART, null, 4)
+        val changed = DefaultRules.attachFirstDestination(created + custom, 7L)
+        assertEquals(listOf(1L, 2L, 3L, 4L), changed.map { it.id })
+        assertTrue(changed.all { it.destinationIds == listOf(7L) })
+        assertEquals(listOf(true, true, true, false), changed.map { it.enabled })
+    }
+
+    @Test fun firstDestinationLeavesRulesThatAlreadyHaveDestinationsAlone() {
+        val created = DefaultRules.create(listOf(3L), SenderCondition.ANYONE).mapIndexed { i, r -> r.copy(id = i + 1L, enabled = false) }
+        assertTrue(DefaultRules.attachFirstDestination(created, 7L).isEmpty())
+    }
+
+    @Test fun renamedOrUserRulesAreNotTouched() {
+        val renamed = DefaultRules.create(emptyList(), SenderCondition.ANYONE)[0].copy(id = 1, name = "My OTPs")
+        assertTrue(DefaultRules.attachFirstDestination(listOf(renamed), 7L).isEmpty())
+    }
 }
+

@@ -18,4 +18,19 @@ object DefaultRules {
             rule(3, "Unknown senders", emptySet(), true, SenderCondition.NOT_IN_CONTACTS, false),
         )
     }
+
+    /** Names of the rules [create] makes that are enabled when they have a destination. */
+    private val autoEnabled = setOf("OTPs", "Bank transactions", "Missed calls")
+    private val defaultNames = autoEnabled + "Unknown senders"
+
+    /**
+     * Adding the very first destination: every default-created rule (recognised by its default name)
+     * that still has no destination gets [destinationId], and OTPs / Bank transactions / Missed calls are
+     * switched on, exactly as [create] would have made them. Returns only the changed rules.
+     */
+    fun attachFirstDestination(rules: List<Rule>, destinationId: Long): List<Rule> =
+        rules.filter { it.name in defaultNames && it.destinationIds.isEmpty() }.map {
+            it.copy(destinationIds = listOf(destinationId), enabled = it.enabled || it.name in autoEnabled)
+        }
 }
+

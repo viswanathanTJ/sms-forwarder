@@ -71,6 +71,7 @@ fun TestMessageSection(vm: SettingsViewModel) {
 @Composable
 private fun CheckResultView(r: CheckResult) {
     Column(Modifier.padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        if (r.paused) Muted(stringResource(R.string.test_paused_note))
         Kv(stringResource(R.string.test_detected)) { TypeChip(r.type) }
         if (r.extracted.isNotBlank()) Kv(stringResource(R.string.test_extracted)) { Text(r.extracted, fontSize = 13.5.sp) }
         Kv(stringResource(R.string.test_sender_kind)) { Text(senderKindLabel(r.senderKind), fontSize = 13.5.sp) }

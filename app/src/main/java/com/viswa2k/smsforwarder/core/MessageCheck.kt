@@ -14,9 +14,14 @@ data class CheckResult(
     val skip: SkipReason?,
     val telegramPreview: String?,
     val smsPreview: String?,
+    /** Forwarding is paused right now; the result still shows what would happen when it is on. */
+    val paused: Boolean = false,
 )
 
-/** The pipeline's decision steps, in memory (spec 5.9 "Test a message"); forwarding is assumed on. */
+/**
+ * The pipeline's decision steps, in memory (spec 5.9 "Test a message"). The rules are evaluated as if
+ * forwarding were on even when [run]'s `masterOn` is false; the result then carries `paused = true`.
+ */
 object MessageCheck {
     fun run(
         sender: String,
@@ -27,6 +32,7 @@ object MessageCheck {
         destinations: List<Destination>,
         deviceName: String,
         now: Long,
+        masterOn: Boolean,
         zone: ZoneId = ZoneId.systemDefault(),
     ): CheckResult {
         val analysis = analyzer.analyze(sender, body, senderKind)
@@ -45,6 +51,7 @@ object MessageCheck {
             skip = decision.skip,
             telegramPreview = preview(Channel.TELEGRAM),
             smsPreview = preview(Channel.SMS),
+            paused = !masterOn,
         )
     }
 
