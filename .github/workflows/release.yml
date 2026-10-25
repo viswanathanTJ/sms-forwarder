@@ -54,6 +54,8 @@ jobs:
           RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
         run: |
           chmod +x ./gradlew
+          # gradle.properties pins the local Android Studio JBR; use the runner's JDK instead
+          sed -i '/^org.gradle.java.home=/d' gradle.properties
           ./gradlew :app:assembleRelease --no-daemon \
             -PVERSION_NAME="${{ steps.ver.outputs.name }}" \
             -PVERSION_CODE="${{ steps.ver.outputs.code }}"
