@@ -1,7 +1,7 @@
 package com.viswa2k.smsforwarder.update
 
 import com.viswa2k.smsforwarder.BuildConfig
-import com.viswa2k.smsforwarder.UserPreferences
+import com.viswa2k.smsforwarder.data.prefs.SettingsStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -16,9 +16,9 @@ import kotlinx.coroutines.flow.map
 object UpdateManager {
 
     /** Check GitHub and persist: store the newer release, or clear it when up to date. */
-    suspend fun refresh(prefs: UserPreferences) {
+    suspend fun refresh(prefs: SettingsStore) {
         val info = UpdateChecker.checkForUpdate(BuildConfig.VERSION_NAME)
-        prefs.saveStoredUpdate(if (info != null) UpdateChecker.serialize(info) else "")
+        prefs.setStoredUpdate(if (info != null) UpdateChecker.serialize(info) else "")
     }
 
     /**
@@ -26,7 +26,7 @@ object UpdateManager {
      * version so the prompt disappears automatically after the app updates
      * (installed == latest → no longer "newer" → null).
      */
-    fun available(prefs: UserPreferences): Flow<UpdateInfo?> = prefs.storedUpdate.map { stored ->
+    fun available(prefs: SettingsStore): Flow<UpdateInfo?> = prefs.storedUpdate.map { stored ->
         UpdateChecker.deserialize(stored)
             ?.takeIf { UpdateChecker.isNewer(it.version, BuildConfig.VERSION_NAME) }
     }

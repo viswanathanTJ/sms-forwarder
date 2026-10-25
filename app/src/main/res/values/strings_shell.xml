@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="nav_home">Home</string>
+    <string name="nav_rules">Rules</string>
+    <string name="nav_log">Log</string>
+    <string name="nav_settings">Settings</string>
+
+    <string name="title_rules">Rules</string>
+    <string name="title_log">Log</string>
+    <string name="title_settings">Settings</string>
+    <string name="title_rule_edit">Edit rule</string>
+
+    <string name="status_forwarded">Forwarded</string>
+    <string name="status_skipped">Skipped</string>
+    <string name="status_retrying">Retrying</string>
+    <string name="status_failed">Failed</string>
+</resources>

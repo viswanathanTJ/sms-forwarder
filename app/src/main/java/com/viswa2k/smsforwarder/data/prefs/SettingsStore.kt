@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import org.json.JSONObject
 
-// Distinct from v1's "settings" store (MainActivity.dataStore); never reuse that name.
+// Distinct from v1's "settings" store (V1MigrationRunner.dataStore); never reuse that name.
 private val Context.settingsV2: DataStore<Preferences> by preferencesDataStore(name = "settings_v2")
 
 class SettingsStore(context: Context) {
@@ -28,6 +28,7 @@ class SettingsStore(context: Context) {
     private val oemKey = booleanPreferencesKey("setup_confirmed_oem")
     private val pendingRebootKey = longPreferencesKey("pending_reboot_at")
     private val alertStateKey = stringPreferencesKey("alert_state")
+    private val storedUpdateKey = stringPreferencesKey("stored_update")
 
     val masterOn: Flow<Boolean> = store.data.map { it[masterOnKey] ?: true }
     val deviceName: Flow<String> = store.data.map { it[deviceNameKey] ?: "" }
@@ -42,6 +43,9 @@ class SettingsStore(context: Context) {
     /** JSON object: problemKey -> lastSentAt (epoch ms). */
     val alertState: Flow<String> = store.data.map { it[alertStateKey] ?: "{}" }
 
+    /** Last-known newer release (JSON from update/UpdateChecker) or "". */
+    val storedUpdate: Flow<String> = store.data.map { it[storedUpdateKey] ?: "" }
+
     suspend fun setMasterOn(on: Boolean) { store.edit { it[masterOnKey] = on } }
     suspend fun setDeviceName(name: String) { store.edit { it[deviceNameKey] = name } }
     suspend fun setEncryptedToken(token: String?) { store.edit { if (token == null) it.remove(tokenKey) else it[tokenKey] = token } }
@@ -52,6 +56,7 @@ class SettingsStore(context: Context) {
     suspend fun setSetupConfirmedOem(done: Boolean) { store.edit { it[oemKey] = done } }
     suspend fun setPendingReboot(at: Long?) { store.edit { if (at == null) it.remove(pendingRebootKey) else it[pendingRebootKey] = at } }
     suspend fun setAlertState(json: String) { store.edit { it[alertStateKey] = json } }
+    suspend fun setStoredUpdate(json: String) { store.edit { it[storedUpdateKey] = json } }
 
     companion object {
         fun parseAlertState(json: String): Map<String, Long> = try {

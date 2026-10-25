@@ -13,11 +13,11 @@ Nothing to do: on first v2 launch the v1 token, chats, SMS number, device name, 
 No screen. `ForwarderApp.onCreate` launches `V1MigrationRunner.runOnce(graph)` on `appScope`.
 
 ## Data
-Reads v1 DataStore `settings` (via `Context.dataStore` in MainActivity.kt) keys `TELEGRAM_API_KEY`, `TELEGRAM_USER_IDS`, `SMS_TO_NUMBER`, `DEVICE_ALIAS`, `SMS_FORWARD_SERVICE`, `IS_BY_TELEGRAM_ENABLED`, `IS_BY_SMS_ENABLED`, `IS_SKIP_CONTACTS`. Writes Room destinations/rules and `settings_v2` (encrypted token, device name, masterOn, catchUpFloor=now, migrationDone).
+Reads v1 DataStore `settings` (via the private `Context.dataStore` delegate in V1MigrationRunner.kt, the only one for "settings") keys `TELEGRAM_API_KEY`, `TELEGRAM_USER_IDS`, `SMS_TO_NUMBER`, `DEVICE_ALIAS`, `SMS_FORWARD_SERVICE`, `IS_BY_TELEGRAM_ENABLED`, `IS_BY_SMS_ENABLED`, `IS_SKIP_CONTACTS`. Writes Room destinations/rules and `settings_v2` (encrypted token, device name, masterOn, catchUpFloor=now, migrationDone).
 
 ## How it works
 - Pure mapping in `core/V1Migration.plan(V1Settings?)`: chats "Chat 1..n" (TELEGRAM), SMS destination "SMS"; only destinations of channels whose v1 flag was on are assigned to the default rules; `skipContacts` gives NOT_IN_CONTACTS; blank alias gives `""`; `null` (no v1 keys) gives no destinations and master off.
-- Runner: skip if `migrationDone`; DB step only if no rules exist (safe retry after partial run); then settings, delete `filesDir/cloud_upload_queue`, clear v1 keys, set flag last.
+- Runner: skip if `migrationDone`; DB step only if no rules exist (safe retry after partial run); then settings, delete `filesDir/cloud_upload_queue`, set `migrationDone` BEFORE the destructive cleanup (a crash after clearing v1 keys must not look like a fresh install), then delete `filesDir/cloud_upload_queue` and clear all v1 keys.
 - `AppGraph.migrationGate` opens when the runner ends (success or failure); `V1MigrationRunner.awaitDone` is awaited by IncomingProcessor.process, ForwarderService startup pass and WatchdogWorker.
 - A failed migration still opens the gate: nothing is forwarded (no rules gives NO_RULE) until the next launch retries.
 - Flag is set before the v1 key clear (best-effort cleanup); with rules present and no v1 keys only the flag is set, never fresh-install settings (`V1Migration.steps`).

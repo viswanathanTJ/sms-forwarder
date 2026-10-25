@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="home_title">Forwarder</string>
+    <string name="home_open_settings">Settings</string>
+    <string name="home_hero_on">Forwarding is on</string>
+    <string name="home_hero_paused">Forwarding is paused</string>
+    <string name="home_hero_sub_on">%1$s · service healthy</string>
+    <string name="home_hero_sub_on_attention">%1$s · needs attention</string>
+    <string name="home_hero_sub_paused">Incoming SMS are not checked or sent</string>
+    <string name="home_device_default">This phone</string>
+    <string name="home_needs_attention">Needs attention: %1$d to fix</string>
+    <string name="home_stat_forwarded">Forwarded</string>
+    <string name="home_stat_skipped">Skipped</string>
+    <string name="home_stat_retrying">Retrying</string>
+    <string name="home_section_rules">Rules</string>
+    <string name="home_section_recent">Recent</string>
+    <string name="home_manage">Manage</string>
+    <string name="home_see_all">See all</string>
+    <string name="home_no_rules">No rules yet. Add one in Rules.</string>
+    <string name="home_no_recent">No messages yet.</string>
+    <string name="home_setup_title">Set up Telegram or SMS</string>
+    <string name="home_setup_body">Add a destination so your rules have somewhere to send messages.</string>
+    <string name="home_setup_action">Set up</string>
+
+    <string name="sender_anyone">Anyone</string>
+    <string name="sender_not_in_contacts">Not in contacts</string>
+    <string name="sender_contacts_only">Contacts only</string>
+    <string name="rule_all_messages">All messages</string>
+    <string name="rule_no_destination">no destination</string>
+    <string name="rule_summary">%1$s · %2$s → %3$s</string>
+    <string name="rule_switch">%1$s on or off</string>
+
+    <string name="skip_paused">Skipped: forwarding was paused</string>
+    <string name="skip_spam">Skipped: spam / promotion</string>
+    <string name="skip_no_rule">Skipped: no rule matches</string>
+    <string name="skip_contacts_permission">Skipped: contacts permission is missing</string>
+    <string name="recent_sent_to">→ %1$s</string>
+    <string name="recent_matched_nothing_sent">Matched, nothing sent</string>
+</resources>

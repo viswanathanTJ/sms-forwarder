@@ -103,6 +103,12 @@ class ForwarderService : Service() {
         const val CHANNEL_ID = "forwarder_status"
         private const val NOTIFICATION_ID = 1
 
+        /** Stops the service (master switch off). The watchdog and boot receiver check `masterOn` themselves. */
+        fun stop(context: Context) {
+            val app = context.applicationContext
+            app.stopService(Intent(app, ForwarderService::class.java))
+        }
+
         /** Idempotent. Never throws: a refused start falls back to the 15-min watchdog. */
         fun start(context: Context) {
             val app = context.applicationContext

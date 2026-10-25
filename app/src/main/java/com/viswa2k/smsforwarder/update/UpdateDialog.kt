@@ -17,8 +17,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import com.viswa2k.smsforwarder.UserPreferences
-import com.viswa2k.smsforwarder.dataStore
+import com.viswa2k.smsforwarder.AppGraph
 
 /**
  * Refreshes the update check on launch and, if a newer version is available
@@ -28,7 +27,7 @@ import com.viswa2k.smsforwarder.dataStore
 @Composable
 fun UpdateDialogHost() {
     val context = LocalContext.current
-    val prefs = remember { UserPreferences(context.dataStore) }
+    val prefs = remember { AppGraph.from(context).settings }
     val update by UpdateManager.available(prefs).collectAsState(initial = null)
     var dismissed by rememberSaveable { mutableStateOf(false) }
 

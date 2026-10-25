@@ -20,6 +20,6 @@ updated: 2026-10-25
 ## Current state (after Task 1)
 - Kotlin 2.2.0, AGP 8.13.2, Gradle 8.13, KSP 2.3.4, compile/target SDK 36, min SDK 29. Versions are inline in `app/build.gradle.kts` (no version catalog).
 - Firebase and all cloud sync code are removed. Network is only `api.telegram.org` and the GitHub releases API.
-- The v1 files `MainActivity`, `SMSReceiver`, `SMSForwarderService`, `ServiceRestartReceiver`, `UserPreferences` remain until later tasks replace them. `MainActivity` shows `ui/PlaceholderScreen` and keeps the single `Context.dataStore` ("settings") that [[Migration from v1]] will read.
+- `MainActivity` is edge-to-edge and hosts `ui/nav/AppNavHost` plus `UpdateDialogHost`. `UserPreferences` is gone (Task 12): stored-update state lives in `SettingsStore`; the v1 `Context.dataStore` ("settings") is private to `V1MigrationRunner`, its only reader. See [[UI Screens]].
 
 Back to [[00 Index]].

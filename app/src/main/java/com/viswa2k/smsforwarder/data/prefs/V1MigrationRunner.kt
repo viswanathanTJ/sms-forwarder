@@ -1,6 +1,10 @@
 package com.viswa2k.smsforwarder.data.prefs
 
+import android.content.Context
 import android.util.Log
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.preferencesDataStore
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -9,10 +13,12 @@ import com.viswa2k.smsforwarder.AppGraph
 import com.viswa2k.smsforwarder.core.DefaultRules
 import com.viswa2k.smsforwarder.core.V1Migration
 import com.viswa2k.smsforwarder.core.V1Settings
-import com.viswa2k.smsforwarder.dataStore
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.first
 import java.io.File
+
+// The v1 "settings" store; its only reader is this migration. Exactly one delegate for this name may exist.
+private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
 
 /**
  * One-time import of the v1 settings (spec 5.10). Idempotent via `migrationDone`; never throws: on
@@ -30,9 +36,6 @@ object V1MigrationRunner {
     private val smsTo = stringPreferencesKey("SMS_TO_NUMBER")
     private val token = stringPreferencesKey("TELEGRAM_API_KEY")
     private val userIds = stringPreferencesKey("TELEGRAM_USER_IDS")
-
-    /** Only key `update/` still needs in the v1 store (UserPreferences.storedUpdate). */
-    private const val KEEP_KEY = "STORED_UPDATE"
 
     /** Suspends until the first-run migration has finished (or failed and will retry next launch). */
     suspend fun awaitDone(graph: AppGraph) = graph.migrationGate.await()
@@ -86,7 +89,7 @@ object V1MigrationRunner {
             try {
                 File(graph.appContext.filesDir, "cloud_upload_queue").deleteRecursively()
                 graph.appContext.dataStore.edit { p ->
-                    p.asMap().keys.filter { it.name != KEEP_KEY }.forEach { p.remove(it) }
+                    p.clear()
                 }
             } catch (e: CancellationException) {
                 throw e

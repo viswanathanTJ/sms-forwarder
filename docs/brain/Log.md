@@ -25,3 +25,4 @@ updated: 2026-10-25
 - 2026-10-25 Task 9: incoming pipeline (SmsReceiver, IncomingProcessor, InboxCatchUp, debug inject hook); see [[Incoming Pipeline]].
 - 2026-10-25 Task 10: ForwarderService (specialUse), BootReceiver, WatchdogWorker, HealthChecker, ProblemAlerts (see [[Reliability]], [[Problem Alerts]]).
 - 2026-10-25 Task 11: v1 migration (V1Migration, V1MigrationRunner, migration gate); see [[Migration from v1]].
+- 2026-10-25 Task 12: UI shell, theme, navigation and Home; UserPreferences removed, stored update moved to SettingsStore (see [[UI Screens]]).

@@ -4,22 +4,30 @@ updated: 2026-10-25
 ---
 # UI Screens
 
-> Four-tab UI: Home, Rules, Log, Settings, plus onboarding (Tasks 12-15).
+> Four-tab UI: Home, Rules, Log, Settings, plus onboarding (Tasks 12-15). Task 12 delivers the shell, theme, navigation and Home; Rules, rule editor, Log and Settings are title-only stubs (`ui/nav/StubScreens.kt`) until Tasks 13-15.
 
 ## What the user can do
-_To be filled by Task 12_
+- Home: switch forwarding on/off (hero switch), see today's Forwarded / Skipped / Retrying, toggle each rule, open a rule, see the 3 latest messages, jump to Settings when something needs attention.
+- With no destinations, a "Set up Telegram or SMS" card points to Settings.
 
 ## Screens & entry points
-_To be filled by Task 12_
+- `MainActivity` (edge-to-edge) -> `AppNavHost`: bottom bar Home, Rules, Log, Settings. Routes in `ui/nav/Routes.kt`: `home`, `rules`, `rules/{id}` (0 = new), `log`, `settings`, `onboarding` (not registered yet).
+- Home (`ui/home/HomeScreen`): gradient hero (#2F5BEA to #5B3FE0), stats row, Rules card (type badge, "types · sender -> destinations", switch; tap opens `rules/{id}`), Recent card (sender, time, body line, type chip, status chip, note).
+- Shared: `ui/common/TypeBadge`, `TypeChip`, `StatusChip(DeliveryState)`, `SectionTitle`.
 
 ## Data
-_To be filled by Task 12_
+- `HomeViewModel` (factory over `AppGraph`) combines `SettingsStore.masterOn/deviceName`, `LogRepository.todayCounts/recent(3)`, `RuleRepository.rules`, `DestinationRepository.destinations`. Health comes from `HealthChecker.items()` (suspend), refreshed in `viewModelScope` on every resume.
+- Status of a log row: skip set or no sends -> Skipped; any pending send -> Retrying; any failed -> Failed; else Forwarded.
 
 ## How it works
-_To be filled by Task 12_
+- Master switch ON: `catchUpFloor = now`, `masterOn = true`, `ForwarderService.start`. OFF: `masterOn = false`, `ForwarderService.stop`. Both go through `requireUnlock { }` (defined in `AppNavHost`, currently just runs the action) so Task 15 can add PIN gating in one place; rule switches use the same hook.
+- "Needs attention: N to fix" shows in the hero when any health item is not ok and links to Settings.
+- Theme (`ui/theme`): M3 light/dark schemes from the mock plus `ForwarderTheme.extra` (type, ok/warn tones, Telegram blue). `values-night/themes.xml` removes the white flash in dark mode. Strings live in `strings_shell.xml` and `strings_home.xml`.
 
 ## Connections
 [[00 Index]] · [[Architecture Overview]] · [[Testing]]
 
 ## Gotchas
-_To be filled by Task 12_
+- A fresh install (no v1 data) starts with forwarding paused (migration plan gives masterOn false).
+- Permission and battery prompts were removed from `MainActivity`; they return in onboarding (Task 15). Until then grant permissions via Settings/adb.
+- The "Auto-start allowed" health item stays red until the user confirms it, so Home shows "needs attention" until Task 15 adds that confirmation.
