@@ -26,6 +26,7 @@ class SettingsStore(context: Context) {
     private val floorKey = longPreferencesKey("catch_up_floor")
     private val migrationKey = booleanPreferencesKey("migration_done")
     private val oemKey = booleanPreferencesKey("setup_confirmed_oem")
+    private val pendingRebootKey = longPreferencesKey("pending_reboot_at")
     private val alertStateKey = stringPreferencesKey("alert_state")
 
     val masterOn: Flow<Boolean> = store.data.map { it[masterOnKey] ?: true }
@@ -36,6 +37,8 @@ class SettingsStore(context: Context) {
     val catchUpFloor: Flow<Long> = store.data.map { it[floorKey] ?: 0L }
     val migrationDone: Flow<Boolean> = store.data.map { it[migrationKey] ?: false }
     val setupConfirmedOem: Flow<Boolean> = store.data.map { it[oemKey] ?: false }
+    /** Boot time (epoch ms) whose "phone restarted" alert has not been delivered yet; null when none. */
+    val pendingReboot: Flow<Long?> = store.data.map { it[pendingRebootKey] }
     /** JSON object: problemKey -> lastSentAt (epoch ms). */
     val alertState: Flow<String> = store.data.map { it[alertStateKey] ?: "{}" }
 
@@ -47,6 +50,7 @@ class SettingsStore(context: Context) {
     suspend fun setCatchUpFloor(epochMs: Long) { store.edit { it[floorKey] = epochMs } }
     suspend fun setMigrationDone(done: Boolean) { store.edit { it[migrationKey] = done } }
     suspend fun setSetupConfirmedOem(done: Boolean) { store.edit { it[oemKey] = done } }
+    suspend fun setPendingReboot(at: Long?) { store.edit { if (at == null) it.remove(pendingRebootKey) else it[pendingRebootKey] = at } }
     suspend fun setAlertState(json: String) { store.edit { it[alertStateKey] = json } }
 
     companion object {

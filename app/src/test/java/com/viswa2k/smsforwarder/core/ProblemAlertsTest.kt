@@ -38,3 +38,30 @@ class ProblemAlertsTest {
         assertEquals(mapOf("battery" to 5L), plan.newState)
     }
 }
+
+class ProblemAlertsApplyTest {
+    @Test fun raiseSentRecordsNow() =
+        assertEquals(mapOf("a" to 9L), ProblemAlerts.afterRaise(emptyMap(), "a", 9, sent = true))
+
+    @Test fun raiseFailedNewKeyStaysAbsent() =
+        assertEquals(emptyMap<String, Long>(), ProblemAlerts.afterRaise(emptyMap(), "a", 9, sent = false))
+
+    @Test fun raiseFailedExistingKeepsOldTimestamp() =
+        assertEquals(mapOf("a" to 1L), ProblemAlerts.afterRaise(mapOf("a" to 1L), "a", 99, sent = false))
+
+    @Test fun resolveSentRemoves() =
+        assertEquals(emptyMap<String, Long>(), ProblemAlerts.afterResolve(mapOf("a" to 1L), "a", sent = true))
+
+    @Test fun resolveFailedKeepsKeyForRetry() =
+        assertEquals(mapOf("a" to 1L), ProblemAlerts.afterResolve(mapOf("a" to 1L), "a", sent = false))
+
+    @Test fun mixedRaiseAndResolveWithOneFailure() {
+        val state = mapOf("old" to 0L, "stuck" to 5L)
+        val plan = ProblemAlerts.plan(state, setOf("stuck", "fresh"), now = 100)
+        assertEquals(listOf("fresh"), plan.raise)
+        assertEquals(listOf("old"), plan.resolve)
+        var s = ProblemAlerts.afterRaise(state, "fresh", 100, sent = false)
+        s = ProblemAlerts.afterResolve(s, "old", sent = true)
+        assertEquals(mapOf("stuck" to 5L), s)
+    }
+}

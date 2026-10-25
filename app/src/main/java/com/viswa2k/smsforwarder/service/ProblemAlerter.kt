@@ -9,6 +9,9 @@ import com.viswa2k.smsforwarder.core.ProblemAlerts
 import com.viswa2k.smsforwarder.data.prefs.SettingsStore
 import com.viswa2k.smsforwarder.core.SendResult
 import kotlinx.coroutines.flow.first
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 /**
  * Sends problem alerts straight through Telegram (not via rules/outbox, so a broken queue cannot
@@ -20,26 +23,32 @@ class ProblemAlerter(private val graph: AppGraph) {
 
     suspend fun check(now: Long = System.currentTimeMillis()) {
         val target = target() ?: return
-        val failing = failingDestinations(now)
+        val device = device()
+        reportReboot(target, device)
         val texts = LinkedHashMap<String, String>()
         for (p in health.problems()) texts[p.key] = p.text
-        failing.forEach { (d, error) ->
+        if (!graph.settings.masterOn.first()) texts[Problem.PAUSED.key] = Problem.PAUSED.text
+        failingDestinations(now).forEach { (d, error) ->
             texts["dest:${d.id}"] = "Sending to ${d.label} has failed for over an hour: ${error ?: "unknown error"}"
         }
-        val state = SettingsStore.parseAlertState(graph.settings.alertState.first())
+        var state = SettingsStore.parseAlertState(graph.settings.alertState.first())
         val plan = ProblemAlerts.plan(state, texts.keys, now)
-        val device = device()
-        val newState = plan.newState.toMutableMap()
         for (key in plan.raise) {
-            if (!send(target, "⚠", device, texts.getValue(key))) newState.remove(key)
+            state = ProblemAlerts.afterRaise(state, key, now, send(target, "⚠", device, texts.getValue(key)))
+            graph.settings.setAlertState(SettingsStore.encodeAlertState(state))
         }
         for (key in plan.resolve) {
-            // Text of a resolved problem is no longer computed; use the static text or a generic one.
-            val text = Problem.entries.firstOrNull { it.key == key }?.text
-                ?: failingLabel(key)
-            if (!send(target, "✅", device, "resolved — $text")) newState[key] = state.getValue(key)
+            val text = Problem.entries.firstOrNull { it.key == key }?.text ?: failingLabel(key)
+            state = ProblemAlerts.afterResolve(state, key, send(target, "✅", device, "resolved — $text"))
+            graph.settings.setAlertState(SettingsStore.encodeAlertState(state))
         }
-        graph.settings.setAlertState(SettingsStore.encodeAlertState(newState))
+    }
+
+    /** Delivers the pending "phone restarted" note; cleared only once Telegram accepted it. */
+    private suspend fun reportReboot(target: Destination, device: String) {
+        val at = graph.settings.pendingReboot.first() ?: return
+        val time = SimpleDateFormat("d MMM HH:mm", Locale.getDefault()).format(Date(at))
+        if (send(target, "ℹ", device, "Phone restarted at $time")) graph.settings.setPendingReboot(null)
     }
 
     /** One-off informational message (e.g. REBOOTED). Skipped silently without a Telegram destination. */

@@ -13,7 +13,6 @@ import androidx.core.content.ContextCompat
 import com.viswa2k.smsforwarder.AppGraph
 import com.viswa2k.smsforwarder.core.Problem
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.runBlocking
 
 data class HealthItem(val id: String, val title: String, val ok: Boolean, val fix: Intent?)
 
@@ -50,8 +49,8 @@ class HealthChecker(context: Context) {
     private fun appSettings(action: String = Settings.ACTION_APPLICATION_DETAILS_SETTINGS) =
         Intent(action, Uri.parse("package:${context.packageName}")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 
-    fun items(): List<HealthItem> {
-        val oemConfirmed = runBlocking { AppGraph.from(context).settings.setupConfirmedOem.first() }
+    suspend fun items(): List<HealthItem> {
+        val oemConfirmed = AppGraph.from(context).settings.setupConfirmedOem.first()
         return listOf(
             HealthItem("sms", "SMS permission (receive, read, send)", smsOk(), appSettings()),
             HealthItem("contacts", "Contacts permission", contactsOk(), appSettings()),

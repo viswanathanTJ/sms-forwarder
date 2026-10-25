@@ -18,6 +18,7 @@ import com.viswa2k.smsforwarder.AppGraph
 import com.viswa2k.smsforwarder.MainActivity
 import com.viswa2k.smsforwarder.R
 import com.viswa2k.smsforwarder.pipeline.InboxCatchUp
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /**
@@ -40,9 +41,15 @@ class ForwarderService : Service() {
         val graph = AppGraph.from(this)
         graph.appScope.launch {
             try {
+                if (!graph.settings.masterOn.first()) {
+                    // Switched off: no forwarding, no restart. (Already promoted, as startForegroundService requires.)
+                    stopSelf()
+                    return@launch
+                }
                 val now = System.currentTimeMillis()
                 InboxCatchUp(graph).run(now)
                 graph.dispatcher.sendDue(now)
+                ProblemAlerter(graph).check(now)
             } catch (e: Exception) {
                 Log.e(TAG, "startup pass failed: ${e.javaClass.simpleName}")
             }
@@ -77,7 +84,15 @@ class ForwarderService : Service() {
     }
 
     override fun onTaskRemoved(rootIntent: Intent?) {
-        start(applicationContext)
+        val app = applicationContext
+        val graph = AppGraph.from(app)
+        graph.appScope.launch {
+            try {
+                if (graph.settings.masterOn.first()) start(app)
+            } catch (e: Exception) {
+                Log.w(TAG, "restart check failed: ${e.javaClass.simpleName}")
+            }
+        }
         super.onTaskRemoved(rootIntent)
     }
 

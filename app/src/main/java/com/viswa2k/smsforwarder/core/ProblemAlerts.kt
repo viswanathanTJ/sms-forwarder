@@ -7,6 +7,7 @@ enum class Problem(val key: String, val text: String) {
     NOTIFICATIONS("notif", "Notifications are off"),
     BATTERY_OPTIMIZED("battery", "Battery optimisation is back on"),
     CLASSIFIER("classifier", "Message filter failed to load"),
+    PAUSED("paused", "Forwarding is switched off"),
 }
 
 /** Decides which problem alerts to send: once when new, again after 24 h, and a "resolved" when gone. */
@@ -22,4 +23,12 @@ object ProblemAlerts {
         val newState = current.associateWith { key -> if (key in raise) now else state.getValue(key) }
         return Plan(raise, resolve, newState)
     }
+
+    /** State after trying to send a "raise" alert: recorded only when sent; a failure keeps any older timestamp. */
+    fun afterRaise(state: Map<String, Long>, key: String, now: Long, sent: Boolean): Map<String, Long> =
+        if (sent) state + (key to now) else state
+
+    /** State after trying to send a "resolved" alert: removed only when sent, so a failure retries next run. */
+    fun afterResolve(state: Map<String, Long>, key: String, sent: Boolean): Map<String, Long> =
+        if (sent) state - key else state
 }
