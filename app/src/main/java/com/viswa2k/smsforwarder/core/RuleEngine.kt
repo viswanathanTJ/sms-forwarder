@@ -7,6 +7,8 @@ data class PlannedSend(val destination: Destination, val ruleId: Long, val style
 /**
  * Outcome of rule evaluation. [skip] is null when at least one rule matched, even if
  * the loop guard then left [sends] empty (the Log shows "matched, nothing sent").
+ * [SkipReason.CONTACTS_PERMISSION_MISSING] only when an UNVERIFIED sender's enabled, type-matching rule
+ * with an existing destination was excluded solely by its sender condition; otherwise [SkipReason.NO_RULE].
  */
 data class Decision(val matchedRuleIds: List<Long>, val sends: List<PlannedSend>, val skip: SkipReason?)
 
@@ -24,14 +26,17 @@ object RuleEngine {
         if (type == MessageType.SPAM) return Decision(emptyList(), emptyList(), SkipReason.SPAM)
 
         val byId = destinations.associateBy { it.id }
-        val matched = rules
+        val candidates = rules
             .sortedWith(compareBy<Rule> { it.position }.thenBy { it.id })
             .filter { r -> r.enabled && r.destinationIds.any { it in byId } }
             .filter { it.allMessages || type in it.types }
-            .filter { senderMatches(it.sender, senderKind) }
+        val matched = candidates.filter { senderMatches(it.sender, senderKind) }
 
         if (matched.isEmpty()) {
-            val reason = if (senderKind == SenderKind.UNVERIFIED) SkipReason.CONTACTS_PERMISSION_MISSING else SkipReason.NO_RULE
+            // Only blame the contacts permission when a sender condition alone excluded a rule.
+            val reason = if (senderKind == SenderKind.UNVERIFIED && candidates.isNotEmpty()) {
+                SkipReason.CONTACTS_PERMISSION_MISSING
+            } else SkipReason.NO_RULE
             return Decision(emptyList(), emptyList(), reason)
         }
 

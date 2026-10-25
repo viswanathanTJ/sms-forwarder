@@ -102,6 +102,15 @@ class RuleEngineTest {
         assertTrue(d.sends.isEmpty())
     }
 
+    @Test fun unverifiedIsNoRuleWhenNothingWasExcludedBySender() {
+        val u = SenderKind.UNVERIFIED
+        val ncs = SenderCondition.NOT_IN_CONTACTS
+        assertEquals(SkipReason.NO_RULE, decide(listOf(rule(1, sender = ncs)), type = MessageType.TRANSACTION, kind = u).skip)
+        assertEquals(SkipReason.NO_RULE, decide(listOf(rule(1, sender = ncs, enabled = false)), kind = u).skip)
+        assertEquals(SkipReason.NO_RULE, decide(listOf(rule(1, sender = ncs, dest = listOf(99))), kind = u).skip)
+        assertEquals(SkipReason.NO_RULE, decide(emptyList(), kind = u).skip)
+    }
+
     @Test fun loopGuardDropsSmsKeepsTelegram() {
         val d = decide(listOf(rule(1, dest = listOf(1, 3))), sender = "+91 98400 12345", kind = SenderKind.CONTACT)
         assertEquals(listOf(tg1), d.sends.map { it.destination })
