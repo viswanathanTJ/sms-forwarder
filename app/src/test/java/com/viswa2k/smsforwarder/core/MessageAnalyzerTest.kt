@@ -31,6 +31,12 @@ class MessageAnalyzerTest {
         assertEquals("HDFC Bank", r.senderName)
     }
 
+    @Test fun senderName_brandAndFallback() {
+        assertEquals("Amazon", a("AD-AMAZON", "482913 is your Amazon OTP. Do not share it.").senderName)
+        assertEquals("Zzqxwv", a("AD-ZZQXWV", "Your cheque book request has been received.").senderName)
+        assertEquals("+919840012345", a("+919840012345", "Hi", SenderKind.UNKNOWN_NUMBER).senderName)
+    }
+
     @Test fun missedCallWins() {
         val r = a("JM-AIRTEL", "You have a missed call from +919962055555 at 10:11")
         assertEquals(MessageType.MISSED_CALL, r.type)

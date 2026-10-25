@@ -40,7 +40,7 @@ class MessageAnalyzer(lists: KeywordLists?) {
     fun analyze(sender: String, body: String, senderKind: SenderKind): Analysis {
         val info = SenderIds.parse(sender)
         val name = resolver?.resolve(sender)?.takeIf { it.source != BankSender.Source.UNKNOWN && it.source != BankSender.Source.PHONE }?.name
-            ?: info.canonicalId
+            ?: titleCase(info)
 
         MissedCallDetector.detect(sender, body)?.let {
             return Analysis(MessageType.MISSED_CALL, info, name, null, null, it, FraudLevel.NONE, classifier != null)
@@ -76,4 +76,12 @@ class MessageAnalyzer(lists: KeywordLists?) {
         }
         return Analysis(type, info, name, c.otp.takeIf { type == MessageType.OTP }, txn, null, c.fraudLevel, true)
     }
+
+    /** Unknown business header "AMAZON" -> "Amazon"; phone numbers and short codes stay as they are. */
+    private fun titleCase(info: SenderInfo): String =
+        if (info.isBusiness && info.canonicalId.any { it.isLetter() }) {
+            info.canonicalId.lowercase().replaceFirstChar { it.uppercase() }
+        } else {
+            info.canonicalId
+        }
 }

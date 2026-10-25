@@ -19,3 +19,4 @@ updated: 2026-10-25
 - Review fix: number now anchored to the cue, instruction phrasings and 1800/1860 rejected, spaces only in 2-5-5 / 5-5 groupings.
 - 2026-10-25 Task 4: MessageType + MessageAnalyzer (type mapping in Features/Classification).
 - 2026-10-25 Task 5: Rule model, RuleEngine, PhoneNumbers, DefaultRules (see [[Rules]]).
+- 2026-10-25 Task 6: MessageFormatter (smart/original/custom, Telegram HTML + SMS), senderName title-casing (see [[Formatting]]).
