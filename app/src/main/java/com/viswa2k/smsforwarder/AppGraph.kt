@@ -15,6 +15,7 @@ import com.viswa2k.smsforwarder.data.repo.RuleRepository
 import com.viswa2k.smsforwarder.delivery.Dispatcher
 import com.viswa2k.smsforwarder.delivery.SmsSender
 import com.viswa2k.smsforwarder.delivery.TelegramClient
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -25,6 +26,9 @@ class AppGraph(context: Context) {
     val appContext: Context = context.applicationContext
 
     val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
+    /** Completed by [com.viswa2k.smsforwarder.data.prefs.V1MigrationRunner] when first-run migration ends. */
+    val migrationGate = CompletableDeferred<Unit>()
     val database by lazy { ForwarderDatabase.create(appContext) }
     val settings by lazy { SettingsStore(appContext) }
     val tokenCipher by lazy { TokenCipher(appContext) }

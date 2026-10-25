@@ -8,6 +8,7 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.viswa2k.smsforwarder.AppGraph
+import com.viswa2k.smsforwarder.data.prefs.V1MigrationRunner
 import com.viswa2k.smsforwarder.delivery.Dispatcher
 import com.viswa2k.smsforwarder.pipeline.InboxCatchUp
 import kotlinx.coroutines.flow.first
@@ -20,6 +21,7 @@ import java.util.concurrent.TimeUnit
 class WatchdogWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
         val graph = AppGraph.from(applicationContext)
+        V1MigrationRunner.awaitDone(graph)
         val now = System.currentTimeMillis()
         if (graph.settings.masterOn.first()) ForwarderService.start(applicationContext)
         step("catch-up") { InboxCatchUp(graph).run(now) }

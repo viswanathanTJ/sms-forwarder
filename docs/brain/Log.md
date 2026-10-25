@@ -24,3 +24,4 @@ updated: 2026-10-25
 - 2026-10-25 Task 8: Telegram/SMS senders, RetryPolicy, Dispatcher + DeliveryWorker (see [[Delivery & Retries]]).
 - 2026-10-25 Task 9: incoming pipeline (SmsReceiver, IncomingProcessor, InboxCatchUp, debug inject hook); see [[Incoming Pipeline]].
 - 2026-10-25 Task 10: ForwarderService (specialUse), BootReceiver, WatchdogWorker, HealthChecker, ProblemAlerts (see [[Reliability]], [[Problem Alerts]]).
+- 2026-10-25 Task 11: v1 migration (V1Migration, V1MigrationRunner, migration gate); see [[Migration from v1]].

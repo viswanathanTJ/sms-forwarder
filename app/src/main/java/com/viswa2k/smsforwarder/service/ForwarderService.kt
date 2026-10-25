@@ -17,6 +17,7 @@ import androidx.core.content.ContextCompat
 import com.viswa2k.smsforwarder.AppGraph
 import com.viswa2k.smsforwarder.MainActivity
 import com.viswa2k.smsforwarder.R
+import com.viswa2k.smsforwarder.data.prefs.V1MigrationRunner
 import com.viswa2k.smsforwarder.pipeline.InboxCatchUp
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -41,6 +42,7 @@ class ForwarderService : Service() {
         val graph = AppGraph.from(this)
         graph.appScope.launch {
             try {
+                V1MigrationRunner.awaitDone(graph)
                 if (!graph.settings.masterOn.first()) {
                     // Switched off: no forwarding, no restart. (Already promoted, as startForegroundService requires.)
                     stopSelf()

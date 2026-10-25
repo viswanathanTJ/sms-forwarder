@@ -11,6 +11,7 @@ import com.viswa2k.smsforwarder.core.MessageKey
 import com.viswa2k.smsforwarder.core.MessageType
 import com.viswa2k.smsforwarder.core.RuleEngine
 import com.viswa2k.smsforwarder.data.db.LogEntity
+import com.viswa2k.smsforwarder.data.prefs.V1MigrationRunner
 import com.viswa2k.smsforwarder.data.db.OutboxEntity
 import com.viswa2k.smsforwarder.delivery.Dispatcher
 import com.viswa2k.smsforwarder.finance.TxnDirection
@@ -35,6 +36,7 @@ class IncomingProcessor(private val graph: AppGraph) {
     /** [sentAtKnown] is false for inbox rows without `date_sent`: their key cannot match a live copy, so a looser check applies. */
     suspend fun process(sms: IncomingSms, source: Source, sentAtKnown: Boolean = true) {
         try {
+            V1MigrationRunner.awaitDone(graph)
             val loose = MessageKey.loose(sms.sender, sms.body)
             if (!sentAtKnown &&
                 MessageKey.isLooseDuplicate(graph.logs.receivedAtByLooseKey(loose), sms.receivedAt)

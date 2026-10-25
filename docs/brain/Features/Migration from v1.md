@@ -7,19 +7,24 @@ updated: 2026-10-25
 > One-time import of v1 DataStore settings into rules and destinations.
 
 ## What the user can do
-_To be filled by Task 11_
+Nothing to do: on first v2 launch the v1 token, chats, SMS number, device name, master switch and channel flags become destinations, default rules and settings.
 
 ## Screens & entry points
-_To be filled by Task 11_
+No screen. `ForwarderApp.onCreate` launches `V1MigrationRunner.runOnce(graph)` on `appScope`.
 
 ## Data
-_To be filled by Task 11_
+Reads v1 DataStore `settings` (via `Context.dataStore` in MainActivity.kt) keys `TELEGRAM_API_KEY`, `TELEGRAM_USER_IDS`, `SMS_TO_NUMBER`, `DEVICE_ALIAS`, `SMS_FORWARD_SERVICE`, `IS_BY_TELEGRAM_ENABLED`, `IS_BY_SMS_ENABLED`, `IS_SKIP_CONTACTS`. Writes Room destinations/rules and `settings_v2` (encrypted token, device name, masterOn, catchUpFloor=now, migrationDone).
 
 ## How it works
-_To be filled by Task 11_
+- Pure mapping in `core/V1Migration.plan(V1Settings?)`: chats "Chat 1..n" (TELEGRAM), SMS destination "SMS"; only destinations of channels whose v1 flag was on are assigned to the default rules; `skipContacts` gives NOT_IN_CONTACTS; blank alias gives `""`; `null` (no v1 keys) gives no destinations and master off.
+- Runner: skip if `migrationDone`; DB step only if no rules exist (safe retry after partial run); then settings, delete `filesDir/cloud_upload_queue`, clear v1 keys, set flag last.
+- `AppGraph.migrationGate` opens when the runner ends (success or failure); `V1MigrationRunner.awaitDone` is awaited by IncomingProcessor.process, ForwarderService startup pass and WatchdogWorker.
+- Failure: log class name only, flag unset, retried next launch.
 
 ## Connections
 [[00 Index]] · [[Architecture Overview]] · [[Testing]]
 
 ## Gotchas
-_To be filled by Task 11_
+- The v1 store file is not deleted (DataStore holds it open); all v1 keys are cleared except `STORED_UPDATE`, which `update/` still uses.
+- v1 `MainActivity` (until Task 12) may re-create default v1 keys; harmless once `migrationDone`.
+- Fresh install: master off, `catchUpFloor=now` so old inbox is never forwarded.
