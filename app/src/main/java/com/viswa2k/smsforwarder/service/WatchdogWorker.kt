@@ -23,11 +23,12 @@ class WatchdogWorker(context: Context, params: WorkerParameters) : CoroutineWork
         val graph = AppGraph.from(applicationContext)
         V1MigrationRunner.awaitDone(graph)
         val now = System.currentTimeMillis()
-        if (graph.settings.masterOn.first()) ForwarderService.start(applicationContext)
+        if (graph.settings.masterOn.first()) ForwarderService.start(applicationContext, catchUp = false)
+        // Prune first: expired OTP sends are failed before the dispatch pass (ruling 30).
+        step("prune") { graph.logs.prune(now) }
         step("catch-up") { InboxCatchUp(graph).run(now) }
         step("dispatch") { graph.dispatcher.sendDue(now) }
         step("schedule") { Dispatcher.schedule(applicationContext) }
-        step("prune") { graph.logs.prune(now) }
         step("alerts") { ProblemAlerter(graph).check(now) }
         return Result.success()
     }

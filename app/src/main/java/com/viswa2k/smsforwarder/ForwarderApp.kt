@@ -28,6 +28,8 @@ class ForwarderApp : Application() {
         graph.appScope.launch {
             try {
                 V1MigrationRunner.awaitDone(graph)
+                // Retention + OTP masking must not wait for a Doze-delayed watchdog.
+                graph.logs.prune(System.currentTimeMillis())
                 WatchdogWorker.ensure(this@ForwarderApp)
                 if (graph.settings.masterOn.first()) ForwarderService.start(this@ForwarderApp)
             } catch (e: Exception) {

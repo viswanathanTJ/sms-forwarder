@@ -9,6 +9,8 @@ import com.viswa2k.smsforwarder.core.ProblemAlerts
 import com.viswa2k.smsforwarder.data.prefs.SettingsStore
 import com.viswa2k.smsforwarder.core.SendResult
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -21,7 +23,10 @@ import java.util.Locale
 class ProblemAlerter(private val graph: AppGraph) {
     private val health = HealthChecker(graph.appContext)
 
-    suspend fun check(now: Long = System.currentTimeMillis()) {
+    /** Process-wide lock: boot, service start and watchdog may call this at once; state is read inside it. */
+    suspend fun check(now: Long = System.currentTimeMillis()) = lock.withLock { checkLocked(now) }
+
+    private suspend fun checkLocked(now: Long) {
         val target = target() ?: return
         val device = device()
         reportReboot(target, device)
@@ -85,5 +90,6 @@ class ProblemAlerter(private val graph: AppGraph) {
 
     private companion object {
         const val HOUR_MS = 3_600_000L
+        val lock = Mutex()
     }
 }

@@ -39,6 +39,8 @@ class ForwarderService : Service() {
             return START_NOT_STICKY
         }
         WatchdogWorker.ensure(applicationContext)
+        // The watchdog runs its own catch-up: one scan per watchdog run.
+        val catchUp = intent?.getBooleanExtra(EXTRA_SKIP_CATCH_UP, false) != true
         val graph = AppGraph.from(this)
         graph.appScope.launch {
             try {
@@ -49,7 +51,8 @@ class ForwarderService : Service() {
                     return@launch
                 }
                 val now = System.currentTimeMillis()
-                InboxCatchUp(graph).run(now)
+                graph.logs.prune(now)
+                if (catchUp) InboxCatchUp(graph).run(now)
                 graph.dispatcher.sendDue(now)
                 ProblemAlerter(graph).check(now)
             } catch (e: Exception) {
@@ -102,6 +105,7 @@ class ForwarderService : Service() {
         private const val TAG = "ForwarderService"
         const val CHANNEL_ID = "forwarder_status"
         private const val NOTIFICATION_ID = 1
+        private const val EXTRA_SKIP_CATCH_UP = "skip_catch_up"
 
         /** Stops the service (master switch off). The watchdog and boot receiver check `masterOn` themselves. */
         fun stop(context: Context) {
@@ -109,11 +113,15 @@ class ForwarderService : Service() {
             app.stopService(Intent(app, ForwarderService::class.java))
         }
 
-        /** Idempotent. Never throws: a refused start falls back to the 15-min watchdog. */
-        fun start(context: Context) {
+        /**
+         * Idempotent. Never throws: a refused start falls back to the 15-min watchdog. [catchUp] false when
+         * the caller (the watchdog) runs the inbox catch-up itself.
+         */
+        fun start(context: Context, catchUp: Boolean = true) {
             val app = context.applicationContext
             try {
-                ContextCompat.startForegroundService(app, Intent(app, ForwarderService::class.java))
+                val intent = Intent(app, ForwarderService::class.java).putExtra(EXTRA_SKIP_CATCH_UP, !catchUp)
+                ContextCompat.startForegroundService(app, intent)
             } catch (e: Exception) {
                 // ForegroundServiceStartNotAllowedException (API 31+) or similar.
                 Log.w(TAG, "service start refused: ${e.javaClass.simpleName}")
