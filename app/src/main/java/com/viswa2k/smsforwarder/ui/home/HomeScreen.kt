@@ -5,20 +5,24 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -37,9 +41,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -53,10 +59,6 @@ import com.viswa2k.smsforwarder.ui.settings.RowTone
 import com.viswa2k.smsforwarder.ui.settings.openFirst
 import com.viswa2k.smsforwarder.ui.settings.rowText
 import com.viswa2k.smsforwarder.ui.theme.ForwarderTheme
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.IntrinsicSize
-import androidx.compose.material.icons.outlined.WarningAmber
 import com.viswa2k.smsforwarder.R
 import com.viswa2k.smsforwarder.ui.nav.contentEnter
 import com.viswa2k.smsforwarder.ui.nav.contentExit
@@ -127,11 +129,12 @@ fun HomeScreen(
 
         SourcesStrip(
             whatsApp = whatsApp,
+            whatsAppOn = whatsAppOn,
             onToggleWhatsApp = {
                 val on = whatsAppOn
                 if (on != null) requireUnlock {
                     vm.setWhatsApp(!on)
-                    if (HomeSources.shouldOpenAccess(turningOn = !on, access = access)) {
+                    if (HomeSources.shouldOpenAccess(turningOn = !on, access = access == true)) {
                         openFirst(context, HealthChecker.notificationAccessIntents(context))
                     }
                 }
@@ -168,7 +171,7 @@ fun HomeScreen(
 
 /** Where each source stands: SMS is always on; WhatsApp reuses [HomeSources] (tap toggles it, PIN-gated). */
 @Composable
-private fun SourcesStrip(whatsApp: RowText?, onToggleWhatsApp: () -> Unit) {
+private fun SourcesStrip(whatsApp: RowText?, whatsAppOn: Boolean?, onToggleWhatsApp: () -> Unit) {
     Row(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         val ok = ForwarderTheme.extra.ok
         SourceChip(stringResource(R.string.home_source_sms_on), ok.fg, ok.soft, showWarning = false, onClick = null)
@@ -186,6 +189,7 @@ private fun SourcesStrip(whatsApp: RowText?, onToggleWhatsApp: () -> Unit) {
             onClick = if (whatsApp == null) null else onToggleWhatsApp,
             modifier = Modifier.weight(1f),
             dot = wa.tone != RowTone.NEUTRAL,
+            toggled = whatsAppOn,
         )
     }
 }
@@ -199,20 +203,24 @@ private fun SourceChip(
     onClick: (() -> Unit)?,
     modifier: Modifier = Modifier,
     dot: Boolean = true,
+    toggled: Boolean? = null,
 ) {
-    val shape = RoundedCornerShape(12.dp)
+    val stateText = toggled?.let { stringResource(if (it) R.string.home_source_state_on else R.string.home_source_state_off) }
     Row(
         modifier
-            .clip(shape)
+            .heightIn(min = 40.dp)
+            .clip(RoundedCornerShape(12.dp))
             .background(bg)
-            .let { if (onClick != null) it.clickable(onClick = onClick) else it }
+            .let {
+                if (onClick == null) it
+                else it.clickable(role = Role.Switch, onClick = onClick).semantics { stateText?.let { s -> stateDescription = s } }
+            }
             .padding(horizontal = 10.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (dot) Box(Modifier.size(8.dp).clip(CircleShape).background(fg))
-        else Box(Modifier.size(8.dp).clip(CircleShape).background(fg.copy(alpha = 0.4f)))
+        Box(Modifier.size(8.dp).clip(CircleShape).background(if (dot) fg else fg.copy(alpha = 0.4f)))
         Spacer(Modifier.width(8.dp))
-        Text(text, color = fg, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+        Text(text, color = fg, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
         AnimatedVisibility(visible = showWarning, enter = contentEnter(), exit = contentExit()) {
             Icon(Icons.Outlined.WarningAmber, contentDescription = null, tint = fg, modifier = Modifier.padding(start = 6.dp).size(16.dp))
         }

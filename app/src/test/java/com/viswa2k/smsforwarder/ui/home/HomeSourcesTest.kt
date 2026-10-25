@@ -30,6 +30,13 @@ class HomeSourcesTest {
         )
     }
 
+    @Test fun `unknown access shows plain On, never Access needed`() {
+        assertEquals(
+            RowText(R.string.home_source_wa_on_only, args = listOf("OTP"), tone = RowTone.OK),
+            HomeSources.whatsApp(true, otp, access = null),
+        )
+    }
+
     @Test fun `access needed when on without notification access`() {
         assertEquals(
             RowText(R.string.home_source_wa_access, tone = RowTone.PROBLEM),

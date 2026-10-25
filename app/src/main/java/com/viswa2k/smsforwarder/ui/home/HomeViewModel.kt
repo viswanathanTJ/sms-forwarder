@@ -112,9 +112,9 @@ class HomeViewModel(private val graph: AppGraph) : ViewModel() {
 
     private val healthChecker = HealthChecker(graph.appContext)
 
-    private val _notifAccess = MutableStateFlow(healthChecker.notificationAccessOk())
-    /** Notification access granted; re-read on resume (it can change outside the app). */
-    val notifAccess: StateFlow<Boolean> = _notifAccess
+    private val _notifAccess = MutableStateFlow<Boolean?>(null)
+    /** Notification access granted; null until first checked; re-read on resume (it can change outside the app). */
+    val notifAccess: StateFlow<Boolean?> = _notifAccess
 
     /** WhatsApp status chip; null until the setting has loaded. */
     val whatsApp: StateFlow<RowText?> = combine(
@@ -128,8 +128,16 @@ class HomeViewModel(private val graph: AppGraph) : ViewModel() {
     /** Refreshes "today" and the health checks (off the main thread); call on resume. */
     fun onResume() {
         now.value = System.currentTimeMillis()
-        _notifAccess.value = healthChecker.notificationAccessOk()
-        viewModelScope.launch { _health.value = withContext(Dispatchers.Default) { healthChecker.items() } }
+        refreshHealth()
+    }
+
+    private fun refreshHealth() {
+        viewModelScope.launch {
+            withContext(Dispatchers.Default) {
+                _notifAccess.value = healthChecker.notificationAccessOk()
+                _health.value = healthChecker.items()
+            }
+        }
     }
 
     // Writes run on the app scope (a screen leaving mid-toggle cannot half-apply) and in order.
@@ -139,7 +147,9 @@ class HomeViewModel(private val graph: AppGraph) : ViewModel() {
 
     /** Same setter as Settings > Sources: switching on moves the WhatsApp floor to now. */
     fun setWhatsApp(on: Boolean) {
-        graph.appScope.launch { writeLock.withLock { graph.settings.setWhatsAppEnabled(on, System.currentTimeMillis()) } }
+        graph.appScope.launch { writeLock.withLock { graph.settings.setWhatsAppEnabled(on, System.currentTimeMillis()) }
+            refreshHealth()
+        }
     }
 
     fun setRuleEnabled(id: Long, on: Boolean) {

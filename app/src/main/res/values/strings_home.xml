@@ -44,4 +44,6 @@
     <string name="home_source_wa_on_only">WhatsApp · On (%1$s only)</string>
     <string name="home_source_wa_on">WhatsApp · On (%1$s)</string>
     <string name="home_source_wa_access">WhatsApp · Access needed</string>
+    <string name="home_source_state_on">On</string>
+    <string name="home_source_state_off">Off</string>
 </resources>

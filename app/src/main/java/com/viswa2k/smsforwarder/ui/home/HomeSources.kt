@@ -10,16 +10,12 @@ import com.viswa2k.smsforwarder.ui.settings.SettingsSummary
 object HomeSources {
     /**
      * The WhatsApp chip: Off (neutral), On with its types (OK) or Access needed (PROBLEM = amber: the toggle is
-     * on but Notification access is missing, so nothing is received). [enabled] null = not loaded (Off).
+     * on but Notification access is missing, so nothing is received). [enabled] null = not loaded (Off); [access] null = not checked yet (plain On, never a false "Access needed").
      */
-    fun whatsApp(enabled: Boolean?, types: Set<MessageType>, access: Boolean): RowText = when {
+    fun whatsApp(enabled: Boolean?, types: Set<MessageType>, access: Boolean?): RowText = when {
         enabled != true -> RowText(R.string.home_source_wa_off)
-        !access -> RowText(R.string.home_source_wa_access, tone = RowTone.PROBLEM)
-        else -> {
-            val labels = SettingsSummary.whatsAppLabels(types)
-            if (labels.size == 1) RowText(R.string.home_source_wa_on_only, args = labels, tone = RowTone.OK)
-            else RowText(R.string.home_source_wa_on, args = listOf(labels.joinToString(", ")), tone = RowTone.OK)
-        }
+        access == false -> RowText(R.string.home_source_wa_access, tone = RowTone.PROBLEM)
+        else -> SettingsSummary.whatsAppTypes(types, R.string.home_source_wa_on_only, R.string.home_source_wa_on, RowTone.OK)
     }
 
     /** Settings does the same: switching on without Notification access opens the system screen. */
