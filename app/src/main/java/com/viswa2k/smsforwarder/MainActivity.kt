@@ -33,6 +33,11 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        (application as ForwarderApp).ensureRunning()
+    }
+
     private fun isPrivacyAccepted(): Boolean =
         getSharedPreferences("app_prefs", Context.MODE_PRIVATE).getBoolean("privacy_accepted", false)
 
@@ -40,7 +45,7 @@ class MainActivity : ComponentActivity() {
         AlertDialog.Builder(this)
             .setTitle(getString(R.string.privacy_policy_title))
             .setMessage(getString(R.string.privacy_policy_summary))
-            .setPositiveButton("I Understand") { dialog, _ ->
+            .setPositiveButton(getString(R.string.privacy_policy_accept)) { dialog, _ ->
                 getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
                     .edit().putBoolean("privacy_accepted", true).apply()
                 dialog.dismiss()

@@ -8,7 +8,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -28,7 +28,7 @@ import com.viswa2k.smsforwarder.AppGraph
 fun UpdateDialogHost() {
     val context = LocalContext.current
     val prefs = remember { AppGraph.from(context).settings }
-    val update by UpdateManager.available(prefs).collectAsState(initial = null)
+    val update by UpdateManager.available(prefs).collectAsStateWithLifecycle(initialValue = null)
     var dismissed by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(Unit) { runCatching { UpdateManager.refresh(prefs) } }

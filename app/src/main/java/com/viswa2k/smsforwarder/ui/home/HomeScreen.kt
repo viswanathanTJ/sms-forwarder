@@ -29,7 +29,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -39,6 +39,8 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -68,12 +70,12 @@ fun HomeScreen(
 ) {
     val context = LocalContext.current
     val vm: HomeViewModel = viewModel(factory = HomeViewModel.factory(AppGraph.from(context)))
-    val state by vm.state.collectAsState()
-    val health by vm.health.collectAsState()
+    val state by vm.state.collectAsStateWithLifecycle()
+    val health by vm.health.collectAsStateWithLifecycle()
     val issues = health.count { !it.ok }
 
     LifecycleResumeEffect(Unit) {
-        vm.refreshHealth()
+        vm.onResume()
         onPauseOrDispose { }
     }
 
@@ -150,6 +152,7 @@ private fun MutedText(text: String) =
 
 @Composable
 private fun HeroCard(state: HomeState, issues: Int, onToggle: (Boolean) -> Unit, onAttention: () -> Unit) {
+    val switchLabel = stringResource(R.string.home_master_switch)
     val onHero = Color.White
     Column(
         Modifier
@@ -175,6 +178,7 @@ private fun HeroCard(state: HomeState, issues: Int, onToggle: (Boolean) -> Unit,
                 )
             }
             Switch(
+                modifier = Modifier.semantics { contentDescription = switchLabel },
                 checked = state.masterOn,
                 onCheckedChange = onToggle,
                 colors = SwitchDefaults.colors(
@@ -267,7 +271,12 @@ private fun RuleItem(row: RuleRow, onClick: () -> Unit, onToggle: (Boolean) -> U
                 maxLines = 1, overflow = TextOverflow.Ellipsis,
             )
         }
-        Switch(checked = rule.enabled, onCheckedChange = onToggle)
+        val switchLabel = stringResource(R.string.rule_switch, rule.name)
+        Switch(
+            modifier = Modifier.semantics { contentDescription = switchLabel },
+            checked = rule.enabled,
+            onCheckedChange = onToggle,
+        )
     }
 }
 

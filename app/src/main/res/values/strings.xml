@@ -16,6 +16,8 @@
     <string name="privacy_policy_title">Privacy Policy</string>
     <string name="privacy_policy_summary">This app only forwards SMS messages to numbers you explicitly configure. No data is collected or shared with third parties. SMS permissions are used solely for message forwarding functionality.</string>
     
+    <string name="privacy_policy_accept">I Understand</string>
+
     <!-- Service Notifications -->
     <string name="service_notification_title">SMS Forwarding Active</string>
     <string name="service_notification_text">Forwarding messages as configured</string>

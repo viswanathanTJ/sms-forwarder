@@ -1,6 +1,5 @@
 package com.viswa2k.smsforwarder.ui.home
 
-import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -19,8 +18,13 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 
 data class RuleRow(val rule: Rule, val destinationLabels: List<String>)
 
@@ -61,9 +65,13 @@ class HomeViewModel(private val graph: AppGraph) : ViewModel() {
         logs.map { it.toRow(labels) }
     }
 
+    /** Re-read on resume so "today" rolls over at midnight. */
+    private val now = MutableStateFlow(System.currentTimeMillis())
+    private val countsFlow = now.flatMapLatest { graph.logs.todayCounts(it) }
+
     val state: StateFlow<HomeState> = combine(
         settingsFlow,
-        graph.logs.todayCounts(System.currentTimeMillis()),
+        countsFlow,
         rulesFlow,
         recentFlow,
     ) { (master, device), counts, (rules, hasDestinations), recent ->
@@ -73,27 +81,36 @@ class HomeViewModel(private val graph: AppGraph) : ViewModel() {
     private val _health = MutableStateFlow<List<HealthItem>>(emptyList())
     val health: StateFlow<List<HealthItem>> = _health
 
-    /** Re-reads the health checks off the main thread; call on resume. */
-    fun refreshHealth() {
-        viewModelScope.launch { _health.value = HealthChecker(graph.appContext).items() }
+    private val healthChecker = HealthChecker(graph.appContext)
+
+    /** Refreshes "today" and the health checks (off the main thread); call on resume. */
+    fun onResume() {
+        now.value = System.currentTimeMillis()
+        viewModelScope.launch { _health.value = withContext(Dispatchers.Default) { healthChecker.items() } }
     }
 
-    fun setMaster(on: Boolean, context: Context = graph.appContext) {
-        viewModelScope.launch {
-            if (on) {
-                // Un-pausing never forwards what arrived while paused.
-                graph.settings.setCatchUpFloor(System.currentTimeMillis())
-                graph.settings.setMasterOn(true)
-                ForwarderService.start(context)
-            } else {
-                graph.settings.setMasterOn(false)
-                ForwarderService.stop(context)
+    // Writes run on the app scope (a screen leaving mid-toggle cannot half-apply) and in order.
+    private val writeLock = Mutex()
+
+    fun setMaster(on: Boolean) {
+        val context = graph.appContext
+        graph.appScope.launch {
+            writeLock.withLock {
+                if (on) {
+                    // Un-pausing never forwards what arrived while paused.
+                    graph.settings.setCatchUpFloor(System.currentTimeMillis())
+                    graph.settings.setMasterOn(true)
+                    ForwarderService.start(context)
+                } else {
+                    graph.settings.setMasterOn(false)
+                    ForwarderService.stop(context)
+                }
             }
         }
     }
 
     fun setRuleEnabled(id: Long, on: Boolean) {
-        viewModelScope.launch { graph.rules.setEnabled(id, on) }
+        graph.appScope.launch { writeLock.withLock { graph.rules.setEnabled(id, on) } }
     }
 
     private fun LogWithSends.toRow(labels: Map<Long, String>): RecentRow {
