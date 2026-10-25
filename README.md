@@ -13,7 +13,7 @@ No cloud, no accounts, no Firebase. The app talks only to `api.telegram.org` (se
 - **Delivery queue**: every send is stored and retried (30 s, doubling to 1 h) until delivered, up to 24 h, then shown as Failed. Long multi-part SMS are joined and forwarded once.
 - **Log**: last 48 hours with filters, details and Resend. OTP codes are masked one hour after receipt.
 - **Home**: master switch, today's Forwarded / Skipped / Not sent counts, rules, recent messages.
-- **Health**: checklist for SMS, contacts, notifications, battery optimisation and OEM auto-start, each with a Fix button.
+- **Health**: checklist for SMS, contacts, battery optimisation and OEM auto-start, each with a Fix button.
 - **Telegram problem alerts** so nobody has to look at the phone (see below).
 - **WhatsApp source** (optional, off by default): OTPs and bank/merchant alerts that arrive on WhatsApp are read from WhatsApp's notifications and go through the same classification, rules and destinations (see below).
 - **Test a message**: paste any text and see its type, the matching rules and the exact message that would be sent.
@@ -37,7 +37,7 @@ A loop guard stops an SMS from one of your own SMS destination numbers being for
 
 ## Setup (once per phone)
 
-1. Install the APK and open the app. The first-run checklist asks for permissions: SMS (receive/read/send), Contacts, Notifications.
+1. Install the APK and open the app. The first-run checklist asks for permissions: SMS (receive/read/send) and Contacts (required), plus Notifications (optional: you can skip it).
 2. **Battery**: Settings > Health > Battery > Fix, and choose **Unrestricted** (no optimisation).
 3. **Auto-start / do not sleep** (Health opens the right screen where it can):
    The app shows these as numbered steps with an **Open** button each (pick your brand with the chips if detection is wrong). Settings paths:
@@ -61,7 +61,6 @@ Sent to the Alerts destination (default: first Telegram chat), once per problem,
 
 - SMS permission removed
 - Contacts permission removed
-- Notification permission removed
 - Battery optimisation turned back on
 - Message classifier unavailable
 - A destination failing for more than an hour (with the last error)
@@ -86,7 +85,7 @@ v2 installs over v1 (same package and signing). On first launch it migrates the 
 - `SEND_SMS`: forward by SMS.
 - `READ_CONTACTS`: tell contacts from unknown senders for rules.
 - `READ_PHONE_STATE`: SIM picker on dual-SIM phones (asked only when needed).
-- `POST_NOTIFICATIONS`, `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_SPECIAL_USE`: the quiet "Forwarding SMS" notification.
+- `POST_NOTIFICATIONS`, `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_SPECIAL_USE`: the quiet "Forwarding SMS" notification (optional: Android needs it to keep forwarding alive, but you can hide it; to hide it use Settings > Device > Status notification > **Hide notification**, or deny the permission. Forwarding keeps working either way).
 - `RECEIVE_BOOT_COMPLETED`: restart after reboot.
 - `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`: ask for Unrestricted battery.
 - `INTERNET`, `ACCESS_NETWORK_STATE`: Telegram and update check.

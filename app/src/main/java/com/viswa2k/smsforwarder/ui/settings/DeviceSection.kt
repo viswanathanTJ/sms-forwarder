@@ -20,6 +20,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.compose.LifecycleResumeEffect
+import com.viswa2k.smsforwarder.core.StatusNotification
+import com.viswa2k.smsforwarder.service.HealthChecker
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -66,6 +70,8 @@ fun DeviceSection(vm: SettingsViewModel) {
                 }
             },
         )
+        HorizontalDivider(Modifier.padding(vertical = 8.dp), color = MaterialTheme.colorScheme.outlineVariant)
+        StatusNotificationRow()
     }
 
     when (pinDialog) {
@@ -82,6 +88,25 @@ fun DeviceSection(vm: SettingsViewModel) {
         }
         null -> Unit
     }
+}
+
+/** Explains the foreground-service notice and opens its channel settings so it can be hidden; status refreshes on resume. */
+@Composable
+private fun StatusNotificationRow() {
+    val context = LocalContext.current
+    var shown by remember { mutableStateOf(true) }
+    LifecycleResumeEffect(Unit) {
+        shown = HealthChecker(context).statusNotificationShown()
+        onPauseOrDispose { }
+    }
+    ItemRow(
+        title = stringResource(R.string.status_notif_title),
+        subtitle = stringResource(R.string.status_notif_body) + "\n" +
+            stringResource(R.string.status_notif_state, StatusNotification.statusLabel(shown)),
+        trailing = {
+            SmallButton(stringResource(R.string.status_notif_hide), { openFirst(context, HealthChecker.statusNotificationIntents(context)) })
+        },
+    )
 }
 
 private enum class PinAction { SET, CHANGE_VERIFY, REMOVE_VERIFY }

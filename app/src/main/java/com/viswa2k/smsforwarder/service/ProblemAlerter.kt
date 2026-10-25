@@ -39,7 +39,7 @@ class ProblemAlerter(private val graph: AppGraph) {
         var state = SettingsStore.parseAlertState(graph.settings.alertState.first())
         // WhatsApp switched off: its access problem is moot, forget it without a "resolved" message.
         val waOn = graph.settings.whatsAppEnabled.first()
-        val pruned = ProblemAlerts.dropInactive(state, Problem.NOTIF_ACCESS.key, active = waOn)
+        val pruned = ProblemAlerts.dropRetired(ProblemAlerts.dropInactive(state, Problem.NOTIF_ACCESS.key, active = waOn))
         if (pruned != state) {
             state = pruned
             graph.settings.setAlertState(SettingsStore.encodeAlertState(state))

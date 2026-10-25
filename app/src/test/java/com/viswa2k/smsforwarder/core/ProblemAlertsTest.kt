@@ -73,4 +73,15 @@ class ProblemAlertsApplyTest {
 
     @Test fun `notification access text covers never granted`() =
         assertEquals("WhatsApp notification access is not allowed", Problem.NOTIF_ACCESS.text)
+
+    @Test fun `retired notif key is dropped silently, other keys kept`() {
+        val state = mapOf("notif" to 1L, "sms" to 2L)
+        assertEquals(mapOf("sms" to 2L), ProblemAlerts.dropRetired(state))
+    }
+
+    @Test fun `stable keys of remaining problems`() =
+        assertEquals(
+            listOf("sms", "contacts", "battery", "classifier", "paused", "notif_access"),
+            Problem.entries.map { it.key },
+        )
 }

@@ -4,7 +4,6 @@ package com.viswa2k.smsforwarder.core
 enum class Problem(val key: String, val text: String) {
     SMS_PERMISSION("sms", "SMS permission was removed"),
     CONTACTS_PERMISSION("contacts", "Contacts permission was removed"),
-    NOTIFICATIONS("notif", "Notifications are off"),
     BATTERY_OPTIMIZED("battery", "Battery optimisation is back on"),
     CLASSIFIER("classifier", "Message filter failed to load"),
     PAUSED("paused", "Forwarding is switched off"),
@@ -31,6 +30,11 @@ object ProblemAlerts {
      */
     fun dropInactive(state: Map<String, Long>, key: String, active: Boolean): Map<String, Long> =
         if (active) state else state - key
+
+    /** Keys of problems that no longer exist; any left in saved state are forgotten silently (no "resolved"). */
+    val RETIRED_KEYS = setOf("notif")
+
+    fun dropRetired(state: Map<String, Long>): Map<String, Long> = state - RETIRED_KEYS
 
     /** State after trying to send a "raise" alert: recorded only when sent; a failure keeps any older timestamp. */
     fun afterRaise(state: Map<String, Long>, key: String, now: Long, sent: Boolean): Map<String, Long> =

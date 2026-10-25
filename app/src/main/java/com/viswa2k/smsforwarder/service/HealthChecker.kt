@@ -13,11 +13,15 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.viswa2k.smsforwarder.AppGraph
 import com.viswa2k.smsforwarder.core.Problem
+import com.viswa2k.smsforwarder.core.StatusNotification
 import com.viswa2k.smsforwarder.pipeline.WhatsAppNotificationListener
 import kotlinx.coroutines.flow.first
 
 /** [fallbacks] are tried in order when [fix] does not resolve on this ROM. */
-data class HealthItem(val id: String, val title: String, val ok: Boolean, val fix: Intent?, val fallbacks: List<Intent> = emptyList())
+data class HealthItem(val id: String, val title: String, val ok: Boolean, val fix: Intent?, val fallbacks: List<Intent> = emptyList(),
+    /** Shown neutral (grey), never red, and not counted as needing attention. */
+    val informational: Boolean = false,
+)
 
 /** Point-in-time checks of everything forwarding depends on; also feeds [ProblemAlerter]. */
 class HealthChecker(context: Context) {
@@ -31,9 +35,14 @@ class HealthChecker(context: Context) {
 
     fun contactsOk() = granted(Manifest.permission.READ_CONTACTS)
 
-    fun notificationsOk(): Boolean =
-        if (Build.VERSION.SDK_INT >= 33) granted(Manifest.permission.POST_NOTIFICATIONS)
-        else NotificationManagerCompat.from(context).areNotificationsEnabled()
+    /** The status notification is visible: app notifications on and the channel not switched off. */
+    fun statusNotificationShown(): Boolean {
+        val nm = NotificationManagerCompat.from(context)
+        return StatusNotification.isShown(
+            nm.areNotificationsEnabled(),
+            nm.getNotificationChannelCompat(ForwarderService.CHANNEL_ID)?.importance,
+        )
+    }
 
     fun batteryOk(): Boolean =
         (context.getSystemService(Context.POWER_SERVICE) as PowerManager).isIgnoringBatteryOptimizations(context.packageName)
@@ -49,7 +58,6 @@ class HealthChecker(context: Context) {
         if (AppGraph.from(context).settings.whatsAppEnabled.first() && !notificationAccessOk()) add(Problem.NOTIF_ACCESS)
         if (!smsOk()) add(Problem.SMS_PERMISSION)
         if (!contactsOk()) add(Problem.CONTACTS_PERMISSION)
-        if (!notificationsOk()) add(Problem.NOTIFICATIONS)
         if (!batteryOk()) add(Problem.BATTERY_OPTIMIZED)
         if (!classifierOk()) add(Problem.CLASSIFIER)
     }
@@ -64,11 +72,10 @@ class HealthChecker(context: Context) {
         return listOfNotNull(
             HealthItem("sms", "SMS permission (receive, read, send)", smsOk(), appSettings()),
             HealthItem("contacts", "Contacts permission", contactsOk(), appSettings()),
-            HealthItem(
-                "notif", "Notifications", notificationsOk(),
-                Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
-                    .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
-            ),
+            statusNotificationShown().let { shown ->
+                val intents = statusNotificationIntents(context)
+                HealthItem("notif", StatusNotification.healthTitle(shown), shown, intents.first(), intents.drop(1), informational = true)
+            },
             HealthItem(
                 "battery", "Battery unrestricted", batteryOk(),
                 appSettings(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS),
@@ -84,6 +91,15 @@ class HealthChecker(context: Context) {
     }
 
     companion object {
+        /** Status-notification channel settings, then the app's notification settings, then App info. */
+        fun statusNotificationIntents(context: Context): List<Intent> = listOf(
+            Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS)
+                .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                .putExtra(Settings.EXTRA_CHANNEL_ID, ForwarderService.CHANNEL_ID),
+            Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName),
+            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${context.packageName}")),
+        ).map { it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
+
         /** The system Notification access screen: on API 30+ this app's own page first, then the full list. */
         fun notificationAccessIntents(context: Context): List<Intent> = listOfNotNull(
             if (Build.VERSION.SDK_INT >= 30) {

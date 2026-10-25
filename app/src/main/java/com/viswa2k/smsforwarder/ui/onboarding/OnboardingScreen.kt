@@ -61,7 +61,7 @@ import kotlinx.coroutines.withContext
 /** True when first-run setup must be shown: never finished, or a required permission is missing. */
 suspend fun needsOnboarding(graph: AppGraph): Boolean = withContext(Dispatchers.IO) {
     val health = HealthChecker(graph.appContext)
-    !graph.settings.onboardingDone.first() || !health.smsOk() || !health.contactsOk() || !health.notificationsOk()
+    !graph.settings.onboardingDone.first() || !health.smsOk() || !health.contactsOk()
 }
 
 class OnboardingViewModel(private val graph: AppGraph) : ViewModel() {
@@ -137,17 +137,12 @@ fun OnboardingScreen(onDone: () -> Unit, modifier: Modifier = Modifier) {
                         ContextCompat.checkSelfPermission(context, it) != PackageManager.PERMISSION_GRANTED
                     }
                 }
-                val notif = health.firstOrNull { it.id == "notif" }
-                when {
-                    missingRuntime.isNotEmpty() -> Button(
+                // The notification permission is requested too, but optional: Next works without it.
+                if (missingRuntime.isNotEmpty()) {
+                    Button(
                         onClick = { permissions.launch(missingRuntime.toTypedArray()) },
                         modifier = Modifier.fillMaxWidth(),
                     ) { Text(stringResource(R.string.onb_grant)) }
-                    // API 29-32: notifications are a settings switch, not a runtime permission.
-                    notif != null && !notif.ok && notif.fix != null -> Button(
-                        onClick = { openFirst(context, listOf(notif.fix)) },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) { Text(stringResource(R.string.onb_open_notifications)) }
                 }
             }
             Step.BATTERY -> {

@@ -62,10 +62,15 @@ class ForwarderService : Service() {
         return START_STICKY
     }
 
+    /**
+     * The owner may deny the notification permission or switch this channel off: startForeground still
+     * succeeds (the notice is just not shown), so that is never treated as a failure. The channel is created
+     * with IMPORTANCE_MIN on new installs only; an existing channel keeps the user's setting (immutable).
+     */
     private fun promote() {
         val manager = getSystemService(NotificationManager::class.java)
         manager.createNotificationChannel(
-            NotificationChannel(CHANNEL_ID, "Forwarder status", NotificationManager.IMPORTANCE_LOW).apply {
+            NotificationChannel(CHANNEL_ID, "Forwarder status", NotificationManager.IMPORTANCE_MIN).apply {
                 setShowBadge(false)
             },
         )
@@ -80,7 +85,7 @@ class ForwarderService : Service() {
             .setOngoing(true)
             .setSilent(true)
             .setOnlyAlertOnce(true)
-            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setPriority(NotificationCompat.PRIORITY_MIN)
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
             .setContentIntent(open)
             .build()

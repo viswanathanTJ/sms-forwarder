@@ -80,7 +80,12 @@
     <string name="health_open_failed">Could not open that screen. Open the phone\'s Settings → Apps → SMS Forwarder.</string>
     <string name="health_hint_sms">Needed to receive, read and send SMS</string>
     <string name="health_hint_contacts">Needed for the contacts sender condition</string>
-    <string name="health_hint_notif">Needed for the service notice</string>
+    <string name="health_hint_notif">Optional: forwarding works with the notice hidden</string>
+    <string name="health_notif_change">Change</string>
+    <string name="status_notif_title">Status notification</string>
+    <string name="status_notif_body">Android needs a small notification to keep forwarding running. You can hide it; forwarding keeps working.</string>
+    <string name="status_notif_hide">Hide notification</string>
+    <string name="status_notif_state">Currently: %1$s</string>
     <string name="health_hint_battery">Otherwise Android may stop forwarding while idle</string>
     <string name="health_hint_classifier">Reinstall the app; only “All messages” rules work meanwhile</string>
 

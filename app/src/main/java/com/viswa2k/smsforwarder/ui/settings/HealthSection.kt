@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.ErrorOutline
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -69,10 +70,11 @@ fun HealthList(items: List<HealthItem>, oemConfirmed: Boolean, onOemDone: (Boole
             ItemRow(
                 title = item.title,
                 subtitle = if (item.ok) null else healthHint(item.id),
-                leading = { StatusIcon(item.ok) },
+                leading = { StatusIcon(item.ok, neutral = item.informational) },
                 trailing = {
                     val fix = item.fix
                     when {
+                        item.informational && !item.ok -> SmallButton(stringResource(R.string.health_notif_change), { openFirst(context, listOf(fix!!) + item.fallbacks) })
                         item.ok -> Pill(stringResource(R.string.health_ok), ForwarderTheme.extra.ok)
                         fix != null -> SmallButton(stringResource(R.string.health_fix), { openFirst(context, listOf(fix) + item.fallbacks) })
                         else -> Pill(stringResource(R.string.health_problem), ForwarderTheme.extra.warn)
@@ -84,12 +86,12 @@ fun HealthList(items: List<HealthItem>, oemConfirmed: Boolean, onOemDone: (Boole
 }
 
 @Composable
-private fun StatusIcon(ok: Boolean) {
+private fun StatusIcon(ok: Boolean, neutral: Boolean = false) {
     val extra = ForwarderTheme.extra
     Icon(
-        if (ok) Icons.Outlined.CheckCircle else Icons.Outlined.ErrorOutline,
+        if (ok) Icons.Outlined.CheckCircle else if (neutral) Icons.Outlined.Info else Icons.Outlined.ErrorOutline,
         contentDescription = null,
-        tint = if (ok) extra.ok.fg else extra.warn.fg,
+        tint = if (neutral && !ok) MaterialTheme.colorScheme.onSurfaceVariant else if (ok) extra.ok.fg else extra.warn.fg,
         modifier = Modifier.size(22.dp),
     )
 }

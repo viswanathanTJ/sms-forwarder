@@ -71,7 +71,7 @@ fun HomeScreen(
     val vm: HomeViewModel = viewModel(factory = HomeViewModel.factory(AppGraph.from(context)))
     val state by vm.state.collectAsStateWithLifecycle()
     val health by vm.health.collectAsStateWithLifecycle()
-    val issues = health.count { !it.ok }
+    val issues = health.count { !it.ok && !it.informational }
 
     LifecycleResumeEffect(Unit) {
         vm.onResume()
