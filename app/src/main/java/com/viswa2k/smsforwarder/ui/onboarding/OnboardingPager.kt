@@ -72,7 +72,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.viswa2k.smsforwarder.AppGraph
 import com.viswa2k.smsforwarder.R
-import com.viswa2k.smsforwarder.service.HealthChecker
 import com.viswa2k.smsforwarder.service.OemSettings
 import com.viswa2k.smsforwarder.ui.common.ToneChip
 import com.viswa2k.smsforwarder.ui.common.neutralTone
@@ -84,6 +83,7 @@ import com.viswa2k.smsforwarder.ui.settings.SettingsCard
 import com.viswa2k.smsforwarder.ui.settings.SettingsViewModel
 import com.viswa2k.smsforwarder.ui.settings.TelegramSection
 import com.viswa2k.smsforwarder.ui.settings.openFirst
+import com.viswa2k.smsforwarder.ui.settings.openStatusNotificationSettings
 import com.viswa2k.smsforwarder.ui.theme.ForwarderTheme
 
 /**
@@ -91,7 +91,7 @@ import com.viswa2k.smsforwarder.ui.theme.ForwarderTheme
  * Buttons drive the pager (no swiping); the page index survives rotation; Back goes to the previous page.
  */
 @Composable
-fun OnboardingPager(onDone: () -> Unit, modifier: Modifier = Modifier) {
+fun OnboardingPager(onDone: () -> Unit, requireUnlock: (() -> Unit) -> Unit, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val graph = remember { AppGraph.from(context) }
     val vm: OnboardingViewModel = viewModel(factory = OnboardingViewModel.factory(graph))
@@ -128,26 +128,29 @@ fun OnboardingPager(onDone: () -> Unit, modifier: Modifier = Modifier) {
             else pager.animateScrollToPage(page, animationSpec = tween(Transitions.TAB_MS, easing = FastOutSlowInEasing))
         }
     }
-    BackHandler(enabled = page > 0) { page = OnboardingSteps.previous(page) }
-    val goNext = { page = OnboardingSteps.next(page) }
+    // Taps only count from the visible page and never while the pager is still sliding.
+    val goNext: (Int) -> Unit = { from -> if (!pager.isScrollInProgress) page = OnboardingSteps.advance(from, page, snapshot) }
+    val goBack: (Int) -> Unit = { from -> if (!pager.isScrollInProgress) page = OnboardingSteps.back(from, page) }
+    BackHandler(enabled = page > 0) { goBack(page) }
 
     Column(modifier.fillMaxSize().imePadding().padding(horizontal = 16.dp)) {
-        StepperHeader(page, count, onBack = { page = OnboardingSteps.previous(page) }, reduceMotion = reduceMotion)
+        StepperHeader(page, count, onBack = { goBack(page) }, reduceMotion = reduceMotion)
         HorizontalPager(
             state = pager,
             userScrollEnabled = false,
             modifier = Modifier.fillMaxWidth().weight(1f),
             verticalAlignment = Alignment.Top,
         ) { index ->
+            val next = { goNext(index) }
             when (val step = OnboardingSteps.at(index)) {
-                OnbStep.WELCOME -> WelcomePage(goNext)
-                OnbStep.PERMISSIONS -> PermissionsPage(vm, missing, snapshot, canNext = OnboardingSteps.canAdvance(step, snapshot), onNext = goNext)
-                OnbStep.BATTERY -> BatteryPage(health.firstOrNull { it.id == "battery" }?.fix, snapshot.batteryOk, goNext)
-                OnbStep.AUTOSTART -> PageScaffold(R.string.onb_oem_title, R.string.onb_oem_body, bottom = { NextButton(true, goNext) }) {
+                OnbStep.WELCOME -> WelcomePage(next)
+                OnbStep.PERMISSIONS -> PermissionsPage(vm, missing, snapshot, canNext = OnboardingSteps.canAdvance(step, snapshot), onNext = next)
+                OnbStep.BATTERY -> BatteryPage(health.firstOrNull { it.id == "battery" }?.fix, snapshot.batteryOk, next)
+                OnbStep.AUTOSTART -> PageScaffold(R.string.onb_oem_title, R.string.onb_oem_body, bottom = { NextButton(true, next) }) {
                     SettingsCard { OemItem(stringResource(R.string.onb_oem_item, Build.MANUFACTURER), oem, vm::setOemConfirmed) }
                 }
-                OnbStep.TELEGRAM -> TelegramPage(settingsVm, telegram.loaded, telegram.pinSet, snapshot.telegramReady, goNext)
-                OnbStep.READY -> ReadyPage(vm, snapshot, onDone)
+                OnbStep.TELEGRAM -> TelegramPage(settingsVm, telegram.loaded, telegram.pinSet, hasChats = telegram.telegram.isNotEmpty(), next)
+                OnbStep.READY -> ReadyPage(vm, snapshot, requireUnlock, onDone)
             }
         }
     }
@@ -264,7 +267,7 @@ private fun PermissionsPage(vm: OnboardingViewModel, missing: List<String>, s: S
             // Only the optional notification permission is missing: Android may not show its dialog again.
             PermAction.NONE -> if (!s.notificationsOk) {
                 TextButton(
-                    onClick = { openFirst(context, HealthChecker.statusNotificationIntents(context)) },
+                    onClick = { openStatusNotificationSettings(context) },
                     modifier = Modifier.align(Alignment.CenterHorizontally),
                 ) { Text(stringResource(R.string.onb_show_notification)) }
             }
@@ -324,10 +327,10 @@ private fun BatteryPage(fix: Intent?, ok: Boolean, onNext: () -> Unit) {
 }
 
 @Composable
-private fun TelegramPage(settingsVm: SettingsViewModel, loaded: Boolean, pinSet: Boolean, ready: Boolean, onNext: () -> Unit) {
+private fun TelegramPage(settingsVm: SettingsViewModel, loaded: Boolean, pinSet: Boolean, hasChats: Boolean, onNext: () -> Unit) {
     val unlocked by AppLock.unlocked.collectAsStateWithLifecycle()
     PageScaffold(R.string.onb_tg_title, R.string.onb_tg_body, bottom = {
-        if (!ready) {
+        if (!hasChats) {
             TextButton(onClick = onNext, modifier = Modifier.align(Alignment.CenterHorizontally)) { Text(stringResource(R.string.onb_skip_later)) }
         }
         NextButton(true, onNext)
@@ -344,7 +347,7 @@ private fun TelegramPage(settingsVm: SettingsViewModel, loaded: Boolean, pinSet:
 }
 
 @Composable
-private fun ReadyPage(vm: OnboardingViewModel, s: SetupSnapshot, onDone: () -> Unit) {
+private fun ReadyPage(vm: OnboardingViewModel, s: SetupSnapshot, requireUnlock: (() -> Unit) -> Unit, onDone: () -> Unit) {
     val masterOn by vm.masterOn.collectAsStateWithLifecycle()
     PageScaffold(
         R.string.onb_finish_title,
@@ -355,8 +358,8 @@ private fun ReadyPage(vm: OnboardingViewModel, s: SetupSnapshot, onDone: () -> U
                     Text(stringResource(R.string.onb_continue))
                 }
             } else {
-                // Same shared Forwarding.set path as Home's master switch.
-                Button(onClick = { if (vm.finish(start = true)) onDone() }, modifier = Modifier.fillMaxWidth().height(52.dp)) {
+                // Same shared Forwarding.set path (and PIN guard) as Home's master switch.
+                Button(onClick = { requireUnlock { if (vm.finish(start = true)) onDone() } }, modifier = Modifier.fillMaxWidth().height(52.dp)) {
                     Text(stringResource(R.string.onb_start))
                 }
                 TextButton(onClick = { if (vm.finish(start = false)) onDone() }, modifier = Modifier.align(Alignment.CenterHorizontally)) {

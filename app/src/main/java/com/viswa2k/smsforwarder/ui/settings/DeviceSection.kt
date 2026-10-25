@@ -24,7 +24,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.viswa2k.smsforwarder.BuildConfig
 import com.viswa2k.smsforwarder.R
 import com.viswa2k.smsforwarder.core.StatusNotification
-import com.viswa2k.smsforwarder.service.HealthChecker
 import com.viswa2k.smsforwarder.update.UpdatePromptDialog
 
 @Composable
@@ -102,7 +101,7 @@ fun StatusNotificationSection(vm: SettingsViewModel) {
             subtitle = stringResource(R.string.status_notif_body) + "\n" +
                 stringResource(R.string.status_notif_state, StatusNotification.statusLabel(shown)),
             trailing = {
-                SmallButton(stringResource(R.string.status_notif_hide), { openFirst(context, HealthChecker.statusNotificationIntents(context)) })
+                SmallButton(stringResource(R.string.status_notif_hide), { openStatusNotificationSettings(context) })
             },
         )
     }

@@ -107,11 +107,13 @@ class NotificationTextTest {
         listOf(
             "Reacted 🙇 to \"Sure my pleasure..\"", "Reacted to \"…\"", "Reacted 👍🏽 to “Thanks”",
             "❤️ reacted to your message", "👍 reacted to your photo", "Reacted 😂 to: \"lol\"",
+            "Reacted 👍 to a message", "Reacted ❤️ to your photo", "Reacted 🙏 to a GIF", "Reacted 😮 to your voice message",
+            "Reacted to a sticker", "Reacted 👍 to your document",
         ).forEach { assertTrue(it, NotificationText.housekeeping(it)) }
     }
 
     @Test fun `messages that merely start with reacted are kept`() {
-        listOf("Reacted quickly, OTP 123456", "Reacted to the alert? OTP 482913", "reacted").forEach {
+        listOf("Reacted quickly, OTP 123456", "Reacted to the alert? OTP 482913", "reacted", "Reacted to a messy bill, OTP 1234").forEach {
             assertFalse(it, NotificationText.housekeeping(it))
         }
     }

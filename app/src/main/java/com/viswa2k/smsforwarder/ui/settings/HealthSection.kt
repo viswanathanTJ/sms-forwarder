@@ -42,6 +42,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.viswa2k.smsforwarder.R
+import com.viswa2k.smsforwarder.service.ForwarderService
+import com.viswa2k.smsforwarder.service.HealthChecker
 import com.viswa2k.smsforwarder.service.HealthItem
 import com.viswa2k.smsforwarder.service.OemSettings
 import com.viswa2k.smsforwarder.ui.common.Pill
@@ -74,7 +76,10 @@ fun HealthList(items: List<HealthItem>, oemConfirmed: Boolean, onOemDone: (Boole
                 trailing = {
                     val fix = item.fix
                     when {
-                        item.informational && !item.ok -> SmallButton(stringResource(R.string.health_notif_change), { openFirst(context, listOf(fix!!) + item.fallbacks) })
+                        item.informational && !item.ok -> SmallButton(stringResource(R.string.health_notif_change), {
+                            if (item.id == "notif") ForwarderService.ensureChannel(context)
+                            openFirst(context, listOf(fix!!) + item.fallbacks)
+                        })
                         item.ok -> Pill(stringResource(R.string.health_ok), ForwarderTheme.extra.ok)
                         fix != null -> SmallButton(stringResource(R.string.health_fix), { openFirst(context, listOf(fix) + item.fallbacks) })
                         else -> Pill(stringResource(R.string.health_problem), ForwarderTheme.extra.warn)
@@ -159,6 +164,12 @@ private fun healthHint(id: String): String? = when (id) {
     "classifier" -> stringResource(R.string.health_hint_classifier)
     "notif_access" -> stringResource(R.string.health_hint_notif_access)
     else -> null
+}
+
+/** Opens the status channel's settings, creating the channel first (IMPORTANCE_MIN) so the page is never empty. */
+internal fun openStatusNotificationSettings(context: Context): Boolean {
+    ForwarderService.ensureChannel(context)
+    return openFirst(context, HealthChecker.statusNotificationIntents(context))
 }
 
 /** Starts the first intent that resolves; vendor screens differ per ROM version. */

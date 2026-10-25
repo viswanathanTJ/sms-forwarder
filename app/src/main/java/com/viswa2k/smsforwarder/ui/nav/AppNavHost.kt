@@ -47,6 +47,7 @@ import com.viswa2k.smsforwarder.ui.onboarding.OnboardingPager
 import com.viswa2k.smsforwarder.ui.onboarding.needsOnboarding
 import com.viswa2k.smsforwarder.ui.settings.AppLock
 import com.viswa2k.smsforwarder.ui.settings.LockedPane
+import com.viswa2k.smsforwarder.ui.settings.LockedSubPage
 import com.viswa2k.smsforwarder.ui.settings.PinEntryDialog
 import com.viswa2k.smsforwarder.ui.settings.SettingsRoot
 import com.viswa2k.smsforwarder.ui.settings.SettingsSection
@@ -145,7 +146,11 @@ fun AppNavHost(navController: NavHostController = rememberNavController()) {
                                 when {
                                     // Settings tab on a Settings sub-page: back to the Settings root.
                                     onSettingsPage -> navController.popBackStack(Routes.SETTINGS, inclusive = false)
-                                    current != tab.route -> navController.navigateToTab(tab.route)
+                                    current != tab.route -> {
+                                        // Leave Settings at its root, so coming back to the tab shows the root (not a sub-page).
+                                        if (current == Routes.SETTINGS_SECTION) navController.popBackStack(Routes.SETTINGS, inclusive = false)
+                                        navController.navigateToTab(tab.route)
+                                    }
                                 }
                             },
                             icon = { Icon(tab.icon, contentDescription = null) },
@@ -192,7 +197,7 @@ fun AppNavHost(navController: NavHostController = rememberNavController()) {
                 Routes.ONBOARDING,
                 exitTransition = { if (reduceMotion) ExitTransition.None else fadeAway() },
             ) {
-                OnboardingPager(onDone = {
+                OnboardingPager(requireUnlock = requireUnlock, onDone = {
                     navController.navigate(Routes.HOME) {
                         popUpTo(Routes.ONBOARDING) { inclusive = true }
                         launchSingleTop = true
@@ -262,14 +267,13 @@ fun AppNavHost(navController: NavHostController = rememberNavController()) {
                 val section = SettingsSection.fromKey(entry.arguments?.getString(Routes.SECTION_ARG))
                 // Shares the root's ViewModel; falls back to this entry if the root is not on the stack.
                 val owner = remember(entry) { runCatching { navController.getBackStackEntry(Routes.SETTINGS) }.getOrDefault(entry) }
+                // Ignore a second tap while the page is already closing.
+                val back = { if (navController.currentBackStackEntry == entry) navController.popBackStack() }
                 when {
-                    // A child of the Settings gate: deep navigation never bypasses the PIN.
-                    settingsLocked -> LockedPane(onUnlock = { requireUnlock { } })
                     section == null -> LaunchedEffect(entry) { navController.popBackStack() }
-                    else -> SettingsSectionPage(section, settingsViewModel(owner), onBack = {
-                        // Ignore a second tap while the page is already closing.
-                        if (navController.currentBackStackEntry == entry) navController.popBackStack()
-                    })
+                    // A child of the Settings gate: deep navigation never bypasses the PIN.
+                    settingsLocked -> LockedSubPage(stringResource(section.title), onBack = { back() }, onUnlock = { requireUnlock { } })
+                    else -> SettingsSectionPage(section, settingsViewModel(owner), onBack = { back() })
                 }
             }
         }

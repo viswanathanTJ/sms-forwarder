@@ -39,8 +39,9 @@ object NotificationText {
         Regex("""^(calling|ringing)(…|\.\.\.)?$"""),
         Regex("""^(this message was deleted|you deleted this message)\.?$"""),
         Regex(SYMBOLS + """(photo|voice message|audio|document|video|sticker|gif)( \(\d{1,2}:\d{2}\))?$"""),
-        // Reactions: `Reacted 🙇 to "…"`, `Reacted to "…"`, `👍 reacted to your message`.
+        // Reactions: `Reacted 🙇 to "…"`, `Reacted to "…"`, `Reacted 👍 to a message`, `👍 reacted to your message`.
         Regex("""^reacted( \S+)? to:? ["“'‘]"""),
+        Regex("""^reacted( \S+)? to (a|your) (message|photo|video|sticker|gif|voice message|document)\b"""),
         Regex("""^\S+ reacted( \S+)? to your (message|photo|video|voice message|audio|document|sticker|gif|status)\b"""),
     )
 

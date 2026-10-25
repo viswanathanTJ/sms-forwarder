@@ -26,9 +26,33 @@ class OnboardingStepsTest {
 
     @Test fun `battery, auto-start and telegram are skippable`() {
         for (s in listOf(OnbStep.WELCOME, OnbStep.BATTERY, OnbStep.AUTOSTART, OnbStep.TELEGRAM)) {
-            assertTrue("$s", OnboardingSteps.canAdvance(s, perms))
+            assertTrue("$s", OnboardingSteps.canAdvance(s, nothing))
         }
-        assertFalse("Ready is the last page", OnboardingSteps.canAdvance(OnbStep.READY, perms))
+    }
+
+    @Test fun `advance moves one page only from the visible page`() {
+        assertEquals(1, OnboardingSteps.advance(from = 0, current = 0, s = nothing))
+        // A second tap on Welcome's button lands after the pager already moved: ignored.
+        assertEquals(1, OnboardingSteps.advance(from = 0, current = 1, s = nothing))
+        assertEquals(2, OnboardingSteps.advance(from = 1, current = 1, s = perms))
+        assertEquals(3, OnboardingSteps.advance(from = 2, current = 2, s = nothing))
+        assertEquals(5, OnboardingSteps.advance(from = 5, current = 5, s = perms))
+    }
+
+    @Test fun `advance never passes permissions without sms and contacts`() {
+        assertEquals(1, OnboardingSteps.advance(from = 1, current = 1, s = nothing))
+        assertEquals(1, OnboardingSteps.advance(from = 1, current = 1, s = SetupSnapshot(smsOk = true)))
+        // Double tap from Welcome: the first moves to Permissions, the second (still from Welcome) does nothing.
+        var page = 0
+        repeat(2) { page = OnboardingSteps.advance(from = 0, current = page, s = nothing) }
+        assertEquals(1, page)
+        assertTrue(OnboardingSteps.at(page) != OnbStep.BATTERY)
+    }
+
+    @Test fun `back moves one page only from the visible page`() {
+        assertEquals(2, OnboardingSteps.back(from = 3, current = 3))
+        assertEquals(2, OnboardingSteps.back(from = 3, current = 2))
+        assertEquals(0, OnboardingSteps.back(from = 0, current = 0))
     }
 
     @Test fun `completion per step`() {

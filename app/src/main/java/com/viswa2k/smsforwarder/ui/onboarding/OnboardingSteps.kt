@@ -46,19 +46,25 @@ object OnboardingSteps {
     fun previous(index: Int): Int = (index - 1).coerceAtLeast(0)
 
     /** Only the permissions page blocks (SMS + contacts); notifications are optional; the rest can be skipped. */
-    fun canAdvance(step: OnbStep, s: SetupSnapshot): Boolean = when (step) {
-        OnbStep.PERMISSIONS -> s.smsOk && s.contactsOk
-        OnbStep.READY -> false
-        else -> true
-    }
+    fun canAdvance(step: OnbStep, s: SetupSnapshot): Boolean = step != OnbStep.PERMISSIONS || (s.smsOk && s.contactsOk)
 
+    /**
+     * The page after a Next tap on page [from] while [current] is visible: unchanged unless the tap came from the
+     * visible page and it may be left (a double tap, or a tap during the slide, never skips a page or the gate).
+     */
+    fun advance(from: Int, current: Int, s: SetupSnapshot): Int =
+        if (from == current && canAdvance(at(current), s)) next(current) else current
+
+    /** The page after a Back tap on page [from]; unchanged unless it came from the visible page. */
+    fun back(from: Int, current: Int): Int = if (from == current) previous(current) else current
+
+    /** Done state of a [checklist] step. */
     fun isComplete(step: OnbStep, s: SetupSnapshot): Boolean = when (step) {
-        OnbStep.WELCOME -> true
         OnbStep.PERMISSIONS -> s.smsOk && s.contactsOk
         OnbStep.BATTERY -> s.batteryOk
         OnbStep.AUTOSTART -> s.oemConfirmed
         OnbStep.TELEGRAM -> s.telegramReady
-        OnbStep.READY -> s.smsOk && s.contactsOk
+        OnbStep.WELCOME, OnbStep.READY -> false // not checklist steps
     }
 
     fun permStatus(granted: Boolean, required: Boolean): PermStatus = when {

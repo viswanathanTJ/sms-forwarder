@@ -62,22 +62,11 @@ internal fun SettingsEffects(vm: SettingsViewModel) {
 }
 
 /** A Settings sub-page: top app bar with back arrow + title, scrolling content of cards. */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsSubPage(title: String, onBack: () -> Unit, modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
     // Opaque: the root stays drawn underneath while the page zooms in.
     Column(modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-        TopAppBar(
-            title = { Text(title) },
-            navigationIcon = {
-                IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.settings_back))
-                }
-            },
-            // The app Scaffold already pads for the status bar.
-            windowInsets = WindowInsets(0),
-            colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
-        )
+        SubPageTopBar(title, onBack)
         Column(
             Modifier
                 .fillMaxWidth()
@@ -89,6 +78,31 @@ fun SettingsSubPage(title: String, onBack: () -> Unit, modifier: Modifier = Modi
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) { content() }
     }
+}
+
+/** A Settings sub-page while the app is locked: same top bar (back to the root), lock pane as the body. */
+@Composable
+fun LockedSubPage(title: String, onBack: () -> Unit, onUnlock: () -> Unit, modifier: Modifier = Modifier) {
+    Column(modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+        SubPageTopBar(title, onBack)
+        LockedPane(onUnlock = onUnlock, modifier = Modifier.weight(1f))
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SubPageTopBar(title: String, onBack: () -> Unit) {
+    TopAppBar(
+        title = { Text(title) },
+        navigationIcon = {
+            IconButton(onClick = onBack) {
+                Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.settings_back))
+            }
+        },
+        // The app Scaffold already pads for the status bar.
+        windowInsets = WindowInsets(0),
+        colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
+    )
 }
 
 /** Rounded (16 dp) outlined card used by every Settings page body. */
