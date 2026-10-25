@@ -26,9 +26,9 @@ Diff each file against `../SMS/app/src/main/java/com/viswa2k/sms/{classify,finan
 ## Missed calls
 `core/MissedCallDetector.detect(sender, body): MissedCall?` returns `MissedCall(caller, time, count)` for carrier missed-call alerts (Airtel, Jio, Vi, BSNL).
 - Fires only when `SenderIds.parse(sender).isBusiness` (header or short code); a friend's "missed your call" from a phone number is never a match.
-- Needs a cue (`missed call(s)`, `tried to call you`, `tried calling you`, `call alert`, `called you`) AND a phone-like token (optional `+`, 7-13 digits, single spaces allowed inside, so `+91 99620 55555` works; `-` is not allowed so dates like `25-10-2026` are skipped) that is not the sender's own number.
+- The number must be anchored to the cue via `PATTERNS`: `missed call(s) [alert] from <num>`, `(missed) call alert: <num>`, `<num> tried to call / tried calling you`, `<num> called you` (only if the body also says `missed call`/`call alert`). Number = `+91 99620 55555`, `99620 55555` or 7-13 digits (no `-`, so dates are skipped; spaces only in those groupings). Never the sender's own number, never 1800/1860 toll-free. Instruction texts (`give a missed call on ...`, `miss call to ...`) are rejected.
 - `caller` = first such token with spaces removed; `time` = first `h:mm` / `hh:mm AM|PM` as written; `count` = `N missed calls`, default 1.
-- Adding a carrier format: add a cue `Regex` to `CUES` in `MissedCallDetector.kt` (and widen `PHONE`/`TIME` only if the number or time looks different), then add a real sample to `MissedCallDetectorTest`. Samples can be pasted via the Test tool later.
+- Adding a carrier format: add a `Pattern` (anchored regex, group 1 = caller number via `$NUM`) to `PATTERNS` in `MissedCallDetector.kt` (and widen `NUM`/`TIME` only if the number or time looks different), then add a real sample to `MissedCallDetectorTest`. Samples can be pasted via the Test tool later.
 
 ## Connections
 [[00 Index]] · [[Architecture Overview]] · [[Testing]]

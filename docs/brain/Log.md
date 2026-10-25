@@ -16,3 +16,4 @@ updated: 2026-10-25
 
 ## 2026-10-25 - Task 3: missed-call detector
 - Added core/MissedCallDetector (cue regexes + business-sender gate); see [[Classification]].
+- Review fix: number now anchored to the cue, instruction phrasings and 1800/1860 rejected, spaces only in 2-5-5 / 5-5 groupings.

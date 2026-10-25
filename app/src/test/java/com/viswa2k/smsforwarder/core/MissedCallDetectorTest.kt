@@ -50,4 +50,31 @@ class MissedCallDetectorTest {
 
     @Test fun personalNumberWithRealShape_isNot() = assertNull(
         MissedCallDetector.detect("+919840012345", "You have a missed call from 9962055555 at 10:11"))
+
+    @Test fun giveMissedCallInstruction_isNot() = assertNull(
+        MissedCallDetector.detect("AD-HDFCBK", "Give a missed call on 9223166666 to know your balance"))
+
+    @Test fun missedCallToNumberInstruction_isNot() = assertNull(
+        MissedCallDetector.detect("AD-HDFCBK", "Miss call to 9223166666 for balance enquiry"))
+
+    @Test fun triedCallingWithTollFree_isNot() = assertNull(
+        MissedCallDetector.detect("AX-AMAZON", "We tried calling you about your order. Call 18001234567 for help"))
+
+    @Test fun missedCallAlertActivatedTollFree_isNot() = assertNull(
+        MissedCallDetector.detect("JM-AIRTEL", "Missed call alert is activated on your number. For help call 18001034444"))
+
+    @Test fun deliveryPartnerCalledYou_isNot() = assertNull(
+        MissedCallDetector.detect("AX-BLUEDT", "Delivery partner 9812345678 called you regarding your order"))
+
+    @Test fun otpWithTollFreeCall_isNot() = assertNull(
+        MissedCallDetector.detect("AD-HDFCBK", "OTP 123456 for login. If you did not request, call 18001234567 immediately"))
+
+    @Test fun bankWeCalledYou_isNot() = assertNull(
+        MissedCallDetector.detect("VM-HDFCBK", "Dear customer, we called you on 9812345678 regarding your card. Please call back"))
+
+    @Test fun numberFollowedBySpacedDigits_notGlued() = assertEquals("9840012345",
+        MissedCallDetector.detect("JM-AIRTEL", "You have a missed call from 9840012345 25 Oct at 10:11")?.caller)
+
+    @Test fun fiveFiveGrouping() = assertEquals("9962055555",
+        MissedCallDetector.detect("JM-AIRTEL", "You have a missed call from 99620 55555 at 10:11")?.caller)
 }
