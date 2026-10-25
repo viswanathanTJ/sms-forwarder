@@ -57,8 +57,13 @@ class MessageAnalyzer(lists: KeywordLists?) {
             c.fraudLevel == FraudLevel.SCAM || c.inSpamStore -> MessageType.SPAM
             cat.isOtp -> MessageType.OTP
             cat == MessageCategory.TRANSACTION -> {
-                txn = parser.parse(sender, body)
-                if (txn.amount > 0) MessageType.TRANSACTION else MessageType.IMPORTANT
+                val parsed = parser.parse(sender, body)
+                if (parsed.amount > 0) {
+                    txn = parsed
+                    MessageType.TRANSACTION
+                } else {
+                    MessageType.IMPORTANT
+                }
             }
             cat == MessageCategory.BALANCE_ALERT -> {
                 txn = parser.parse(sender, body)
@@ -69,6 +74,6 @@ class MessageAnalyzer(lists: KeywordLists?) {
             !info.isBusiness -> MessageType.PERSONAL
             else -> MessageType.IMPORTANT
         }
-        return Analysis(type, c.sender, name, c.otp.takeIf { type == MessageType.OTP }, txn, null, c.fraudLevel, true)
+        return Analysis(type, info, name, c.otp.takeIf { type == MessageType.OTP }, txn, null, c.fraudLevel, true)
     }
 }

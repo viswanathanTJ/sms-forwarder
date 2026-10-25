@@ -1,5 +1,6 @@
 package com.viswa2k.smsforwarder.core
 
+import com.viswa2k.smsforwarder.classify.FraudLevel
 import com.viswa2k.smsforwarder.classify.TestKeywords
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -58,5 +59,31 @@ class MessageAnalyzerTest {
         assertFalse(r.classifierAvailable)
         assertEquals(MessageType.IMPORTANT, m.analyze("VM-HDFCBK", "Rs 100 debited", SenderKind.BUSINESS).type)
         assertEquals(MessageType.PERSONAL, m.analyze("+919840012345", "hello", SenderKind.UNVERIFIED).type)
+    }
+
+    @Test fun scamOtp_isSpamNotOtp() {
+        val r = a("AX-QWERTY", "482913 is your OTP. KYC pending, update now: https://bit.ly/abc12")
+        assertEquals(MessageType.SPAM, r.type)
+        assertNull(r.otp)
+        assertEquals(FraudLevel.SCAM, r.fraud)
+    }
+
+    @Test fun balance() {
+        val r = a("AX-EXMPLB", "Avl bal in A/c XX1234 is Rs 5,000.00 as on 01-Jun.")
+        assertEquals(MessageType.BALANCE, r.type)
+        assertNotNull(r.txn)
+    }
+
+    @Test fun bill() = assertEquals(MessageType.BILL, a("VK-POWERC", "Your electricity bill of Rs 840 is due on 15-06-2024.").type)
+
+    @Test fun serviceSender_isImportant() = assertEquals(MessageType.IMPORTANT, a("AD-650025", "Your request has been registered.").type)
+
+    @Test fun phoneOtp_isOtp() =
+        assertEquals(MessageType.OTP, a("+919876512345", "482913 is your OTP for login. Do not share it.", SenderKind.UNKNOWN_NUMBER).type)
+
+    @Test fun transactionWithoutAmount_isImportantAndTxnNull() {
+        val r = a("VM-NEWBNK-T", "Rs 0 debited from A/c XX1234. Not you? SMS BLOCK to 9876512345")
+        assertEquals(MessageType.IMPORTANT, r.type)
+        assertNull(r.txn)
     }
 }
