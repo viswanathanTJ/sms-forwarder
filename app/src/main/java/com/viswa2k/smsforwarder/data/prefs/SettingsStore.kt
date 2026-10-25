@@ -9,6 +9,9 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
+import com.viswa2k.smsforwarder.core.MessageType
+import com.viswa2k.smsforwarder.core.SourceFilter
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -44,6 +47,7 @@ class SettingsStore(context: Context) {
     private val onboardingKey = booleanPreferencesKey("onboarding_done")
     private val pinAttemptsKey = stringPreferencesKey("pin_attempts")
     private val whatsAppKey = booleanPreferencesKey("whatsapp_enabled")
+    private val waTypesKey = stringSetPreferencesKey("whatsapp_types")
     private val waFloorKey = longPreferencesKey("wa_floor")
 
     val masterOn: Flow<Boolean> = store.data.map { it[masterOnKey] ?: true }
@@ -69,6 +73,8 @@ class SettingsStore(context: Context) {
 
     /** WhatsApp notification source; off by default. */
     val whatsAppEnabled: Flow<Boolean> = store.data.map { it[whatsAppKey] ?: false }
+    /** Types forwarded from WhatsApp (codes stored); default only OTP, never empty, never SPAM. */
+    val whatsAppTypes: Flow<Set<MessageType>> = store.data.map { SourceFilter.fromCodes(it[waTypesKey]) }
     val whatsApp: Flow<WhatsAppPrefs> = store.data.map { WhatsAppPrefs(it[whatsAppKey] ?: false, it[waFloorKey] ?: 0L) }
 
     suspend fun setMasterOn(on: Boolean) { store.edit { it[masterOnKey] = on } }
@@ -100,6 +106,12 @@ class SettingsStore(context: Context) {
     suspend fun setStoredUpdate(json: String) { store.edit { it[storedUpdateKey] = json } }
     suspend fun setOnboardingDone(done: Boolean) { store.edit { it[onboardingKey] = done } }
     suspend fun setPinAttempts(state: String) { store.edit { it[pinAttemptsKey] = state } }
+    /** Ignored when [types] has nothing selectable (at least one type must stay on). */
+    suspend fun setWhatsAppTypes(types: Set<MessageType>) {
+        val clean = types.filter { it != MessageType.SPAM }
+        if (clean.isEmpty()) return
+        store.edit { it[waTypesKey] = clean.map { t -> t.code.toString() }.toSet() }
+    }
     /** Switching on also moves the WhatsApp floor to [now] (one edit); switching off keeps the floor. */
     suspend fun setWhatsAppEnabled(on: Boolean, now: Long) {
         store.edit {

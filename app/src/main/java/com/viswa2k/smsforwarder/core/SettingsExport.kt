@@ -11,6 +11,9 @@ data class Imported(
     val deviceName: String,
     /** The bot token in plain text, only when the file carries one. */
     val token: String?,
+    /** Missing in older files: off / OTP only. */
+    val whatsAppEnabled: Boolean = false,
+    val whatsAppTypes: Set<MessageType> = SourceFilter.DEFAULT_WHATSAPP_TYPES,
 )
 
 /**
@@ -21,12 +24,17 @@ data class Imported(
 object SettingsExport {
     const val VERSION = 2
 
-    fun toJson(rules: List<Rule>, destinations: List<Destination>, deviceName: String, token: String?): String {
+    fun toJson(rules: List<Rule>, destinations: List<Destination>, deviceName: String, token: String?,
+        whatsAppEnabled: Boolean = false,
+        whatsAppTypes: Set<MessageType> = SourceFilter.DEFAULT_WHATSAPP_TYPES,
+    ): String {
         val o = JSONObject()
         o.put("version", VERSION)
         o.put("deviceName", deviceName)
         o.put("destinations", JSONArray().also { a -> destinations.forEach { a.put(destination(it)) } })
         o.put("rules", JSONArray().also { a -> rules.forEach { a.put(rule(it)) } })
+        o.put("whatsAppEnabled", whatsAppEnabled)
+        o.put("whatsAppTypes", JSONArray().also { a -> whatsAppTypes.sortedBy { it.code }.forEach { a.put(it.code) } })
         if (token != null) o.put("token", token)
         return o.toString(2)
     }
@@ -43,7 +51,9 @@ object SettingsExport {
             val known = dests.map { it.id }.toSet()
             val rules = o.getJSONArray("rules").objects().map { parseRule(it, known) }
             val token = if (o.has("token") && !o.isNull("token")) o.getString("token").trim().ifEmpty { null } else null
-            return Imported(rules, dests, o.optString("deviceName", ""), token)
+            val waTypes = o.optJSONArray("whatsAppTypes")?.let { a -> SourceFilter.fromCodes((0 until a.length()).map { a.get(it).toString() }) }
+                ?: SourceFilter.DEFAULT_WHATSAPP_TYPES
+            return Imported(rules, dests, o.optString("deviceName", ""), token, o.optBoolean("whatsAppEnabled", false), waTypes)
         } catch (e: JSONException) {
             throw IllegalArgumentException("Not a valid settings file")
         }

@@ -66,6 +66,8 @@
     <string name="test_kind_unverified">Number (contacts permission missing)</string>
     <string name="test_skip_no_rule">No rule</string>
     <string name="test_skip_spam">Spam / promotion — never forwarded</string>
+    <string name="test_skip_source_filtered">Not forwarded: WhatsApp type filter (Settings → Sources)</string>
+    <string name="sources_wa_types">Forward from WhatsApp:</string>
     <string name="test_skip_contacts">No rule (contacts permission missing)</string>
 
     <!-- Health -->

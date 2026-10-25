@@ -10,7 +10,10 @@ import com.viswa2k.smsforwarder.core.MessageFormatter
 import com.viswa2k.smsforwarder.core.MessageKey
 import com.viswa2k.smsforwarder.core.NotificationText
 import com.viswa2k.smsforwarder.core.Origin
+import com.viswa2k.smsforwarder.core.Decision
 import com.viswa2k.smsforwarder.core.RuleEngine
+import com.viswa2k.smsforwarder.core.SkipReason
+import com.viswa2k.smsforwarder.core.SourceFilter
 import com.viswa2k.smsforwarder.data.db.LogEntity
 import com.viswa2k.smsforwarder.data.db.OutboxEntity
 import com.viswa2k.smsforwarder.data.prefs.V1MigrationRunner
@@ -51,9 +54,10 @@ class IncomingProcessor(private val graph: AppGraph) {
                 contacts.kind(sms.sender, SenderIds.parse(sms.sender))
             }
             val analysis = graph.analyzer.analyze(sms.sender, sms.body, kind, sms.origin)
-            val decision = RuleEngine.decide(
-                analysis.type, kind, sms.sender, masterOn, graph.rules.all(), graph.destinations.all(),
-            )
+            val waTypes = graph.settings.whatsAppTypes.first()
+            val decision = if (SourceFilter.allows(sms.origin, analysis.type, waTypes)) {
+                RuleEngine.decide(analysis.type, kind, sms.sender, masterOn, graph.rules.all(), graph.destinations.all())
+            } else Decision(emptyList(), emptyList(), SkipReason.SOURCE_FILTERED)
             val device = graph.settings.deviceName.first()
             val now = System.currentTimeMillis()
             val texts = decision.sends.map {

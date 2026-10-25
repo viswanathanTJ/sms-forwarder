@@ -31,6 +31,7 @@ Spec: `docs/superpowers/specs/2026-10-25-whatsapp-source-design.md`.
 - Identity (`core/NotificationText`): address `WA:<chat>` / `WA:<group> · <person>`; titles cleaned (bidi marks, " (N messages)" counter) so the key is stable. `MessageKey` normalises WA addresses by trimmed lower-cased title. Sender kind: `ContactLookup.kindForName(chatOf(address))` (Contacts DISPLAY_NAME, case-insensitive) -> CONTACT / UNKNOWN_NUMBER / UNVERIFIED.
 - `MessageAnalyzer.analyze(..., origin)`: WA senders take the business path, `senderName` = chat; WA + CONTACT + IMPORTANT -> PERSONAL. Formatter shows "WhatsApp · <chat>" (`%s` = "WhatsApp: <chat>").
 - `LogEntity.origin` (0 SMS, 1 WhatsApp). Toggle on sets `waFloor = now` (`SettingsStore.setWhatsAppEnabled`); off keeps it. No catch-up for WhatsApp.
+- Source type filter: `core/SourceFilter.allows(origin, type, waTypes)` runs BEFORE `RuleEngine.decide` in `IncomingProcessor` (and `MessageCheck`): WhatsApp passes only types in `SettingsStore.whatsAppTypes` (codes in a string set, default {OTP}, never empty, never SPAM); SMS always passes. Blocked -> log row with `SkipReason.SOURCE_FILTERED` (5), no outbox rows; Log note `WhatsApp: only <types> forwarded` (built from the current setting). Settings > Sources chips edit it; Export/Import carry `whatsAppEnabled` + `whatsAppTypes` (missing -> off / OTP).
 - Debug: `InjectSmsReceiver ... --es origin whatsapp --es from Amazon --es body '...'`.
 
 ## Connections

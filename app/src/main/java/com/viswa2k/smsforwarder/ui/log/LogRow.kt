@@ -51,8 +51,10 @@ fun NoteLine.label(): String = when (this) {
             SkipReason.SPAM -> R.string.skip_spam
             SkipReason.NO_RULE -> R.string.skip_no_rule
             SkipReason.CONTACTS_PERMISSION_MISSING -> R.string.skip_contacts_permission
+            SkipReason.SOURCE_FILTERED -> R.string.skip_no_rule // unreachable: noteLine maps it to SourceFiltered
         },
     )
+    is NoteLine.SourceFiltered -> text()
     is NoteLine.Routed -> text()
     NoteLine.MatchedNothingSent -> stringResource(R.string.recent_matched_nothing_sent)
 }

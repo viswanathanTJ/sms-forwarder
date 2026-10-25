@@ -3,6 +3,7 @@ package com.viswa2k.smsforwarder.ui.log
 import com.viswa2k.smsforwarder.core.MessageType
 import com.viswa2k.smsforwarder.core.NotificationText
 import com.viswa2k.smsforwarder.core.Origin
+import com.viswa2k.smsforwarder.core.SourceFilter
 import com.viswa2k.smsforwarder.core.SkipReason
 import com.viswa2k.smsforwarder.data.db.LogWithSends
 import com.viswa2k.smsforwarder.data.db.OutboxEntity
@@ -35,6 +36,10 @@ enum class LogFilter {
 /** The grey line under a row. [Skipped] and [MatchedNothingSent] text comes from string resources. */
 sealed interface NoteLine {
     data class Skipped(val reason: SkipReason) : NoteLine
+    /** Dropped by the WhatsApp type filter; [text] lists the types forwarded now. */
+    data class SourceFiltered(val waTypes: Set<MessageType>) : NoteLine {
+        fun text(): String = SourceFilter.note(waTypes)
+    }
     data class Routed(val rules: List<String>, val destinations: List<String>) : NoteLine {
         /** "OTPs → Me, Family group" (just "→ Me" when the rule names are gone). */
         fun text(): String {
@@ -45,7 +50,11 @@ sealed interface NoteLine {
     data object MatchedNothingSent : NoteLine
 }
 
-fun noteLine(skip: SkipReason?, ruleNames: List<String>, destinations: List<String>): NoteLine = when {
+fun noteLine(
+    skip: SkipReason?, ruleNames: List<String>, destinations: List<String>,
+    waTypes: Set<MessageType> = SourceFilter.DEFAULT_WHATSAPP_TYPES,
+): NoteLine = when {
+    skip == SkipReason.SOURCE_FILTERED -> NoteLine.SourceFiltered(waTypes)
     skip != null -> NoteLine.Skipped(skip)
     destinations.isNotEmpty() -> NoteLine.Routed(ruleNames, destinations)
     else -> NoteLine.MatchedNothingSent
@@ -68,15 +77,20 @@ data class LogRowData(
     val destinationLabels: List<String>,
     val sends: List<SendRow>,
     val origin: Origin = Origin.SMS,
+    val waTypes: Set<MessageType> = SourceFilter.DEFAULT_WHATSAPP_TYPES,
 ) {
-    val note: NoteLine get() = noteLine(skip, ruleNames, destinationLabels)
+    val note: NoteLine get() = noteLine(skip, ruleNames, destinationLabels, waTypes)
 
     /** WhatsApp rows show the chat (the "WhatsApp" chip says where it came from). */
     val senderLabel: String get() =
         if (origin == Origin.WHATSAPP) sender.trim().removePrefix(NotificationText.PREFIX).trim() else sender
 }
 
-fun LogWithSends.toRowData(destinationLabels: Map<Long, String>, ruleNames: Map<Long, String>): LogRowData {
+fun LogWithSends.toRowData(
+    destinationLabels: Map<Long, String>,
+    ruleNames: Map<Long, String>,
+    waTypes: Set<MessageType> = SourceFilter.DEFAULT_WHATSAPP_TYPES,
+): LogRowData {
     val skipReason = log.skip?.let { SkipReason.fromCode(it) }
     return LogRowData(
         id = log.id,
@@ -92,6 +106,7 @@ fun LogWithSends.toRowData(destinationLabels: Map<Long, String>, ruleNames: Map<
         destinationLabels = sends.mapNotNull { destinationLabels[it.destinationId] }.distinct(),
         sends = sends.map { SendRow(it.id, destinationLabels[it.destinationId], it.state, it.lastError) },
         origin = Origin.fromCode(log.origin),
+        waTypes = waTypes,
     )
 }
 

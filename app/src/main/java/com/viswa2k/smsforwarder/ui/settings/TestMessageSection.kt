@@ -138,6 +138,7 @@ private fun skipLabel(s: SkipReason?): String = stringResource(
     when (s) {
         SkipReason.SPAM -> R.string.test_skip_spam
         SkipReason.CONTACTS_PERMISSION_MISSING -> R.string.test_skip_contacts
+        SkipReason.SOURCE_FILTERED -> R.string.test_skip_source_filtered
         else -> R.string.test_skip_no_rule
     },
 )

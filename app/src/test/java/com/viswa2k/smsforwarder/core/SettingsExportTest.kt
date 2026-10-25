@@ -29,6 +29,21 @@ class SettingsExportTest {
         assertEquals("123456:ABC-def_ghi", back.token)
     }
 
+    @Test fun whatsAppSettingsRoundTrip() {
+        val types = setOf(MessageType.OTP, MessageType.BILL)
+        val back = SettingsExport.fromJson(SettingsExport.toJson(rules, dests, "x", null, true, types))
+        assertTrue(back.whatsAppEnabled)
+        assertEquals(types, back.whatsAppTypes)
+    }
+
+    @Test fun oldFileWithoutWhatsAppKeysUsesDefaults() {
+        val o = JSONObject(SettingsExport.toJson(rules, dests, "x", null, true, setOf(MessageType.BILL)))
+        o.remove("whatsAppEnabled"); o.remove("whatsAppTypes")
+        val back = SettingsExport.fromJson(o.toString())
+        assertFalse(back.whatsAppEnabled)
+        assertEquals(setOf(MessageType.OTP), back.whatsAppTypes)
+    }
+
     @Test fun roundTrip_withoutToken_hasNoTokenKey() {
         val json = SettingsExport.toJson(rules, dests, "Pixel", null)
         assertFalse(json.contains("\"token\""))

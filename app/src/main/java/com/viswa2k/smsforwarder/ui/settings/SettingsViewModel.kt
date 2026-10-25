@@ -22,7 +22,9 @@ import com.viswa2k.smsforwarder.core.NotificationText
 import com.viswa2k.smsforwarder.core.Origin
 import com.viswa2k.smsforwarder.core.PinLock
 import com.viswa2k.smsforwarder.core.SendResult
+import com.viswa2k.smsforwarder.core.MessageType
 import com.viswa2k.smsforwarder.core.SettingsExport
+import com.viswa2k.smsforwarder.core.SourceFilter
 import com.viswa2k.smsforwarder.pipeline.ContactLookup
 import com.viswa2k.smsforwarder.service.HealthChecker
 import com.viswa2k.smsforwarder.service.HealthItem
@@ -120,6 +122,20 @@ class SettingsViewModel(private val graph: AppGraph) : ViewModel() {
 
     val whatsAppEnabled: StateFlow<Boolean?> =
         settings.whatsAppEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(30_000), null)
+
+    val whatsAppTypes: StateFlow<Set<MessageType>> =
+        settings.whatsAppTypes.stateIn(viewModelScope, SharingStarted.WhileSubscribed(30_000), SourceFilter.DEFAULT_WHATSAPP_TYPES)
+
+    /** Toggles [type]; the last selected type cannot be unselected. */
+    fun toggleWhatsAppType(type: MessageType) {
+        graph.appScope.launch {
+            writeLock.withLock {
+                val cur = settings.whatsAppTypes.first()
+                val next = if (type in cur) cur - type else cur + type
+                if (next.isNotEmpty()) settings.setWhatsAppTypes(next)
+            }
+        }
+    }
 
     private val _notifAccess = MutableStateFlow(false)
     /** Notification access granted; refreshed with the health list (on resume). */
@@ -289,7 +305,7 @@ class SettingsViewModel(private val graph: AppGraph) : ViewModel() {
                     MessageCheck.run(
                         address, body, kind, graph.analyzer, graph.rules.all(), graph.destinations.all(),
                         deviceLabel(), System.currentTimeMillis(), masterOn = graph.settings.masterOn.first(),
-                        origin = origin,
+                        origin = origin, waTypes = graph.settings.whatsAppTypes.first(),
                     )
                 }
             } catch (e: CancellationException) {
@@ -333,7 +349,8 @@ class SettingsViewModel(private val graph: AppGraph) : ViewModel() {
                 val token = if (includeToken) {
                     settings.encryptedToken.first()?.let { graph.tokenCipher.decrypt(it) }
                 } else null
-                val json = SettingsExport.toJson(graph.rules.all(), graph.destinations.all(), settings.deviceName.first(), token)
+                val json = SettingsExport.toJson(graph.rules.all(), graph.destinations.all(), settings.deviceName.first(), token,
+                    settings.whatsAppEnabled.first(), settings.whatsAppTypes.first())
                 withContext(Dispatchers.IO) {
                     context.contentResolver.openOutputStream(uri, "wt")?.use { it.write(json.toByteArray(Charsets.UTF_8)) }
                         ?: error("cannot open file")
@@ -396,6 +413,10 @@ class SettingsViewModel(private val graph: AppGraph) : ViewModel() {
                     val token = imported.token
                     if (includeToken && token != null) {
                         settings.setEncryptedToken(withContext(Dispatchers.Default) { graph.tokenCipher.encrypt(token) })
+                    }
+                    settings.setWhatsAppTypes(imported.whatsAppTypes)
+                    if (settings.whatsAppEnabled.first() != imported.whatsAppEnabled) {
+                        settings.setWhatsAppEnabled(imported.whatsAppEnabled, System.currentTimeMillis())
                     }
                     if (settings.deviceName.first().isBlank() && imported.deviceName.isNotBlank()) {
                         settings.setDeviceName(imported.deviceName)

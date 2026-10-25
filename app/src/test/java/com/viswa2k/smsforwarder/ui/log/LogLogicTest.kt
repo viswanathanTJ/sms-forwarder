@@ -43,8 +43,14 @@ class LogLogicTest {
         )
     }
 
+    @Test fun noteForSourceFilteredListsTheTypes() {
+        val n = noteLine(SkipReason.SOURCE_FILTERED, emptyList(), emptyList(), setOf(MessageType.TRANSACTION, MessageType.OTP))
+        assertEquals("WhatsApp: only OTP, Transaction forwarded", (n as NoteLine.SourceFiltered).text())
+        assertEquals("WhatsApp: only OTP forwarded", (noteLine(SkipReason.SOURCE_FILTERED, emptyList(), emptyList()) as NoteLine.SourceFiltered).text())
+    }
+
     @Test fun noteForSkipsKeepsTheReason() {
-        for (reason in SkipReason.entries) {
+        for (reason in SkipReason.entries.filter { it != SkipReason.SOURCE_FILTERED }) {
             assertEquals(NoteLine.Skipped(reason), noteLine(reason, listOf("OTPs"), listOf("Me")))
         }
     }

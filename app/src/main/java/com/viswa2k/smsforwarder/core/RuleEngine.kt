@@ -2,7 +2,7 @@ package com.viswa2k.smsforwarder.core
 
 /** Why an SMS was not forwarded. [code] is stored; never renumber. */
 enum class SkipReason(val code: Int) {
-    PAUSED(1), SPAM(2), NO_RULE(3), CONTACTS_PERMISSION_MISSING(4);
+    PAUSED(1), SPAM(2), NO_RULE(3), CONTACTS_PERMISSION_MISSING(4), SOURCE_FILTERED(5);
 
     companion object {
         fun fromCode(code: Int): SkipReason? = entries.firstOrNull { it.code == code }

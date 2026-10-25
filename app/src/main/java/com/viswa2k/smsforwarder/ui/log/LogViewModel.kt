@@ -24,10 +24,10 @@ data class LogState(
 )
 
 /** Shared row mapping: labels and rule names are looked up by id. Used by Home and Log. */
-fun AppGraph.logRows(limit: Int) = combine(logs.recent(limit), destinations.destinations, rules.rules) { logs, dests, rules ->
+fun AppGraph.logRows(limit: Int) = combine(logs.recent(limit), destinations.destinations, rules.rules, settings.whatsAppTypes) { logs, dests, rules, waTypes ->
     val labels = dests.associate { it.id to it.label }
     val names = rules.associate { it.id to it.name }
-    logs.map { it.toRowData(labels, names) }
+    logs.map { it.toRowData(labels, names, waTypes) }
 }
 
 class LogViewModel(private val graph: AppGraph) : ViewModel() {

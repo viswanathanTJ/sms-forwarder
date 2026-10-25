@@ -23,6 +23,31 @@ class MessageCheckTest {
         masterOn: Boolean = true,
     ) = MessageCheck.run(sender, body, kind, analyzer, rules, dests, "Pixel 8", now = 1_792_922_460_000L, masterOn = masterOn, zone = zone)
 
+    private val everything = Rule(12, "Everything", true, true, emptySet(), SenderCondition.ANYONE, listOf(1), Style.SMART, null, 2)
+
+    @Test fun whatsAppSourceFilterBlocksNonSelectedTypesBeforeRules() {
+        val r = MessageCheck.run(
+            "WhatsApp: Shop", debit, SenderKind.UNVERIFIED, analyzer, listOf(everything), dests, "Pixel 8",
+            now = 1_792_922_460_000L, masterOn = true, zone = zone, origin = Origin.WHATSAPP,
+        )
+        assertEquals(SkipReason.SOURCE_FILTERED, r.skip)
+        assertTrue(r.destinations.isEmpty())
+        assertNull(r.telegramPreview)
+    }
+
+    @Test fun whatsAppOtpPassesTheFilter() {
+        val r = MessageCheck.run(
+            "WhatsApp: Bank", "482913 is your OTP. Do not share it with anyone.", SenderKind.UNVERIFIED, analyzer,
+            listOf(everything), dests, "Pixel 8", now = 1_792_922_460_000L, masterOn = true, zone = zone, origin = Origin.WHATSAPP,
+        )
+        assertNull(r.skip)
+        assertEquals(listOf("Me"), r.destinations)
+    }
+
+    @Test fun smsIgnoresTheWhatsAppFilter() {
+        assertNull(run("VM-HDFCBK", debit, rules = listOf(everything)).skip)
+    }
+
     @Test fun mockDebitSample() {
         val r = run("VM-HDFCBK", debit)
         assertEquals(MessageType.TRANSACTION, r.type)

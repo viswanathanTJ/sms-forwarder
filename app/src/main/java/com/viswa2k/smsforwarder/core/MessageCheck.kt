@@ -35,9 +35,12 @@ object MessageCheck {
         masterOn: Boolean,
         zone: ZoneId = ZoneId.systemDefault(),
         origin: Origin = Origin.SMS,
+        waTypes: Set<MessageType> = SourceFilter.DEFAULT_WHATSAPP_TYPES,
     ): CheckResult {
         val analysis = analyzer.analyze(sender, body, senderKind, origin)
-        val decision = RuleEngine.decide(analysis.type, senderKind, sender, masterOn = true, rules, destinations)
+        val decision = if (SourceFilter.allows(origin, analysis.type, waTypes)) {
+            RuleEngine.decide(analysis.type, senderKind, sender, masterOn = true, rules, destinations)
+        } else Decision(emptyList(), emptyList(), SkipReason.SOURCE_FILTERED)
         val names = rules.associate { it.id to it.name }
         val sms = IncomingSms(sender, body, now, now, null, origin)
         fun preview(channel: Channel) = decision.sends.firstOrNull { it.destination.channel == channel }?.let {

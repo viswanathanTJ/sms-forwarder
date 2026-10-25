@@ -6,8 +6,9 @@ import org.junit.Test
 /** Pins the Ints written to the database; changing any of these breaks stored rows. */
 class StoredCodesTest {
     @Test fun skipReasonCodes() {
-        assertEquals(listOf(1, 2, 3, 4), SkipReason.entries.map { it.code })
+        assertEquals(listOf(1, 2, 3, 4, 5), SkipReason.entries.map { it.code })
         assertEquals(SkipReason.NO_RULE, SkipReason.fromCode(3))
+        assertEquals(SkipReason.SOURCE_FILTERED, SkipReason.fromCode(5))
         assertEquals(null, SkipReason.fromCode(0))
     }
 
