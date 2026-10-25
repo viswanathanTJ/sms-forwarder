@@ -16,6 +16,8 @@
 - Package/applicationId stay `com.viswa2k.smsforwarder`; versionName default `2.0.0`, versionCode default `20` (still overridable by `-PVERSION_NAME/-PVERSION_CODE`).
 - **One Gradle invocation at a time** (low-RAM machine). Add `org.gradle.java.home=/opt/android-studio/jbr` to `gradle.properties`.
 - Per-task gate: `./gradlew testDebugUnitTest assembleDebug` must pass before commit.
+- Devices: use only the emulator/virtual device `127.0.0.1:6562` (`adb -s 127.0.0.1:6562 …`). The other attached device (`adb-RZCX51XRGKZ…`) is the owner's real Samsung phone: never install, uninstall or change anything on it.
+- Brain vault: every task that adds or changes behaviour updates `docs/brain/` (Obsidian vault, created in Task 1) — the relevant feature note plus a dated line in `docs/brain/Log.md`.
 - No Firebase, no Google services, no cloud sync code. Network only to `api.telegram.org` and the GitHub releases API (updater).
 - Keep `allowBackup=false`, `usesCleartextTraffic=false`, `network_security_config`.
 - Bot token: never logged, never in exceptions/Log screen (redact `bot<token>` in URLs), stored encrypted (Android Keystore AES-GCM), excluded from export unless the user ticks the box.
@@ -71,6 +73,7 @@ app/src/main/assets/keywords.json                     copied from SMS app
 - Delete: `app/src/main/java/com/viswa2k/smsforwarder/cloud/` (except `update/`), `app/google-services.json` (if present), `firebase/`, the cloud nav/screens references, `ExampleUnitTest`/`ExampleInstrumentedTest`, `app/src/androidTest/`
 - Move: `cloud/update/*` → `update/` (package `com.viswa2k.smsforwarder.update`)
 - Create: `app/src/main/java/com/viswa2k/smsforwarder/ui/PlaceholderScreen.kt` (temporary: app name + version text; replaced in Task 12)
+- Create: `docs/brain/00 Index.md` (map of content), `docs/brain/Log.md`, `docs/brain/Known Issues.md`, `docs/brain/Architecture/{Architecture Overview,Data Layer,Reliability,Testing}.md`, `docs/brain/Features/{Classification,Rules,Formatting,Delivery & Retries,Incoming Pipeline,Problem Alerts,Migration from v1,UI Screens}.md` — modelled on `../SMS/docs/brain/` (frontmatter `tags`/`updated`, `[[wiki links]]`; feature-note sections: *What the user can do*, *Screens & entry points*, *Data*, *How it works*, *Connections*, *Gotchas*). Stub sections are filled by the task that builds the feature.
 
 **Interfaces:**
 - Produces: a building app with no Firebase; `update.UpdateManager` unchanged API.
@@ -372,12 +375,13 @@ assertEquals("OTP 482913 - Amazon (Pixel 8)", fmt(otpSms, SMART, SMS))
 - [ ] **Step 4:** Gate → PASS.
 - [ ] **Step 5:** Commit `feat(ui): settings, test tool, health, onboarding, PIN, export`.
 
-### Task 16: Docs, version, device smoke test
+### Task 16: Docs, brain vault, screenshots, version, device smoke test
 
 **Files:**
 - Modify: `CLAUDE.md` (new architecture, commands, debug inject hook, constraints above), `README.md` (features, permissions, setup steps incl. battery/auto-start, Telegram topics), `docs/wiki.html` changelog entry "v2.0.0", `app/build.gradle.kts` default version.
 
-- [ ] **Step 1:** Update docs.
+- [ ] **Step 1:** Update docs; complete every `docs/brain/` note (no stub sections left), refresh `00 Index.md`, add a `Log.md` entry for v2.0.0.
 - [ ] **Step 2:** `./gradlew testDebugUnitTest assembleDebug assembleRelease` → BUILD SUCCESSFUL (release unsigned locally is fine).
 - [ ] **Step 3:** Device smoke test (`./gradlew installDebug`, upgrading over an installed v1 if available): migration kept token/chats; inject OTP, debit, Airtel missed call, personal from a phone number, Myntra promo → first three reach Telegram with smart formatting, last two skipped with reasons; turn Wi-Fi + data off, inject OTP → Log shows Retrying; turn network on → delivered; swipe app from Recents → inject again → still forwarded; reboot → notification back and an "ℹ rebooted" alert in Telegram; revoke Contacts → "⚠ Contacts permission was removed" within ~15 min.
-- [ ] **Step 4:** Commit `docs: v2.0.0 docs and changelog`.
+- [ ] **Step 4:** Screenshots on `127.0.0.1:6562` with realistic demo data (dummy bot token/chats, the mock's sample messages injected via the debug hook): `adb -s 127.0.0.1:6562 exec-out screencap -p > screenshots/v2/<name>.png` for home, rules, rule_editor, log, settings, test_message, health — light theme, plus home in dark. Delete the old `screenshots/*.png` + `screenshots/v1.0` references from README and replace the README screenshot table with the v2 set.
+- [ ] **Step 5:** Commit `docs: v2.0.0 docs, brain vault, screenshots and changelog`.
