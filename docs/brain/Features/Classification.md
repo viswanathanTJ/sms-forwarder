@@ -23,6 +23,13 @@ Excluded (need the SMS app's Room/prefs): `finance/TransactionRecordBuilder.kt`,
 ### Syncing future fixes from the SMS app
 Diff each file against `../SMS/app/src/main/java/com/viswa2k/sms/{classify,finance}` ignoring the header line and package/import rewrite (`MessageCategory`/`FraudLevel` moved from `data.db` to `classify`). Re-copy changed files with the same rewrite, refresh `keywords.json`, run `./gradlew testDebugUnitTest`, and bump the snapshot date in the header.
 
+## Missed calls
+`core/MissedCallDetector.detect(sender, body): MissedCall?` returns `MissedCall(caller, time, count)` for carrier missed-call alerts (Airtel, Jio, Vi, BSNL).
+- Fires only when `SenderIds.parse(sender).isBusiness` (header or short code); a friend's "missed your call" from a phone number is never a match.
+- Needs a cue (`missed call(s)`, `tried to call you`, `tried calling you`, `call alert`, `called you`) AND a phone-like token (optional `+`, 7-13 digits, single spaces allowed inside, so `+91 99620 55555` works; `-` is not allowed so dates like `25-10-2026` are skipped) that is not the sender's own number.
+- `caller` = first such token with spaces removed; `time` = first `h:mm` / `hh:mm AM|PM` as written; `count` = `N missed calls`, default 1.
+- Adding a carrier format: add a cue `Regex` to `CUES` in `MissedCallDetector.kt` (and widen `PHONE`/`TIME` only if the number or time looks different), then add a real sample to `MissedCallDetectorTest`. Samples can be pasted via the Test tool later.
+
 ## Connections
 [[00 Index]] · [[Architecture Overview]] · [[Testing]]
 

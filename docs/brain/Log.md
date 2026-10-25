@@ -13,3 +13,6 @@ updated: 2026-10-25
 
 ## 2026-10-25 - Task 2: classifier and transaction parser port
 - Copied SMS app `classify/` + `finance/` (minus OtpPolicy, OtpPaymentChecker, TransactionRecordBuilder, FinancePass), `MessageCategory`, `FraudLevel`, `keywords.json`, `AssetKeywordSource`, and 57 ported tests. See [[Classification]].
+
+## 2026-10-25 - Task 3: missed-call detector
+- Added core/MissedCallDetector (cue regexes + business-sender gate); see [[Classification]].
