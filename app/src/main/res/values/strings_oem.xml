@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="oem_brand_samsung">Samsung</string>
+    <string name="oem_brand_oppo">Realme · Oppo · OnePlus</string>
+    <string name="oem_brand_vivo">Vivo · iQOO</string>
+    <string name="oem_brand_xiaomi">Xiaomi · Redmi · Poco</string>
+    <string name="oem_brand_other">Other</string>
+    <string name="oem_guide_title">Steps for %1$s</string>
+
+    <string name="oem_samsung_1">Settings → Apps → SMS Forwarder → Battery → choose **Unrestricted**.</string>
+    <string name="oem_samsung_2">Settings → Battery → Background usage limits → **Never sleeping apps** → **+** → add SMS Forwarder.</string>
+    <string name="oem_samsung_3">On the same screen turn **off** \"Put unused apps to sleep\" and \"Auto-disable unused apps\".</string>
+    <string name="oem_samsung_4">Reboot once, then tick Done.</string>
+
+    <string name="oem_oppo_1">Settings → Apps → App management → SMS Forwarder → **Battery usage** → turn on **Allow auto launch** and **Allow background activity**, choose **Unrestricted**.</string>
+    <string name="oem_oppo_2">Settings → Battery → **More settings** → turn off \"Sleep standby optimisation\" / \"Optimise battery use\" for this app.</string>
+    <string name="oem_oppo_3">Older phones: Phone Manager → Privacy permissions → **Startup manager** → allow SMS Forwarder.</string>
+    <string name="oem_oppo_4">Recent apps → long-press SMS Forwarder → **Lock** (optional). Tick Done.</string>
+
+    <string name="oem_vivo_1">Settings → Apps → SMS Forwarder → Battery → **Unrestricted** (or Allow background activity).</string>
+    <string name="oem_vivo_2">i Manager → App manager → **Autostart manager** → allow SMS Forwarder.</string>
+    <string name="oem_vivo_3">Settings → Battery → **Background power consumption management** → SMS Forwarder → **Allow high background power consumption**.</string>
+    <string name="oem_vivo_4">Tick Done.</string>
+
+    <string name="oem_xiaomi_1">Settings → Apps → Manage apps → SMS Forwarder → **Autostart** on.</string>
+    <string name="oem_xiaomi_2">Same page → **Battery saver** → **No restrictions**.</string>
+    <string name="oem_xiaomi_3">Recent apps → long-press SMS Forwarder → **Lock**. Tick Done.</string>
+
+    <string name="oem_other_1">Settings → Apps → SMS Forwarder → Battery → **Unrestricted**.</string>
+    <string name="oem_other_2">Settings → Battery → turn off any \"Adaptive\" / \"Optimise\" limits for SMS Forwarder.</string>
+    <string name="oem_other_3">Tick Done.</string>
+</resources>

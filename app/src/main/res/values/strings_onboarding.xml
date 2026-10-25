@@ -12,7 +12,7 @@
     <string name="onb_battery_body">So Android never puts forwarding to sleep. It uses almost no battery: nothing runs between messages.</string>
     <string name="onb_battery_action">Allow</string>
     <string name="onb_oem_title">Auto-start</string>
-    <string name="onb_oem_body">Some phones also stop apps that are swiped away. Allow auto-start once, then tick Done.</string>
+    <string name="onb_oem_body">Some phones stop apps that are swiped away. Follow the steps for your phone brand (switch brand if it is wrong), then tick Done.</string>
     <string name="onb_oem_item">Auto-start allowed (%1$s)</string>
     <string name="onb_finish_title">Ready</string>
     <string name="onb_finish_body_off">Forwarding is paused until you start it. Only messages received from now on are forwarded. Add Telegram chats or SMS numbers in Settings.</string>

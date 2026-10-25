@@ -39,10 +39,12 @@ A loop guard stops an SMS from one of your own SMS destination numbers being for
 1. Install the APK and open the app. The first-run checklist asks for permissions: SMS (receive/read/send), Contacts, Notifications.
 2. **Battery**: Settings > Health > Battery > Fix, and choose **Unrestricted** (no optimisation).
 3. **Auto-start / do not sleep** (Health opens the right screen where it can):
-   - Samsung: Battery > Background usage limits > Never sleeping apps > add SMS Forwarder.
-   - Realme / Oppo / OnePlus: App info > Battery > allow background activity, and enable Auto-launch.
-   - Xiaomi / Redmi / Poco: Security > Autostart > enable, and Battery saver > No restrictions.
-   - Vivo / iQOO: Settings > Battery > Background power consumption > allow, and enable Autostart.
+   The app shows these as numbered steps with an **Open** button each (pick your brand with the chips if detection is wrong). Settings paths:
+   - **Samsung (One UI)**: (1) Settings > Apps > SMS Forwarder > Battery > Unrestricted. (2) Settings > Battery > Background usage limits > Never sleeping apps > + > add SMS Forwarder. (3) On the same screen turn off "Put unused apps to sleep" and "Auto-disable unused apps". (4) Reboot once, tick Done.
+   - **Realme / Oppo / OnePlus**: (1) Settings > Apps > App management > SMS Forwarder > Battery usage > Allow auto launch + Allow background activity, Unrestricted. (2) Settings > Battery > More settings > turn off "Sleep standby optimisation" / "Optimise battery use" for the app. (3) Older phones: Phone Manager > Privacy permissions > Startup manager > allow. (4) Optional: Recent apps > long-press > Lock. Tick Done.
+   - **Vivo / iQOO**: (1) Settings > Apps > SMS Forwarder > Battery > Unrestricted (or Allow background activity). (2) i Manager > App manager > Autostart manager > allow. (3) Settings > Battery > Background power consumption management > SMS Forwarder > Allow high background power consumption. (4) Tick Done.
+   - **Xiaomi / Redmi / Poco**: (1) Settings > Apps > Manage apps > SMS Forwarder > Autostart on. (2) Same page > Battery saver > No restrictions. (3) Recent apps > long-press > Lock. Tick Done.
+   - **Other / Google / Motorola / Nothing**: (1) Settings > Apps > SMS Forwarder > Battery > Unrestricted. (2) Settings > Battery > turn off any "Adaptive" / "Optimise" limits for the app. (3) Tick Done.
 4. **Telegram**: create a bot with @BotFather and copy the token. Add the bot to your chat or group (for a forum group, add it as admin and note the topic). In Settings > Telegram paste the token, then Add chat > **Detect** (send the bot a message first) or enter the chat id (and topic id) by hand. Press Test.
 5. **SMS number** (optional): Settings > SMS numbers > Add, and choose the SIM if the phone has two.
 6. Review the rules on the Rules tab (OTPs, Bank transactions, Missed calls are on by default; Unknown senders is off) and attach destinations.

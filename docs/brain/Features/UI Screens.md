@@ -11,7 +11,7 @@ updated: 2026-10-25
 - With no destinations, a "Set up Telegram or SMS" card points to Settings.
 
 - Settings: Telegram bot token (saved encrypted; never shown again), chats with Test / delete (confirm), **Add chat** with Detect (`getUpdates`) or manual chat id + optional topic id, problem-alerts chat picker; SMS numbers with Test / delete and a SIM picker on multi-SIM phones; **Test a message**; Health checklist with Fix; device name; PIN lock (set / change / remove); Export / Import JSON; version + Check for update.
-- Onboarding: permissions (Grant) -> battery unrestricted -> brand auto-start (Open + hint + Done) -> Ready ("Start forwarding" / "Not now", or "Continue" when already on).
+- Onboarding: permissions (Grant) -> battery unrestricted -> brand auto-start guide (brand chips, numbered steps with Open buttons, Done) -> Ready ("Start forwarding" / "Not now", or "Continue" when already on).
 - Log: filter chips All / Forwarded / Skipped / Failed-retrying, up to 200 newest entries, tap for a detail sheet (full body, detected line, per-destination status + error, **Resend** for FAILED sends), "Clear log" (confirm dialog).
 
 ## Screens & entry points
@@ -48,6 +48,12 @@ updated: 2026-10-25
 ## Gotchas
 - A fresh install (no v1 data) starts with forwarding paused (migration plan gives masterOn false).
 - Permission and battery prompts live in onboarding (and Health Fix buttons), not in `MainActivity`.
+- Auto-start guide (`OemItem`, shared by onboarding step 3 and Settings > Health): chips Samsung / Realme-Oppo-OnePlus / Vivo-iQOO / Xiaomi-Redmi-Poco / Other preselected from `Build.MANUFACTURER`; each step is a string resource with **bold** spans (`boldMarkdown`) and an Open button (`openFirst`: vendor screens, then App info). Steps per brand (strings in `strings_oem.xml`):
+  - Samsung: Apps > SMS Forwarder > Battery > Unrestricted; Battery > Background usage limits > Never sleeping apps > + add; turn off "Put unused apps to sleep" and "Auto-disable unused apps"; reboot, Done.
+  - Realme/Oppo/OnePlus: App management > SMS Forwarder > Battery usage (auto launch, background activity, Unrestricted); Battery > More settings > turn off sleep standby / optimise; older: Phone Manager > Startup manager; optional Lock.
+  - Vivo/iQOO: Apps > SMS Forwarder > Battery > Unrestricted; i Manager > Autostart manager; Battery > Background power consumption management > Allow high consumption.
+  - Xiaomi/Redmi/Poco: Manage apps > SMS Forwarder > Autostart on; Battery saver > No restrictions; Lock in Recent apps.
+  - Other: Apps > Battery > Unrestricted; turn off Adaptive/Optimise limits.
 - The "Auto-start allowed" health item stays red until the user ticks Done (onboarding or Settings > Health).
 - Onboarding returns on every launch while a required permission is missing (back from it exits the app; Next works without granting).
 - Locking happens on process ON_STOP, so leaving for any non-app screen (Home button, recents) re-locks.

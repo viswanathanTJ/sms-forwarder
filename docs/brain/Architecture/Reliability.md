@@ -11,7 +11,7 @@ updated: 2026-10-25
 - **BootReceiver**: `BOOT_COMPLETED` / `MY_PACKAGE_REPLACED` -> watchdog ensure + service start (if master on); boot also sends a `REBOOTED` info alert.
 - **WatchdogWorker**: unique periodic `"watchdog"`, 15 min, `KEEP`, **no network constraint** (catch-up works offline; Dispatcher can mark >24 h rows FAILED). Each step is isolated: start service (without its own catch-up), `prune` (first, so expired OTP sends are failed before dispatch), catch-up, sendDue, `Dispatcher.schedule`, `ProblemAlerter.check`.
 - **HealthChecker**: SMS (3 perms), contacts, notifications, battery unrestricted, OEM auto-start (manual confirm), classifier loaded (`AppGraph.classifierLoaded`).
-- **OemSettings**: intents per vendor (Samsung, realme/oppo/oneplus, xiaomi, vivo/iqoo) + app-details fallback; caller tries each until one resolves.
+- **OemSettings**: pure per-brand guide tables (`detectBrandKey`, `guide`, `OemGuide`/`OemStep` = string-resource id + `OemTarget` list; JVM-tested) for Samsung, realme/oppo/oneplus, vivo/iqoo, xiaomi/redmi/poco, other; `intents(targets)` builds vendor Intents and always ends with App info; `openFirst` tries each. Step text per brand in [[UI Screens]].
 
 ## Gotchas
 - Offline retry, swipe-away and reboot behaviour has JVM coverage for the decisions only; the on-device smoke test is still pending (see [[Known Issues]]).

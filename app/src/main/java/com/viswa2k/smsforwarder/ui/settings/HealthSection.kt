@@ -5,7 +5,21 @@ import android.content.Intent
 import android.os.Build
 import android.widget.Toast
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.FilterChip
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -80,19 +94,52 @@ private fun StatusIcon(ok: Boolean) {
     )
 }
 
-/** Brand auto-start step: deep link (tries vendor screens, then App info), "what to tap" hint, and a Done tick. */
+/** Markdown-style **bold** to AnnotatedString (unpaired markers stay literal). */
+internal fun boldMarkdown(text: String): AnnotatedString = buildAnnotatedString {
+    val parts = text.split("**")
+    parts.forEachIndexed { i, part ->
+        val bold = i % 2 == 1 && i < parts.size - 1 // a trailing unpaired ** is not bold
+        if (i % 2 == 1 && i == parts.size - 1) append("**")
+        if (bold) withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(part) } else append(part)
+    }
+}
+
+/**
+ * Brand auto-start guide: brand chips (preselected from Build.MANUFACTURER, switchable), numbered steps each
+ * with an Open button (vendor screens first, App info as fallback), and the Done tick.
+ */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun OemItem(title: String, confirmed: Boolean, onDone: (Boolean) -> Unit) {
     val context = LocalContext.current
+    var brandKey by rememberSaveable { mutableStateOf(OemSettings.detectBrandKey(Build.MANUFACTURER)) }
+    val guide = OemSettings.guideForKey(brandKey)
     Column(Modifier.padding(vertical = 6.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             StatusIcon(confirmed)
             Text(title, modifier = Modifier.weight(1f).padding(start = 10.dp))
-            SmallButton(stringResource(R.string.health_open), { openFirst(context, OemSettings.intents(Build.MANUFACTURER)) })
         }
-        Muted(OemSettings.hint(Build.MANUFACTURER), Modifier.padding(start = 32.dp, top = 4.dp))
+        FlowRow(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OemSettings.allBrandKeys.forEach { key ->
+                FilterChip(
+                    selected = key == brandKey,
+                    onClick = { brandKey = key },
+                    label = { Text(stringResource(OemSettings.guideForKey(key).brandLabelRes)) },
+                )
+            }
+        }
+        guide.steps.forEachIndexed { i, step ->
+            Row(Modifier.padding(top = 10.dp), verticalAlignment = Alignment.Top) {
+                Text("${i + 1}.", fontWeight = FontWeight.Bold, modifier = Modifier.width(24.dp))
+                Text(boldMarkdown(stringResource(step.textRes)), modifier = Modifier.weight(1f))
+                if (step.targets.isNotEmpty()) {
+                    Spacer(Modifier.width(8.dp))
+                    SmallButton(stringResource(R.string.health_open), { openFirst(context, OemSettings.intents(step.targets)) })
+                }
+            }
+        }
         Row(
-            Modifier.padding(start = 20.dp).clickable { onDone(!confirmed) },
+            Modifier.padding(top = 6.dp).clickable { onDone(!confirmed) },
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Checkbox(checked = confirmed, onCheckedChange = onDone)
