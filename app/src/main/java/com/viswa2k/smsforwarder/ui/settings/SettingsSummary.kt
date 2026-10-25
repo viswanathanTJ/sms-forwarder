@@ -39,10 +39,13 @@ object SettingsSummary {
     /** [whatsAppOn] null = not loaded yet (shown as SMS only, like the off state). */
     fun sources(whatsAppOn: Boolean?, types: Set<MessageType>): RowText {
         if (whatsAppOn != true) return RowText(R.string.settings_row_sources_sms_only)
-        val labels = SourceFilter.SELECTABLE.filter { it in types }.map { it.label }
+        val labels = whatsAppLabels(types)
         return if (labels.size == 1) RowText(R.string.settings_row_sources_wa_only, args = labels)
         else RowText(R.string.settings_row_sources_wa, args = listOf(labels.joinToString(", ")))
     }
+
+    /** WhatsApp type labels in chip order, whatever order the set has (shared with Home's Sources strip). */
+    fun whatsAppLabels(types: Set<MessageType>): List<String> = SourceFilter.SELECTABLE.filter { it in types }.map { it.label }
 
     fun test(): RowText = RowText(R.string.settings_row_test)
 

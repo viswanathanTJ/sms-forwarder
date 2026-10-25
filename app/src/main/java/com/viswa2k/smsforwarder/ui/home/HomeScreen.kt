@@ -47,6 +47,16 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.viswa2k.smsforwarder.AppGraph
+import com.viswa2k.smsforwarder.service.HealthChecker
+import com.viswa2k.smsforwarder.ui.settings.RowText
+import com.viswa2k.smsforwarder.ui.settings.RowTone
+import com.viswa2k.smsforwarder.ui.settings.openFirst
+import com.viswa2k.smsforwarder.ui.settings.rowText
+import com.viswa2k.smsforwarder.ui.theme.ForwarderTheme
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.material.icons.outlined.WarningAmber
 import com.viswa2k.smsforwarder.R
 import com.viswa2k.smsforwarder.ui.nav.contentEnter
 import com.viswa2k.smsforwarder.ui.nav.contentExit
@@ -71,6 +81,9 @@ fun HomeScreen(
     val vm: HomeViewModel = viewModel(factory = HomeViewModel.factory(AppGraph.from(context)))
     val state by vm.state.collectAsStateWithLifecycle()
     val health by vm.health.collectAsStateWithLifecycle()
+    val whatsApp by vm.whatsApp.collectAsStateWithLifecycle()
+    val whatsAppOn by vm.whatsAppOn.collectAsStateWithLifecycle()
+    val access by vm.notifAccess.collectAsStateWithLifecycle()
     val issues = health.count { !it.ok && !it.informational }
 
     LifecycleResumeEffect(Unit) {
@@ -112,6 +125,19 @@ fun HomeScreen(
             }
         }
 
+        SourcesStrip(
+            whatsApp = whatsApp,
+            onToggleWhatsApp = {
+                val on = whatsAppOn
+                if (on != null) requireUnlock {
+                    vm.setWhatsApp(!on)
+                    if (HomeSources.shouldOpenAccess(turningOn = !on, access = access)) {
+                        openFirst(context, HealthChecker.notificationAccessIntents(context))
+                    }
+                }
+            },
+        )
+
         SectionTitle(stringResource(R.string.home_section_rules), actionLabel = stringResource(R.string.home_manage), onAction = onOpenRules)
         if (state.rules.isEmpty()) {
             AppCard {
@@ -136,6 +162,59 @@ fun HomeScreen(
                 if (index > 0) HorizontalDivider(Modifier.padding(vertical = 10.dp), color = MaterialTheme.colorScheme.outlineVariant)
                 LogRow(row)
             }
+        }
+    }
+}
+
+/** Where each source stands: SMS is always on; WhatsApp reuses [HomeSources] (tap toggles it, PIN-gated). */
+@Composable
+private fun SourcesStrip(whatsApp: RowText?, onToggleWhatsApp: () -> Unit) {
+    Row(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        val ok = ForwarderTheme.extra.ok
+        SourceChip(stringResource(R.string.home_source_sms_on), ok.fg, ok.soft, showWarning = false, onClick = null)
+        val wa = whatsApp ?: RowText(R.string.home_source_wa_off)
+        val warn = ForwarderTheme.extra.warn
+        val neutral = ForwarderTheme.extra.neutral
+        val (fg, bg) = when (wa.tone) {
+            RowTone.OK -> ok.fg to ok.soft
+            RowTone.PROBLEM -> warn.fg to warn.soft
+            RowTone.NEUTRAL -> MaterialTheme.colorScheme.onSurfaceVariant to MaterialTheme.colorScheme.surfaceVariant
+        }
+        SourceChip(
+            text = rowText(wa), fg = fg, bg = bg,
+            showWarning = wa.tone == RowTone.PROBLEM,
+            onClick = if (whatsApp == null) null else onToggleWhatsApp,
+            modifier = Modifier.weight(1f),
+            dot = wa.tone != RowTone.NEUTRAL,
+        )
+    }
+}
+
+@Composable
+private fun SourceChip(
+    text: String,
+    fg: Color,
+    bg: Color,
+    showWarning: Boolean,
+    onClick: (() -> Unit)?,
+    modifier: Modifier = Modifier,
+    dot: Boolean = true,
+) {
+    val shape = RoundedCornerShape(12.dp)
+    Row(
+        modifier
+            .clip(shape)
+            .background(bg)
+            .let { if (onClick != null) it.clickable(onClick = onClick) else it }
+            .padding(horizontal = 10.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (dot) Box(Modifier.size(8.dp).clip(CircleShape).background(fg))
+        else Box(Modifier.size(8.dp).clip(CircleShape).background(fg.copy(alpha = 0.4f)))
+        Spacer(Modifier.width(8.dp))
+        Text(text, color = fg, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+        AnimatedVisibility(visible = showWarning, enter = contentEnter(), exit = contentExit()) {
+            Icon(Icons.Outlined.WarningAmber, contentDescription = null, tint = fg, modifier = Modifier.padding(start = 6.dp).size(16.dp))
         }
     }
 }

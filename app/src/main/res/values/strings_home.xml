@@ -39,4 +39,9 @@
     <string name="skip_contacts_permission">Skipped: contacts permission is missing</string>
     <string name="recent_sent_to">→ %1$s</string>
     <string name="recent_matched_nothing_sent">Matched, nothing sent</string>
+    <string name="home_source_sms_on">SMS · On</string>
+    <string name="home_source_wa_off">WhatsApp · Off</string>
+    <string name="home_source_wa_on_only">WhatsApp · On (%1$s only)</string>
+    <string name="home_source_wa_on">WhatsApp · On (%1$s)</string>
+    <string name="home_source_wa_access">WhatsApp · Access needed</string>
 </resources>

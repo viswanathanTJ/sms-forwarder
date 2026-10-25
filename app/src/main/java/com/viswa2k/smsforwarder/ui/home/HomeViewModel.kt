@@ -10,6 +10,7 @@ import com.viswa2k.smsforwarder.service.ForwarderService
 import com.viswa2k.smsforwarder.service.HealthChecker
 import com.viswa2k.smsforwarder.service.HealthItem
 import com.viswa2k.smsforwarder.core.SkipReason
+import com.viswa2k.smsforwarder.ui.settings.RowText
 import com.viswa2k.smsforwarder.ui.log.HomeCounts
 import com.viswa2k.smsforwarder.ui.log.LogRowData
 import com.viswa2k.smsforwarder.ui.log.deliveryState
@@ -111,9 +112,23 @@ class HomeViewModel(private val graph: AppGraph) : ViewModel() {
 
     private val healthChecker = HealthChecker(graph.appContext)
 
+    private val _notifAccess = MutableStateFlow(healthChecker.notificationAccessOk())
+    /** Notification access granted; re-read on resume (it can change outside the app). */
+    val notifAccess: StateFlow<Boolean> = _notifAccess
+
+    /** WhatsApp status chip; null until the setting has loaded. */
+    val whatsApp: StateFlow<RowText?> = combine(
+        graph.settings.whatsAppEnabled, graph.settings.whatsAppTypes, _notifAccess,
+    ) { on, types, access -> HomeSources.whatsApp(on, types, access) as RowText? }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(30_000), null)
+
+    val whatsAppOn: StateFlow<Boolean?> = graph.settings.whatsAppEnabled
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(30_000), null)
+
     /** Refreshes "today" and the health checks (off the main thread); call on resume. */
     fun onResume() {
         now.value = System.currentTimeMillis()
+        _notifAccess.value = healthChecker.notificationAccessOk()
         viewModelScope.launch { _health.value = withContext(Dispatchers.Default) { healthChecker.items() } }
     }
 
@@ -121,6 +136,11 @@ class HomeViewModel(private val graph: AppGraph) : ViewModel() {
     private val writeLock = Mutex()
 
     fun setMaster(on: Boolean) = Forwarding.set(graph, on)
+
+    /** Same setter as Settings > Sources: switching on moves the WhatsApp floor to now. */
+    fun setWhatsApp(on: Boolean) {
+        graph.appScope.launch { writeLock.withLock { graph.settings.setWhatsAppEnabled(on, System.currentTimeMillis()) } }
+    }
 
     fun setRuleEnabled(id: Long, on: Boolean) {
         graph.appScope.launch { writeLock.withLock { graph.rules.setEnabled(id, on) } }
