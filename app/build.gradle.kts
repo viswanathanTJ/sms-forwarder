@@ -23,7 +23,7 @@ android {
         minSdk = 29
         targetSdk = 36
         // Overridable from CI (e.g. -PVERSION_NAME=1.2.0 -PVERSION_CODE=12 derived from the git tag).
-        versionCode = prop("VERSION_CODE").toIntOrNull() ?: 20
+        versionCode = prop("VERSION_CODE").toIntOrNull() ?: 20000
         versionName = prop("VERSION_NAME").ifBlank { "2.0.0" }
 
         // Security settings

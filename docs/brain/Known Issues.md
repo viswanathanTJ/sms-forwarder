@@ -7,7 +7,8 @@ updated: 2026-10-25
 > Deferred minors collected from the v2 task reviews (summarised). None block release. Nothing is known to lose or duplicate messages in normal use.
 
 ## Verification status
-- The v2.0.0 emulator smoke test (inject OTP/debit/missed call/personal/promo, airplane mode retry, swipe from Recents, reboot, contacts revoke) and the README screenshots (`screenshots/v2/`) were not done: emulator `127.0.0.1:6562` was in use by another app. README image links point at files that still need capturing.
+- Emulator `127.0.0.1:6562` (Task 26, API 35, demo data, dummy bot token): onboarding walked page by page; Telegram token/chats, SMS number, device name and WhatsApp source set up in the UI; injected OTP / HDFC debit / Airtel missed call / personal / Myntra promo classified and routed as expected (OTP, Transaction, Missed call -> rules -> Me; personal "no rule matches"; promo "spam / promotion"), sends fail "Unauthorized" with the dummy token (shown Failed, Home "Not sent" 3); airplane mode shows Retrying; an SMS injected after `am force-stop` is still logged (receiver wakes a dead process); Test a message previews the debit correctly; notification access could be allowed (`cmd notification allow_listener`) and the Sources switch turns on; light and dark Home checked. 16 screenshots in `screenshots/v2/`.
+- Not verified on a device: real WhatsApp notifications (WhatsApp not installed on the emulator), reboot recovery, contacts-revoked alert, real Telegram delivery and problem alerts (needs a real bot), real carrier missed-call wording, OEM auto-start screens (emulator shows "Other").
 - v1 to v2 migration is covered by JVM tests only; no v1 APK was available for an on-device upgrade test ([[Migration from v1]]).
 - Telegram problem alerts (contacts revoked, reboot) cannot be verified without a real bot; the logic is unit-tested ([[Problem Alerts]]).
 

@@ -33,15 +33,13 @@ jobs:
         run: |
           TAG="${GITHUB_REF_NAME}"
           echo "name=${TAG#v}" >> "$GITHUB_OUTPUT"
-          echo "code=${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+          # versionCode = MAJOR*10000 + MINOR*100 + PATCH (v2.0.0 -> 20000): always above v1 and local builds
+          NAME="${TAG#v}"; NAME="${NAME%%-*}"
+          IFS=. read -r MAJOR MINOR PATCH <<< "$NAME"
+          echo "code=$(( MAJOR * 10000 + MINOR * 100 + PATCH ))" >> "$GITHUB_OUTPUT"
 
       - name: Generate changelog
         run: uv run scripts/release.py changelog --to "${GITHUB_REF_NAME}" > CHANGELOG_BODY.md
-
-      - name: Decode google-services.json
-        env:
-          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
-        run: echo "$GOOGLE_SERVICES_JSON" | base64 --decode > app/google-services.json
 
       - name: Decode signing keystore
         env:
@@ -58,8 +56,7 @@ jobs:
           chmod +x ./gradlew
           ./gradlew :app:assembleRelease --no-daemon \
             -PVERSION_NAME="${{ steps.ver.outputs.name }}" \
-            -PVERSION_CODE="${{ steps.ver.outputs.code }}" \
-            -PGOOGLE_WEB_CLIENT_ID="${{ secrets.GOOGLE_WEB_CLIENT_ID }}"
+            -PVERSION_CODE="${{ steps.ver.outputs.code }}"
 
       - name: Stage APK with version in filename
         run: |

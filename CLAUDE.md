@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-SMS Forwarder v2 (`com.viswa2k.smsforwarder`, versionName 2.0.0 / versionCode 20). Android app (Kotlin 2.2.0, Jetpack Compose, minSdk 29, compile/target SDK 36) that classifies each incoming SMS (OTP, Transaction, Balance alert, Bills, Delivery, Missed call, Other important, Personal, Spam) and forwards it according to **rules** to **destinations**: Telegram chats (Bot API, optional forum topic) and/or SMS numbers. Built for phones that run unattended 24x7: delivery queue with retries, Log, Health checks and Telegram problem alerts. No Firebase, no cloud sync; network only to `api.telegram.org` and the GitHub releases API (updater).
+SMS Forwarder v2 (`com.viswa2k.smsforwarder`, versionName 2.0.0 / versionCode 20000). Android app (Kotlin 2.2.0, Jetpack Compose, minSdk 29, compile/target SDK 36) that classifies each incoming SMS (OTP, Transaction, Balance alert, Bills, Delivery, Missed call, Other important, Personal, Spam) and forwards it according to **rules** to **destinations**: Telegram chats (Bot API, optional forum topic) and/or SMS numbers. Built for phones that run unattended 24x7: delivery queue with retries, Log, Health checks and Telegram problem alerts. No Firebase, no cloud sync; network only to `api.telegram.org` and the GitHub releases API (updater).
 
 Spec: `docs/superpowers/specs/2026-10-25-forwarder-revamp-design.md`. Old cloud spec/plans (`2026-06-20-*`) are history only.
 

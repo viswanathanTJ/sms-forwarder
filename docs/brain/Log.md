@@ -52,3 +52,4 @@ updated: 2026-10-25
 - 2026-10-25 Task 24: Home "Sources" strip under the hero (SMS · On; WhatsApp Off / On (types) / Access needed amber), tap toggles WhatsApp via `requireUnlock` + `setWhatsAppEnabled`, access refreshed on resume; pure `HomeSources` + test; see [[UI Screens]].
 - 2026-10-25 Task 25: roomier Settings rows (72 dp min, 44 dp icon, titleMedium/bodyMedium, labelLarge section labels with 24/8 dp spacing, 72 dp divider inset); see [[UI Screens]].
 - 2026-10-25 Task 25: Home title now "SMS Forwarder".
+- 2026-10-25 Task 26: release prep: README rewritten for v2 with 16 emulator screenshots (`screenshots/v2/`), wiki changelog extended, release workflow derives versionCode from the tag (MAJOR*10000+MINOR*100+PATCH) and drops google-services/Firebase steps, default versionCode 20000; emulator verification recorded in [[Known Issues]].

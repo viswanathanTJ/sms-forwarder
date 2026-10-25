@@ -4,7 +4,7 @@ updated: 2026-10-25
 ---
 # SMS Forwarder v2 - Index
 
-> Map of content for **SMS Forwarder** (`com.viswa2k.smsforwarder`, v2.0.0, versionCode 20). Rule-based forwarding of classified SMS to Telegram chats and SMS numbers, built to run unattended 24x7. Open `docs/brain/` as an Obsidian vault. Spec: `docs/superpowers/specs/2026-10-25-forwarder-revamp-design.md`.
+> Map of content for **SMS Forwarder** (`com.viswa2k.smsforwarder`, v2.0.0, versionCode 20000). Rule-based forwarding of classified SMS to Telegram chats and SMS numbers, built to run unattended 24x7. Open `docs/brain/` as an Obsidian vault. Spec: `docs/superpowers/specs/2026-10-25-forwarder-revamp-design.md`.
 
 ## At a glance
 - Kotlin 2.2.0, Compose + Material 3, Room, DataStore, WorkManager; minSdk 29, compile/target SDK 36.
