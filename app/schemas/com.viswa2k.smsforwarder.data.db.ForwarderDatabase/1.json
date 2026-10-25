@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 1,
-    "identityHash": "931703eb011d566a67d4052f4dcdb73c",
+    "identityHash": "251b716c5bd4cbb836800ee585811b05",
     "entities": [
       {
         "tableName": "rules",
@@ -123,7 +123,7 @@
       },
       {
         "tableName": "logs",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `key` TEXT NOT NULL, `sender` TEXT NOT NULL, `body` TEXT NOT NULL, `receivedAt` INTEGER NOT NULL, `type` INTEGER NOT NULL, `senderKind` INTEGER NOT NULL, `extracted` TEXT NOT NULL, `matchedRules` TEXT NOT NULL, `skip` INTEGER, `simSlot` INTEGER, `masked` INTEGER NOT NULL, `otpCode` TEXT)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `key` TEXT NOT NULL, `looseKey` TEXT NOT NULL, `sender` TEXT NOT NULL, `body` TEXT NOT NULL, `receivedAt` INTEGER NOT NULL, `type` INTEGER NOT NULL, `senderKind` INTEGER NOT NULL, `extracted` TEXT NOT NULL, `matchedRules` TEXT NOT NULL, `skip` INTEGER, `simSlot` INTEGER, `masked` INTEGER NOT NULL, `otpCode` TEXT)",
         "fields": [
           {
             "fieldPath": "id",
@@ -134,6 +134,12 @@
           {
             "fieldPath": "key",
             "columnName": "key",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "looseKey",
+            "columnName": "looseKey",
             "affinity": "TEXT",
             "notNull": true
           },
@@ -225,6 +231,15 @@
             ],
             "orders": [],
             "createSql": "CREATE INDEX IF NOT EXISTS `index_logs_receivedAt` ON `${TABLE_NAME}` (`receivedAt`)"
+          },
+          {
+            "name": "index_logs_looseKey",
+            "unique": false,
+            "columnNames": [
+              "looseKey"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_logs_looseKey` ON `${TABLE_NAME}` (`looseKey`)"
           }
         ]
       },
@@ -336,7 +351,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '931703eb011d566a67d4052f4dcdb73c')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '251b716c5bd4cbb836800ee585811b05')"
     ]
   }
 }

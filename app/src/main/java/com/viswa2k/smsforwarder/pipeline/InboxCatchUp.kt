@@ -16,8 +16,8 @@ import kotlinx.coroutines.flow.first
  */
 class InboxCatchUp(private val graph: AppGraph, private val processor: IncomingProcessor = IncomingProcessor(graph)) {
     suspend fun run(now: Long) {
-        val floor = graph.settings.catchUpFloor.first()
-        if (floor == 0L) {
+        val plan = CatchUpWindow.plan(now, graph.settings.catchUpFloor.first())
+        if (plan !is CatchUpWindow.Plan.Scan) {
             // First run: never forward the old inbox.
             graph.settings.setCatchUpFloor(now)
             return
@@ -25,34 +25,35 @@ class InboxCatchUp(private val graph: AppGraph, private val processor: IncomingP
         val granted = ContextCompat.checkSelfPermission(graph.appContext, Manifest.permission.READ_SMS) ==
             PackageManager.PERMISSION_GRANTED
         if (!granted) return
-        val since = CatchUpWindow.since(now, floor)
-        val found = ArrayList<IncomingSms>()
+        val since = plan.since
+        val found = ArrayList<Pair<IncomingSms, Boolean>>()
         try {
             graph.appContext.contentResolver.query(
                 Telephony.Sms.Inbox.CONTENT_URI,
                 arrayOf(
                     Telephony.Sms.ADDRESS, Telephony.Sms.BODY, Telephony.Sms.DATE_SENT,
-                    Telephony.Sms.DATE, "sub_id",
+                    Telephony.Sms.DATE, Telephony.Sms.SUBSCRIPTION_ID,
                 ),
                 "${Telephony.Sms.DATE} >= ?", arrayOf(since.toString()), "${Telephony.Sms.DATE} ASC",
             )?.use { c ->
                 while (c.moveToNext()) {
                     val date = c.getLong(3)
-                    val sub = c.getInt(4)
+                    val dateSent = c.getLong(2)
+                    val sub = if (c.isNull(4)) null else c.getInt(4).takeIf { it >= 0 }
                     found += IncomingSms(
                         sender = c.getString(0).orEmpty(),
                         body = c.getString(1).orEmpty(),
                         // Same clock as SmsMessage.timestampMillis, so the keys match live PDUs.
-                        sentAt = c.getLong(2).takeIf { it > 0 } ?: date,
+                        sentAt = dateSent.takeIf { it > 0 } ?: date,
                         receivedAt = date,
-                        subscriptionId = sub.takeIf { it >= 0 },
-                    )
+                        subscriptionId = sub,
+                    ) to (dateSent > 0)
                 }
             }
         } catch (e: Exception) {
             Log.e("InboxCatchUp", "inbox query failed: ${e.javaClass.simpleName}")
             return
         }
-        for (sms in found) processor.process(sms, Source.CATCH_UP)
+        for ((sms, sentAtKnown) in found) processor.process(sms, Source.CATCH_UP, sentAtKnown)
     }
 }

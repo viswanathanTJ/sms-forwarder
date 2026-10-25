@@ -14,31 +14,31 @@ import com.viswa2k.smsforwarder.data.db.LogEntity
 import com.viswa2k.smsforwarder.data.db.OutboxEntity
 import com.viswa2k.smsforwarder.delivery.Dispatcher
 import com.viswa2k.smsforwarder.finance.TxnDirection
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import java.util.Locale
 
 enum class Source { LIVE, CATCH_UP, DEBUG }
 
 /**
- * The one path every SMS takes: dedupe, classify, decide, queue, send. Never throws (a failure here must
- * not crash the receiver); logs only the exception class, never the SMS text or the bot token.
+ * The one path every SMS takes: classify, decide, then ONE transaction writes the log row (unique key =
+ * dedupe) and its outbox rows. Never throws (a failure here must not crash the receiver); logs only the
+ * exception class, never the SMS text or the bot token.
+ *
+ * [process] returns as soon as the rows are committed and the delivery job is scheduled. The inline send
+ * runs on the app scope afterwards, so a receiver's `goAsync()` is never held across network calls.
  */
 class IncomingProcessor(private val graph: AppGraph) {
     private val contacts by lazy { ContactLookup(graph.appContext) }
 
-    suspend fun process(sms: IncomingSms, source: Source) {
-        var logId: Long? = null
-        var decided = false
+    /** [sentAtKnown] is false for inbox rows without `date_sent`: their key cannot match a live copy, so a looser check applies. */
+    suspend fun process(sms: IncomingSms, source: Source, sentAtKnown: Boolean = true) {
         try {
-            val key = MessageKey.of(sms.sender, sms.sentAt, sms.body)
-            // Placeholder row claims the key; the real decision lands in the same transaction as the outbox rows.
-            logId = graph.logs.insertIfNew(
-                LogEntity(
-                    key = key, sender = sms.sender, body = sms.body, receivedAt = sms.receivedAt,
-                    type = 0, senderKind = 0, extracted = "", matchedRules = "", skip = null,
-                    simSlot = sms.subscriptionId,
-                ),
-            ) ?: return
+            val loose = MessageKey.loose(sms.sender, sms.body)
+            if (!sentAtKnown &&
+                MessageKey.isLooseDuplicate(graph.logs.receivedAtByLooseKey(loose), sms.receivedAt)
+            ) return
 
             val masterOn = graph.settings.masterOn.first()
             val kind = contacts.kind(sms.sender, SenderIds.parse(sms.sender))
@@ -51,13 +51,16 @@ class IncomingProcessor(private val graph: AppGraph) {
             val texts = decision.sends.map {
                 MessageFormatter.format(sms, analysis, it.style, it.template, it.destination.channel, device)
             }
-            val id = logId
-            graph.database.withTransaction {
-                graph.database.logs().updateDecision(
-                    id = id, type = analysis.type.code, senderKind = kind.code,
-                    extracted = extractedLine(analysis), matchedRules = decision.matchedRuleIds.joinToString(","),
-                    skip = decision.skip?.code, otpCode = analysis.otp?.code,
-                )
+            val entry = LogEntity(
+                key = MessageKey.of(sms.sender, sms.sentAt, sms.body), looseKey = loose,
+                sender = sms.sender, body = sms.body, receivedAt = sms.receivedAt,
+                type = analysis.type.code, senderKind = kind.code, extracted = extractedLine(analysis),
+                matchedRules = decision.matchedRuleIds.joinToString(","), skip = decision.skip?.code,
+                simSlot = sms.subscriptionId, otpCode = analysis.otp?.code,
+            )
+            val stored = graph.database.withTransaction {
+                val id = graph.database.logs().insert(entry)
+                if (id == -1L) return@withTransaction false // seen before: no outbox rows
                 decision.sends.forEachIndexed { i, send ->
                     graph.outbox.insert(
                         OutboxEntity(
@@ -66,19 +69,25 @@ class IncomingProcessor(private val graph: AppGraph) {
                         ),
                     )
                 }
+                true
             }
-            decided = true
-            if (decision.sends.isNotEmpty()) deliverNow()
+            if (stored && decision.sends.isNotEmpty()) {
+                // Schedule first: the rows survive even if this process dies before the inline send.
+                Dispatcher.schedule(graph.appContext)
+                graph.appScope.launch { deliverNow() }
+            }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Log.e(TAG, "processing failed (${source.name}): ${e.javaClass.simpleName}")
-            // Undecided placeholder: free the key so the catch-up scan can retry the message.
-            if (!decided) logId?.let { runCatching { graph.logs.discard(it) } }
         }
     }
 
     private suspend fun deliverNow() {
         try {
             graph.dispatcher.sendDue(System.currentTimeMillis())
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Log.e(TAG, "inline delivery failed: ${e.javaClass.simpleName}")
             runCatching { Dispatcher.schedule(graph.appContext) }

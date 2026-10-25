@@ -1,7 +1,9 @@
 package com.viswa2k.smsforwarder.core
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class MessageKeyTest {
@@ -19,5 +21,16 @@ class MessageKeyTest {
     @Test fun `different body or second gives a different key`() {
         assertNotEquals(MessageKey.of("A", 1_000, "x"), MessageKey.of("A", 1_000, "y"))
         assertNotEquals(MessageKey.of("A", 1_000, "x"), MessageKey.of("A", 2_000, "x"))
+    }
+
+    @Test fun `loose key ignores time and formatting of the sender`() {
+        assertEquals(MessageKey.loose("+919840012345", " hi "), MessageKey.loose("09840012345", "hi"))
+    }
+
+    @Test fun `loose duplicate needs a logged row within two minutes`() {
+        assertTrue(MessageKey.isLooseDuplicate(listOf(1_000_000L), 1_000_000L + 120_000))
+        assertTrue(MessageKey.isLooseDuplicate(listOf(1_000_000L), 1_000_000L - 120_000))
+        assertFalse(MessageKey.isLooseDuplicate(listOf(1_000_000L), 1_000_000L + 120_001))
+        assertFalse(MessageKey.isLooseDuplicate(emptyList(), 5L))
     }
 }

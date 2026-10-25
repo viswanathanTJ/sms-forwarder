@@ -43,10 +43,12 @@ data class DestinationEntity(
  * second insert of the same SMS a no-op. [skip] is `SkipReason.code`, [senderKind] is `SenderKind.code`.
  * [otpCode] exists only until the row is masked, then is nulled.
  */
-@Entity(tableName = "logs", indices = [Index(value = ["key"], unique = true), Index("receivedAt")])
+@Entity(tableName = "logs", indices = [Index(value = ["key"], unique = true), Index("receivedAt"), Index("looseKey")])
 data class LogEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val key: String,
+    /** [com.viswa2k.smsforwarder.core.MessageKey.loose]: lets catch-up spot a live copy when `date_sent` is missing. */
+    val looseKey: String = "",
     val sender: String,
     val body: String,
     val receivedAt: Long,

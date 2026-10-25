@@ -12,8 +12,8 @@ class LogRepository(private val dao: LogDao) {
     /** Null when an entry with the same [LogEntity.key] already exists (the SMS was seen twice). */
     suspend fun insertIfNew(entry: LogEntity): Long? = dao.insert(entry).takeIf { it != -1L }
 
-    /** Drops a row whose decision never landed, freeing its key so the catch-up scan can retry the SMS. */
-    suspend fun discard(id: Long) = dao.delete(id)
+    /** Receive times of logged rows with this [looseKey]. */
+    suspend fun receivedAtByLooseKey(looseKey: String): List<Long> = dao.receivedAtByLooseKey(looseKey)
 
     fun recent(limit: Int): Flow<List<LogWithSends>> = dao.recent(limit)
 
