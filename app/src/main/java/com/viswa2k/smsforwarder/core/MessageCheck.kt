@@ -16,6 +16,8 @@ data class CheckResult(
     val smsPreview: String?,
     /** Forwarding is paused right now; the result still shows what would happen when it is on. */
     val paused: Boolean = false,
+    /** A WhatsApp message that would be dropped silently: shown as "Ignored (not logged)". */
+    val ignored: Boolean = false,
 )
 
 /**
@@ -54,6 +56,7 @@ object MessageCheck {
             telegramPreview = preview(Channel.TELEGRAM),
             smsPreview = preview(Channel.SMS),
             paused = !masterOn,
+            ignored = !SourceFilter.shouldRecord(origin, decision),
         )
     }
 

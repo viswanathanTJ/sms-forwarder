@@ -107,10 +107,15 @@ class SettingsStore(context: Context) {
     suspend fun setOnboardingDone(done: Boolean) { store.edit { it[onboardingKey] = done } }
     suspend fun setPinAttempts(state: String) { store.edit { it[pinAttemptsKey] = state } }
     /** Ignored when [types] has nothing selectable (at least one type must stay on). */
-    suspend fun setWhatsAppTypes(types: Set<MessageType>) {
+    suspend fun setWhatsAppTypes(types: Set<MessageType>, now: Long = System.currentTimeMillis()) {
         val clean = types.filter { it != MessageType.SPAM }
         if (clean.isEmpty()) return
-        store.edit { it[waTypesKey] = clean.map { t -> t.code.toString() }.toSet() }
+        store.edit {
+            val codes = clean.map { t -> t.code.toString() }.toSet()
+            // History from before a selection change is never forwarded (ignored messages are not remembered).
+            if (it[waTypesKey] != codes) it[waFloorKey] = now
+            it[waTypesKey] = codes
+        }
     }
     /** Switching on also moves the WhatsApp floor to [now] (one edit); switching off keeps the floor. */
     suspend fun setWhatsAppEnabled(on: Boolean, now: Long) {

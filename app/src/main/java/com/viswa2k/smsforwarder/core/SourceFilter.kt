@@ -27,6 +27,15 @@ object SourceFilter {
         else -> RuleEngine.decide(type, senderKind, senderAddress, masterOn, rules, destinations)
     }
 
+    /**
+     * Whether a message leaves a Log row. SMS always does; a WhatsApp message only when it is actually forwarded
+     * (anything else is dropped silently: no Log row, no outbox rows, nothing stored).
+     */
+    fun shouldRecord(origin: Origin, decision: Decision): Boolean = when (origin) {
+        Origin.SMS -> true
+        Origin.WHATSAPP -> decision.sends.isNotEmpty()
+    }
+
     /** Log note, e.g. "WhatsApp: only OTP, Transaction forwarded". */
     fun note(waTypes: Set<MessageType>): String =
         "WhatsApp: only " + waTypes.sortedBy { it.code }.joinToString(", ") { it.label } + " forwarded"

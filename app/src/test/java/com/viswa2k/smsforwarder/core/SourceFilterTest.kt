@@ -54,4 +54,16 @@ class SourceFilterTest {
         assertEquals("WhatsApp: only OTP forwarded", SourceFilter.note(otp))
         assertEquals("WhatsApp: only OTP, Balance alert forwarded", SourceFilter.note(setOf(MessageType.BALANCE, MessageType.OTP)))
     }
+
+    @Test fun shouldRecordOnlyForwardedWhatsApp() {
+        assertEquals(false, SourceFilter.shouldRecord(Origin.WHATSAPP, decide(Origin.WHATSAPP, MessageType.PERSONAL))) // filtered
+        assertEquals(false, SourceFilter.shouldRecord(Origin.WHATSAPP, decide(Origin.WHATSAPP, MessageType.SPAM)))
+        assertEquals(false, SourceFilter.shouldRecord(Origin.WHATSAPP, decide(Origin.WHATSAPP, MessageType.OTP, masterOn = false)))
+        assertEquals(false, SourceFilter.shouldRecord(Origin.WHATSAPP, Decision(emptyList(), emptyList(), SkipReason.NO_RULE)))
+        assertEquals(false, SourceFilter.shouldRecord(Origin.WHATSAPP, Decision(emptyList(), emptyList(), SkipReason.CONTACTS_PERMISSION_MISSING)))
+        assertEquals(false, SourceFilter.shouldRecord(Origin.WHATSAPP, Decision(listOf(1L), emptyList(), null)))
+        assertEquals(true, SourceFilter.shouldRecord(Origin.WHATSAPP, decide(Origin.WHATSAPP, MessageType.OTP)))
+        assertEquals(true, SourceFilter.shouldRecord(Origin.SMS, decide(Origin.SMS, MessageType.SPAM)))
+        assertEquals(true, SourceFilter.shouldRecord(Origin.SMS, Decision(emptyList(), emptyList(), SkipReason.NO_RULE)))
+    }
 }

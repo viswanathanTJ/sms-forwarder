@@ -6,6 +6,9 @@ updated: 2026-10-25
 
 > Dated work log. Newest first. See [[00 Index]].
 
+## 2026-10-25 - Task 23: ignored WhatsApp messages not logged
+- `SourceFilter.shouldRecord`; WhatsApp messages with no sends are dropped before the DB transaction; `waFloor` bumps on type-selection change; Test a message shows "Ignored (not logged)". See [[Incoming Pipeline]].
+
 ## 2026-10-25 - Task 18: fast shared-axis transitions
 - New `ui/nav/Transitions.kt` (tab X 200 ms, push Z 220 ms, onboarding fade 250 ms, reduce-motion aware), AnimatedVisibility/animateItem for in-screen show/hide, Rules list now a LazyColumn, tab ViewModels `WhileSubscribed(30_000)`. See [[UI Screens]].
 

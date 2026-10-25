@@ -55,6 +55,8 @@ class IncomingProcessor(private val graph: AppGraph) {
             val decision = SourceFilter.decide(
                 sms.origin, analysis.type, waTypes, masterOn, kind, sms.sender, graph.rules.all(), graph.destinations.all(),
             )
+            // WhatsApp messages that would not be forwarded are dropped silently: nothing is stored.
+            if (!SourceFilter.shouldRecord(sms.origin, decision)) return
             val device = graph.settings.deviceName.first()
             val now = System.currentTimeMillis()
             val texts = decision.sends.map {

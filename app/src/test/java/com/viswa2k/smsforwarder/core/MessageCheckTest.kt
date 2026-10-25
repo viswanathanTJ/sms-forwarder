@@ -33,6 +33,7 @@ class MessageCheckTest {
         assertEquals(SkipReason.SOURCE_FILTERED, r.skip)
         assertTrue(r.destinations.isEmpty())
         assertNull(r.telegramPreview)
+        assertTrue(r.ignored)
     }
 
     @Test fun whatsAppOtpPassesTheFilter() {
@@ -42,6 +43,7 @@ class MessageCheckTest {
         )
         assertNull(r.skip)
         assertEquals(listOf("Me"), r.destinations)
+        assertEquals(false, r.ignored)
     }
 
     @Test fun smsIgnoresTheWhatsAppFilter() {
