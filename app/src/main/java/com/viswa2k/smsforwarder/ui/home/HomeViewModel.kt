@@ -4,16 +4,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.viswa2k.smsforwarder.AppGraph
-import com.viswa2k.smsforwarder.core.MessageType
 import com.viswa2k.smsforwarder.core.Rule
-import com.viswa2k.smsforwarder.core.SkipReason
 import com.viswa2k.smsforwarder.data.db.Counts
-import com.viswa2k.smsforwarder.data.db.LogWithSends
-import com.viswa2k.smsforwarder.data.db.OutboxEntity
 import com.viswa2k.smsforwarder.service.ForwarderService
 import com.viswa2k.smsforwarder.service.HealthChecker
 import com.viswa2k.smsforwarder.service.HealthItem
-import com.viswa2k.smsforwarder.ui.common.DeliveryState
+import com.viswa2k.smsforwarder.ui.log.LogRowData
+import com.viswa2k.smsforwarder.ui.log.logRows
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -28,23 +25,12 @@ import kotlinx.coroutines.withContext
 
 data class RuleRow(val rule: Rule, val destinationLabels: List<String>)
 
-data class RecentRow(
-    val id: Long,
-    val sender: String,
-    val body: String,
-    val receivedAt: Long,
-    val type: MessageType?,
-    val state: DeliveryState,
-    val skip: SkipReason?,
-    val sentTo: List<String>,
-)
-
 data class HomeState(
     val masterOn: Boolean = true,
     val deviceName: String = "",
     val counts: Counts = Counts(0, 0, 0),
     val rules: List<RuleRow> = emptyList(),
-    val recent: List<RecentRow> = emptyList(),
+    val recent: List<LogRowData> = emptyList(),
     /** True until proven otherwise (and until [loaded]) so the setup card does not flash on start. */
     val hasDestinations: Boolean = true,
     val loaded: Boolean = false,
@@ -60,10 +46,7 @@ class HomeViewModel(private val graph: AppGraph) : ViewModel() {
             .map { r -> RuleRow(r, r.destinationIds.mapNotNull { labels[it] }) } to dests.isNotEmpty()
     }
 
-    private val recentFlow = combine(graph.logs.recent(RECENT_LIMIT), graph.destinations.destinations) { logs, dests ->
-        val labels = dests.associate { it.id to it.label }
-        logs.map { it.toRow(labels) }
-    }
+    private val recentFlow = graph.logRows(RECENT_LIMIT)
 
     /** Re-read on resume so "today" rolls over at midnight. */
     private val now = MutableStateFlow(System.currentTimeMillis())
@@ -111,26 +94,6 @@ class HomeViewModel(private val graph: AppGraph) : ViewModel() {
 
     fun setRuleEnabled(id: Long, on: Boolean) {
         graph.appScope.launch { writeLock.withLock { graph.rules.setEnabled(id, on) } }
-    }
-
-    private fun LogWithSends.toRow(labels: Map<Long, String>): RecentRow {
-        val states = sends.map { it.state }
-        val state = when {
-            log.skip != null || sends.isEmpty() -> DeliveryState.SKIPPED
-            OutboxEntity.STATE_PENDING in states -> DeliveryState.RETRYING
-            OutboxEntity.STATE_FAILED in states -> DeliveryState.FAILED
-            else -> DeliveryState.FORWARDED
-        }
-        return RecentRow(
-            id = log.id,
-            sender = log.sender,
-            body = log.body,
-            receivedAt = log.receivedAt,
-            type = MessageType.fromCode(log.type),
-            state = state,
-            skip = log.skip?.let { SkipReason.fromCode(it) },
-            sentTo = sends.mapNotNull { labels[it.destinationId] }.distinct(),
-        )
     }
 
     companion object {

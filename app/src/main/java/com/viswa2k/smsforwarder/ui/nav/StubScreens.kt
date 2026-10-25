@@ -10,7 +10,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
-/** Title-only placeholder; replaced by Task 13 (Rules, editor), 14 (Log) and 15 (Settings). */
+/** Title-only placeholder; replaced by Task 15 (Settings). */
 @Composable
 fun StubScreen(title: String, modifier: Modifier = Modifier) {
     Box(modifier.fillMaxSize().padding(16.dp), contentAlignment = Alignment.TopStart) {

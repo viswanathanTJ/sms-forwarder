@@ -28,6 +28,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.viswa2k.smsforwarder.R
 import com.viswa2k.smsforwarder.ui.home.HomeScreen
+import com.viswa2k.smsforwarder.ui.log.LogScreen
 import com.viswa2k.smsforwarder.ui.rules.RuleEditorScreen
 import com.viswa2k.smsforwarder.ui.rules.RulesScreen
 
@@ -107,7 +108,7 @@ fun AppNavHost(navController: NavHostController = rememberNavController()) {
                     onOpenSettings = { navController.navigateToTab(Routes.SETTINGS) },
                 )
             }
-            composable(Routes.LOG) { StubScreen(stringResource(R.string.title_log)) }
+            composable(Routes.LOG) { LogScreen() }
             composable(Routes.SETTINGS) { StubScreen(stringResource(R.string.title_settings)) }
         }
     }

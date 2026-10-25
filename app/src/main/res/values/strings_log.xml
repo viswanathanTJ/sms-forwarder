@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="log_clear">Clear log</string>
+    <string name="log_clear_title">Clear the log?</string>
+    <string name="log_clear_body">All logged messages and their delivery history are deleted. Messages still waiting to be sent will not be sent.</string>
+    <string name="log_clear_confirm">Clear</string>
+    <string name="log_cancel">Cancel</string>
+    <string name="log_filter_all">All</string>
+    <string name="log_filter_forwarded">Forwarded</string>
+    <string name="log_filter_skipped">Skipped</string>
+    <string name="log_filter_failed_retrying">Failed / retrying</string>
+    <string name="log_empty">No messages yet.</string>
+    <string name="log_empty_filtered">No messages here.</string>
+    <string name="log_detail_message">Message</string>
+    <string name="log_detail_extracted">Detected</string>
+    <string name="log_detail_masked">Hidden for privacy</string>
+    <string name="log_detail_destinations">Destinations</string>
+    <string name="log_detail_no_sends">Nothing was sent.</string>
+    <string name="log_detail_deleted_destination">Removed destination</string>
+    <string name="log_send_sent">Sent</string>
+    <string name="log_send_retrying">Retrying</string>
+    <string name="log_send_failed">Failed</string>
+    <string name="log_resend">Resend</string>
+</resources>

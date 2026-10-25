@@ -1,6 +1,5 @@
 package com.viswa2k.smsforwarder.ui.home
 
-import android.text.format.DateFormat
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -31,7 +30,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -50,14 +48,11 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.viswa2k.smsforwarder.AppGraph
 import com.viswa2k.smsforwarder.R
 import com.viswa2k.smsforwarder.core.SenderCondition
-import com.viswa2k.smsforwarder.core.SkipReason
 import com.viswa2k.smsforwarder.ui.common.SectionTitle
-import com.viswa2k.smsforwarder.ui.common.StatusChip
 import com.viswa2k.smsforwarder.ui.common.TypeBadge
-import com.viswa2k.smsforwarder.ui.common.TypeChip
+import com.viswa2k.smsforwarder.ui.log.LogRow
 import com.viswa2k.smsforwarder.ui.theme.BrandPrimary
 import com.viswa2k.smsforwarder.ui.theme.HeroGradientEnd
-import java.util.Date
 
 @Composable
 fun HomeScreen(
@@ -128,7 +123,7 @@ fun HomeScreen(
             }
             state.recent.forEachIndexed { index, row ->
                 if (index > 0) HorizontalDivider(Modifier.padding(vertical = 10.dp), color = MaterialTheme.colorScheme.outlineVariant)
-                RecentItem(row)
+                LogRow(row)
             }
         }
     }
@@ -277,41 +272,5 @@ private fun RuleItem(row: RuleRow, onClick: () -> Unit, onToggle: (Boolean) -> U
             checked = rule.enabled,
             onCheckedChange = onToggle,
         )
-    }
-}
-
-@Composable
-private fun RecentItem(row: RecentRow) {
-    val context = LocalContext.current
-    val time = remember(row.receivedAt) { DateFormat.getTimeFormat(context).format(Date(row.receivedAt)) }
-    val note = when {
-        row.skip != null -> stringResource(
-            when (row.skip) {
-                SkipReason.PAUSED -> R.string.skip_paused
-                SkipReason.SPAM -> R.string.skip_spam
-                SkipReason.NO_RULE -> R.string.skip_no_rule
-                SkipReason.CONTACTS_PERMISSION_MISSING -> R.string.skip_contacts_permission
-            },
-        )
-        row.sentTo.isNotEmpty() -> stringResource(R.string.recent_sent_to, row.sentTo.joinToString(", "))
-        else -> stringResource(R.string.recent_matched_nothing_sent)
-    }
-    Column(Modifier.fillMaxWidth()) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(row.sender, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-            Spacer(Modifier.width(6.dp))
-            Text(time, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
-        }
-        Text(
-            row.body.replace('\n', ' '),
-            color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.5.sp,
-            maxLines = 1, overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(top = 2.dp, bottom = 4.dp),
-        )
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            row.type?.let { TypeChip(it) }
-            StatusChip(row.state)
-        }
-        Text(note, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))
     }
 }
