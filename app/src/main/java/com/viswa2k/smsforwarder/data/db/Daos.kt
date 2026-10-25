@@ -104,6 +104,13 @@ interface OutboxDao {
     @Query("SELECT * FROM outbox WHERE state = 0 AND nextAttemptAt <= :now ORDER BY firstAttemptAt, id")
     suspend fun due(now: Long): List<OutboxEntity>
 
+    @Query("SELECT * FROM outbox WHERE state = 0 ORDER BY firstAttemptAt, id")
+    suspend fun pending(): List<OutboxEntity>
+
+    /** Pushes a destination's still-pending rows back to [nextAt] (never earlier than they already are). */
+    @Query("UPDATE outbox SET nextAttemptAt = :nextAt WHERE destinationId = :destinationId AND state = 0 AND nextAttemptAt < :nextAt")
+    suspend fun deferPending(destinationId: Long, nextAt: Long)
+
     @Query("SELECT MIN(nextAttemptAt) FROM outbox WHERE state = 0")
     suspend fun earliestPending(): Long?
 

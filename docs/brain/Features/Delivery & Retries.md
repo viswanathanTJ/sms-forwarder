@@ -36,4 +36,5 @@ updated: 2026-10-25
 - `REPLACE` called from inside the running worker cancels that worker; `schedule` is therefore the last step of a pass.
 - An SMS sent-confirmation timeout (60 s) is retried, so a very slow radio can produce a duplicate SMS.
 - OTP rows older than 1 h have a masked body; a blank-text fallback after that sends the masked body.
-- Tests: `RetryPolicyTest`, `TelegramResponseTest`, `DispatcherTextTest`.
+- Ordering: `core/DeliveryOrder` serves each destination strictly oldest-first; sends run NonCancellable; `schedule` never replaces a RUNNING worker except from the worker itself.
+- Tests: `RetryPolicyTest`, `TelegramResponseTest`, `DeliveryOrderTest`, `DispatcherTextTest`.

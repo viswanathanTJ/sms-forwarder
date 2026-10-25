@@ -7,6 +7,9 @@ class OutboxRepository(private val dao: OutboxDao) {
     suspend fun insert(row: OutboxEntity): Long = dao.insert(row)
     /** Pending rows whose next attempt is due, oldest first. */
     suspend fun due(now: Long): List<OutboxEntity> = dao.due(now)
+    /** Every PENDING row, due or not, oldest first. */
+    suspend fun pending(): List<OutboxEntity> = dao.pending()
+    suspend fun deferPending(destinationId: Long, nextAt: Long) = dao.deferPending(destinationId, nextAt)
     /** Due time of the soonest PENDING row, or null when nothing is pending. */
     suspend fun earliestPendingAt(): Long? = dao.earliestPending()
     suspend fun markSent(id: Long) = dao.markSent(id)

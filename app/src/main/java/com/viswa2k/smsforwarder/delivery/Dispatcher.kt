@@ -12,7 +12,12 @@ import com.viswa2k.smsforwarder.core.MessageFormatter
 import com.viswa2k.smsforwarder.core.RetryPolicy
 import com.viswa2k.smsforwarder.core.SendResult
 import com.viswa2k.smsforwarder.data.db.OutboxEntity
-import kotlinx.coroutines.CancellationException
+import androidx.work.WorkInfo
+import com.viswa2k.smsforwarder.core.DeliveryOrder
+import com.viswa2k.smsforwarder.core.Destination
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.util.concurrent.TimeUnit
@@ -24,21 +29,38 @@ import java.util.concurrent.TimeUnit
 class Dispatcher(private val graph: AppGraph) {
     private val lock = Mutex()
 
-    suspend fun sendDue(now: Long) {
+    /**
+     * One pass. [fromWorker] is true when [DeliveryWorker] runs it: only then may the job be replaced
+     * at the end (a running worker is never replaced from outside, which would cancel it mid-send).
+     */
+    suspend fun sendDue(now: Long, fromWorker: Boolean = false) {
         lock.withLock {
-            val rows = graph.outbox.due(now)
-            if (rows.isNotEmpty()) {
+            val pending = graph.outbox.pending()
+            if (pending.isNotEmpty()) {
+                val byId = pending.associateBy { it.id }
                 val destinations = graph.destinations.all().associateBy { it.id }
-                for (row in rows) deliver(row, destinations[row.destinationId])
+                val order = DeliveryOrder(
+                    pending.map { DeliveryOrder.Row(it.id, it.destinationId, it.firstAttemptAt, it.nextAttemptAt) }, now,
+                )
+                while (true) {
+                    val next = order.next() ?: break
+                    val row = byId.getValue(next.id)
+                    // A send that was started is always recorded, even if the caller is cancelled.
+                    val outcome = withContext(NonCancellable) { deliver(row, destinations[row.destinationId], now) }
+                    if (outcome.retryAt != null) order.onRetry(next, outcome.retryAt) else if (outcome.sent) order.onSent(next)
+                }
+                for ((destinationId, nextAt) in order.deferrals()) graph.outbox.deferPending(destinationId, nextAt)
             }
         }
-        schedule(graph.appContext)
+        schedule(graph.appContext, replaceRunning = fromWorker)
     }
 
-    private suspend fun deliver(row: OutboxEntity, destination: com.viswa2k.smsforwarder.core.Destination?) {
+    private class Outcome(val sent: Boolean, val retryAt: Long?)
+
+    private suspend fun deliver(row: OutboxEntity, destination: Destination?, now: Long): Outcome {
         if (destination == null) {
             graph.outbox.markFailed(row.id, "destination removed")
-            return
+            return Outcome(sent = false, retryAt = null)
         }
         val result = try {
             val original = graph.logs.bodyOf(row.logId).orEmpty()
@@ -48,19 +70,27 @@ class Dispatcher(private val graph: AppGraph) {
                 Channel.SMS ->
                     graph.smsSender.send(destination.address, prepareSmsText(row.text, original), destination.simSubscriptionId)
             }
-        } catch (e: CancellationException) {
-            throw e
         } catch (e: Exception) {
             SendResult.Retry("Unexpected error: ${e.javaClass.simpleName}")
         }
-        when (result) {
-            SendResult.Sent -> graph.outbox.markSent(row.id)
-            is SendResult.Fatal -> graph.outbox.markFailed(row.id, result.reason)
+        return when (result) {
+            SendResult.Sent -> {
+                graph.outbox.markSent(row.id)
+                Outcome(sent = true, retryAt = null)
+            }
+            is SendResult.Fatal -> {
+                graph.outbox.markFailed(row.id, result.reason)
+                Outcome(sent = false, retryAt = null)
+            }
             is SendResult.Retry -> {
-                val now = System.currentTimeMillis()
                 val next = RetryPolicy.nextAttemptAt(row.attempts, row.firstAttemptAt, now, result.retryAfterMs)
-                if (next == null) graph.outbox.markFailed(row.id, "Gave up after 24 h: ${result.reason}")
-                else graph.outbox.markRetry(row.id, next, result.reason)
+                if (next == null) {
+                    graph.outbox.markFailed(row.id, "Gave up after 24 h: ${result.reason}")
+                    Outcome(sent = false, retryAt = null)
+                } else {
+                    graph.outbox.markRetry(row.id, next, result.reason)
+                    Outcome(sent = false, retryAt = next)
+                }
             }
         }
     }
@@ -70,18 +100,24 @@ class Dispatcher(private val graph: AppGraph) {
 
         /**
          * (Re)enqueues the unique delivery job to run at the earliest pending row's due time, once the
-         * network is available. REPLACE keeps the delay tracking the earliest row. No-op without pending rows.
+         * network is available. REPLACE keeps the delay tracking the earliest row, but a RUNNING job is
+         * left alone unless [replaceRunning] (the worker re-schedules itself when its pass ends).
+         * No-op without pending rows.
          */
-        suspend fun schedule(context: Context) {
+        suspend fun schedule(context: Context, replaceRunning: Boolean = false) {
             val graph = AppGraph.from(context)
             val earliest = graph.outbox.earliestPendingAt() ?: return
+            val manager = WorkManager.getInstance(context.applicationContext)
+            if (!replaceRunning) {
+                val infos = withContext(Dispatchers.IO) { manager.getWorkInfosForUniqueWork(WORK_NAME).get() }
+                if (infos.any { it.state == WorkInfo.State.RUNNING }) return
+            }
             val delay = (earliest - System.currentTimeMillis()).coerceAtLeast(0)
             val request = OneTimeWorkRequestBuilder<DeliveryWorker>()
                 .setInitialDelay(delay, TimeUnit.MILLISECONDS)
                 .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
                 .build()
-            WorkManager.getInstance(context.applicationContext)
-                .enqueueUniqueWork(WORK_NAME, ExistingWorkPolicy.REPLACE, request)
+            manager.enqueueUniqueWork(WORK_NAME, ExistingWorkPolicy.REPLACE, request)
         }
     }
 }

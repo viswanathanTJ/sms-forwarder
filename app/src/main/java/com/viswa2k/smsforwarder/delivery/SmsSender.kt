@@ -12,6 +12,8 @@ import androidx.core.content.ContextCompat
 import com.viswa2k.smsforwarder.core.SendResult
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.withTimeoutOrNull
+import java.util.Random
+import java.util.UUID
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
@@ -34,8 +36,8 @@ class SmsSender(context: Context) {
         }
         if (parts.isEmpty()) return SendResult.Fatal("Empty message")
 
-        val sendId = counter.incrementAndGet()
-        val action = "$ACTION_PREFIX$sendId"
+        val requestBase = nextRequestBase(parts.size)
+        val action = "$ACTION_PREFIX${UUID.randomUUID()}"
         val outcome = CompletableDeferred<Int>()
         val pending = AtomicInteger(parts.size)
         val receiver = object : BroadcastReceiver() {
@@ -50,7 +52,7 @@ class SmsSender(context: Context) {
             val sentIntents = ArrayList<PendingIntent>(parts.size)
             for (i in parts.indices) {
                 val intent = Intent(action).setPackage(context.packageName)
-                sentIntents += PendingIntent.getBroadcast(context, sendId * 1000 + i, intent, PendingIntent.FLAG_IMMUTABLE)
+                sentIntents += PendingIntent.getBroadcast(context, requestBase + i, intent, PendingIntent.FLAG_IMMUTABLE)
             }
             try {
                 manager.sendMultipartTextMessage(number, null, parts, sentIntents, null)
@@ -89,6 +91,8 @@ class SmsSender(context: Context) {
     private companion object {
         const val ACTION_PREFIX = "com.viswa2k.smsforwarder.SMS_SENT."
         const val TIMEOUT_MS = 60_000L
-        val counter = AtomicInteger(0)
+        // Random start so request codes differ across process restarts (actions are UUIDs anyway).
+        val counter = AtomicInteger(Random().nextInt(1 shl 24))
+        fun nextRequestBase(parts: Int): Int = counter.getAndAdd(parts)
     }
 }

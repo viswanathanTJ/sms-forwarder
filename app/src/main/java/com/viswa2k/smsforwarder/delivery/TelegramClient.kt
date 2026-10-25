@@ -18,7 +18,7 @@ import java.net.URLEncoder
 class TelegramClient(private val tokenProvider: suspend () -> String?) {
 
     suspend fun send(chatId: String, topicId: Long?, html: String): SendResult {
-        val token = tokenProvider() ?: return SendResult.Fatal("Bot token not set")
+        val token = tokenProvider()?.takeIf { it.isNotBlank() } ?: return SendResult.Fatal("Bot token not set")
         val params = linkedMapOf("chat_id" to chatId, "text" to html, "parse_mode" to "HTML", "disable_web_page_preview" to "true")
         if (topicId != null) params["message_thread_id"] = topicId.toString()
         return try {
@@ -30,7 +30,7 @@ class TelegramClient(private val tokenProvider: suspend () -> String?) {
     }
 
     suspend fun detectChats(): Result<List<DetectedChat>> {
-        val token = tokenProvider() ?: return Result.failure(IOException("Bot token not set"))
+        val token = tokenProvider()?.takeIf { it.isNotBlank() } ?: return Result.failure(IOException("Bot token not set"))
         return try {
             val (code, body) = post(token, "getUpdates", mapOf("timeout" to "0"))
             if (code == 200 && body != null) {
@@ -72,7 +72,7 @@ class TelegramClient(private val tokenProvider: suspend () -> String?) {
         }
 
     private fun clean(text: String, token: String): String =
-        TelegramResponse.redact(text.replace(token, "<redacted>"))
+        TelegramResponse.redact(if (token.isEmpty()) text else text.replace(token, "<redacted>"))
 
     private companion object {
         const val TIMEOUT_MS = 15_000
