@@ -58,14 +58,16 @@ class LogViewModel(private val graph: AppGraph) : ViewModel() {
 
     /**
      * Clears the Log ([LogClearPolicy]). The deleted rows were the dedupe keys, so the catch-up floor moves
-     * to now first, under the catch-up lock (a scan in progress cannot re-insert what is being cleared).
+     * to now first (and the WhatsApp floor with it), under the catch-up lock (a scan in progress cannot re-insert what is being cleared).
      */
     fun clear() {
         graph.appScope.launch {
             InboxCatchUp.lock.withLock {
                 val now = System.currentTimeMillis()
                 val floor = LogClearPolicy.floorAfterClear(now, graph.settings.catchUpFloor.first())
-                graph.settings.setCatchUpFloor(floor)
+                // WhatsApp re-posts recent history; without its dedupe keys only the floor stops a re-forward.
+                val waFloor = LogClearPolicy.floorAfterClear(now, graph.settings.whatsApp.first().floor)
+                graph.settings.setFloorsAfterClear(floor, waFloor)
                 graph.logs.clear(floor)
             }
         }

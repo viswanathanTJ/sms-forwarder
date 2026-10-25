@@ -8,7 +8,7 @@ enum class Problem(val key: String, val text: String) {
     BATTERY_OPTIMIZED("battery", "Battery optimisation is back on"),
     CLASSIFIER("classifier", "Message filter failed to load"),
     PAUSED("paused", "Forwarding is switched off"),
-    NOTIF_ACCESS("notif_access", "WhatsApp notification access was removed"),
+    NOTIF_ACCESS("notif_access", "WhatsApp notification access is not allowed"),
 }
 
 /** Decides which problem alerts to send: once when new, again after 24 h, and a "resolved" when gone. */
@@ -24,6 +24,13 @@ object ProblemAlerts {
         val newState = current.associateWith { key -> if (key in raise) now else state.getValue(key) }
         return Plan(raise, resolve, newState)
     }
+
+    /**
+     * A problem that only exists while a feature is on (WhatsApp access): when the feature is switched off
+     * its key leaves the state silently, so no "resolved" message is sent for it.
+     */
+    fun dropInactive(state: Map<String, Long>, key: String, active: Boolean): Map<String, Long> =
+        if (active) state else state - key
 
     /** State after trying to send a "raise" alert: recorded only when sent; a failure keeps any older timestamp. */
     fun afterRaise(state: Map<String, Long>, key: String, now: Long, sent: Boolean): Map<String, Long> =

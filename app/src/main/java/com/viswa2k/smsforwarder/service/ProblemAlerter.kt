@@ -37,6 +37,13 @@ class ProblemAlerter(private val graph: AppGraph) {
             texts["dest:${d.id}"] = "Sending to ${d.label} has failed for over an hour: ${error ?: "unknown error"}"
         }
         var state = SettingsStore.parseAlertState(graph.settings.alertState.first())
+        // WhatsApp switched off: its access problem is moot, forget it without a "resolved" message.
+        val waOn = graph.settings.whatsAppEnabled.first()
+        val pruned = ProblemAlerts.dropInactive(state, Problem.NOTIF_ACCESS.key, active = waOn)
+        if (pruned != state) {
+            state = pruned
+            graph.settings.setAlertState(SettingsStore.encodeAlertState(state))
+        }
         val plan = ProblemAlerts.plan(state, texts.keys, now)
         for (key in plan.raise) {
             state = ProblemAlerts.afterRaise(state, key, now, send(target, "⚠", device, texts.getValue(key)))

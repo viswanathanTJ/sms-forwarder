@@ -4,6 +4,12 @@ package com.viswa2k.smsforwarder.core
 data class WaMessage(val chat: String, val person: String?, val text: String, val timestamp: Long)
 
 /**
+ * A MessagingStyle message as plain fields. [hasPerson] false = no Person (the phone owner's own message);
+ * [personKey] equal to the style's user key also marks the owner.
+ */
+data class StyleMessage(val text: String?, val timestamp: Long, val personName: String?, val personKey: String?, val hasPerson: Boolean)
+
+/**
  * Pure decisions for the WhatsApp notification source (spec addendum 2026-10-25-whatsapp-source-design):
  * which packages, which texts and which timestamps are real new messages, and the `WA:` sender identity.
  */
@@ -18,20 +24,54 @@ object NotificationText {
 
     fun isAllowedPackage(pkg: String?): Boolean = pkg != null && pkg in PACKAGES
 
+    /** Leading emoji / symbols / variation selectors before a media placeholder word. */
+    private const val SYMBOLS = """^[\p{So}\p{Sk}\p{Cs}\uFE0F\u200D\s]*"""
+
+    // Anchored at the start; a tail is tolerated only where WhatsApp appends one (time, percent, duration).
     private val HOUSEKEEPING = listOf(
-        Regex("""\d+ new messages?"""),
-        Regex("""checking for new messages"""),
-        Regex("""\d+ messages? from \d+ chats?"""),
-        Regex("""(backup in progress|backing up (messages|media|chats?)|restoring (messages|media|chats?)|preparing backup|backup (complete|paused|failed)).*"""),
-        Regex("""(incoming|ongoing|missed) (voice |video )?call"""),
-        Regex("""\d+ missed (voice |video )?calls?"""),
-        Regex("""(calling|ringing)(…|\.\.\.)?"""),
+        Regex("""^\d+ new messages?\b"""),
+        Regex("""^checking for new messages"""),
+        Regex("""^\d+ messages? from \d+ chats?\b"""),
+        Regex("""^(backup in progress|backing up (messages|media|chats?)|restoring (messages|media|chats?)|preparing backup|backup (complete|paused|failed))"""),
+        Regex("""^(incoming|ongoing|missed) (voice |video )call\b"""),
+        Regex("""^(incoming|ongoing|missed) call$"""),
+        Regex("""^\d+ missed (voice |video )?calls?\b"""),
+        Regex("""^(calling|ringing)(…|\.\.\.)?$"""),
+        Regex("""^(this message was deleted|you deleted this message)\.?$"""),
+        Regex(SYMBOLS + """(photo|voice message|audio|document|video|sticker|gif)( \(\d{1,2}:\d{2}\))?$"""),
     )
 
-    /** WhatsApp's own status texts (counters, backup, calls): not messages. */
+    /** WhatsApp's own texts (counters, backup, calls, deletions, media placeholders): not messages. */
     fun housekeeping(text: String): Boolean {
         val t = text.trim().lowercase()
-        return t.isNotEmpty() && HOUSEKEEPING.any { it.matches(t) }
+        return t.isNotEmpty() && HOUSEKEEPING.any { it.containsMatchIn(t) }
+    }
+
+    /**
+     * The messages one notification carries (spec addendum §2). With MessagingStyle ([messages] non-empty):
+     * owner's own messages and empty texts are skipped; a group's chat is [conversationTitle] (else [title])
+     * and keeps the member, a 1:1 chat is the person's name (else [title]). Without it: [fallbackText]
+     * (big text, else text) under [title] at [fallbackTs].
+     */
+    fun select(
+        title: String?,
+        isGroup: Boolean,
+        conversationTitle: String?,
+        userKey: String?,
+        messages: List<StyleMessage>?,
+        fallbackText: String?,
+        fallbackTs: Long,
+    ): List<WaMessage> {
+        val t = title.orEmpty()
+        if (!messages.isNullOrEmpty()) {
+            return messages.mapNotNull { m ->
+                if (!m.hasPerson || (userKey != null && m.personKey == userKey)) return@mapNotNull null
+                val text = m.text ?: return@mapNotNull null
+                if (isGroup) WaMessage(conversationTitle ?: t, m.personName, text, m.timestamp)
+                else WaMessage(m.personName ?: t, null, text, m.timestamp)
+            }
+        }
+        return if (fallbackText == null) emptyList() else listOf(WaMessage(t, null, fallbackText, fallbackTs))
     }
 
     private val COUNT_SUFFIX = Regex("""\s*\(\d+ (new )?messages?\)$""", RegexOption.IGNORE_CASE)

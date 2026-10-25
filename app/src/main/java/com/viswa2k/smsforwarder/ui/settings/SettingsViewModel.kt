@@ -285,7 +285,7 @@ class SettingsViewModel(private val graph: AppGraph) : ViewModel() {
                     val contacts = ContactLookup(graph.appContext)
                     val wa = origin == Origin.WHATSAPP
                     val address = if (wa) NotificationText.senderAddress(sender, null) else sender.trim()
-                    val kind = if (wa) contacts.kindForName(sender) else contacts.kind(address, SenderIds.parse(address))
+                    val kind = if (wa) contacts.kindForName(NotificationText.chatOf(address)) else contacts.kind(address, SenderIds.parse(address))
                     MessageCheck.run(
                         address, body, kind, graph.analyzer, graph.rules.all(), graph.destinations.all(),
                         deviceLabel(), System.currentTimeMillis(), masterOn = graph.settings.masterOn.first(),

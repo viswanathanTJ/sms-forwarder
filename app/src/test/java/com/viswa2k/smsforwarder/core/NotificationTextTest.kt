@@ -87,4 +87,73 @@ class NotificationTextTest {
         assertEquals("Amazon (India)", NotificationText.cleanTitle("Amazon (India)"))
         assertEquals("WA:Family · Mom", NotificationText.senderAddress("Family (3 messages)", "Mom"))
     }
+
+    @Test fun `call notices, deletions and media placeholders are housekeeping`() {
+        listOf(
+            "Missed voice call", "Missed video call at 10:31", "Incoming voice call", "Incoming video call",
+            "Calling…", "This message was deleted", "You deleted this message",
+            "📷 Photo", "🎤 Voice message (0:12)", "📄 Document", "🎥 Video", "Sticker", "👾 Sticker", "GIF", "📷\uFE0F Photo",
+        ).forEach { assertTrue(it, NotificationText.housekeeping(it)) }
+    }
+
+    @Test fun `messages that merely start like a notice are kept`() {
+        listOf(
+            "Calling you later", "📷 Look at this bill", "Photo of the receipt is attached, OTP 482913",
+            "Video KYC OTP is 482913", "Your document is ready",
+        ).forEach { assertFalse(it, NotificationText.housekeeping(it)) }
+    }
+
+    // ---- select(): which (chat, person, text, time) a notification carries ------------------------
+
+    private fun msg(text: String?, ts: Long = 1_000, name: String? = "Ravi", key: String? = null, person: Boolean = true) =
+        StyleMessage(text, ts, if (person) name else null, if (person) key else null, hasPerson = person)
+
+    @Test fun `one-to-one chat uses the person name, else the title`() {
+        val out = NotificationText.select(
+            title = "Ravi (2 messages)", isGroup = false, conversationTitle = null, userKey = null,
+            messages = listOf(msg("hi"), msg("there", name = null)), fallbackText = null, fallbackTs = 0,
+        )
+        assertEquals(listOf(WaMessage("Ravi", null, "hi", 1_000), WaMessage("Ravi (2 messages)", null, "there", 1_000)), out)
+    }
+
+    @Test fun `group chat uses the conversation title and keeps the member`() {
+        val out = NotificationText.select(
+            title = "Family: Mom", isGroup = true, conversationTitle = "Family", userKey = null,
+            messages = listOf(msg("OTP 1234", name = "Mom")), fallbackText = null, fallbackTs = 0,
+        )
+        assertEquals(listOf(WaMessage("Family", "Mom", "OTP 1234", 1_000)), out)
+    }
+
+    @Test fun `group without conversation title falls back to the notification title`() {
+        val out = NotificationText.select("Family", true, null, null, listOf(msg("x", name = "Mom")), null, 0)
+        assertEquals(listOf(WaMessage("Family", "Mom", "x", 1_000)), out)
+    }
+
+    @Test fun `own messages and empty texts are skipped`() {
+        val out = NotificationText.select(
+            title = "Ravi", isGroup = false, conversationTitle = null, userKey = "me",
+            messages = listOf(msg("mine", person = false), msg("also mine", name = "You", key = "me"), msg(null), msg("theirs", key = "ravi")),
+            fallbackText = null, fallbackTs = 0,
+        )
+        assertEquals(listOf(WaMessage("Ravi", null, "theirs", 1_000)), out)
+    }
+
+    @Test fun `without messaging style the big or plain text is used under the title`() {
+        assertEquals(
+            listOf(WaMessage("Amazon", null, "482913 is your OTP", 7_000)),
+            NotificationText.select("Amazon", false, null, null, null, "482913 is your OTP", 7_000),
+        )
+        assertEquals(emptyList<WaMessage>(), NotificationText.select("Amazon", false, null, null, null, null, 7_000))
+        // An empty MessagingStyle also falls back.
+        assertEquals(1, NotificationText.select("Amazon", false, null, null, emptyList(), "x", 7_000).size)
+    }
+
+    @Test fun `after a log clear re-posted history is not forwarded again`() {
+        // Clear deleted the dedupe keys and moved waFloor to "now" (LogViewModel.clear).
+        val clearedAt = 10_000_000L
+        val waFloor = LogClearPolicy.floorAfterClear(clearedAt, currentFloor = 1_000L)
+        val repostAt = clearedAt + 60_000
+        assertFalse(NotificationText.acceptTimestamp(clearedAt - 120_000, repostAt, waFloor))
+        assertTrue(NotificationText.acceptTimestamp(clearedAt + 1_000, repostAt, waFloor))
+    }
 }

@@ -69,7 +69,6 @@ class SettingsStore(context: Context) {
 
     /** WhatsApp notification source; off by default. */
     val whatsAppEnabled: Flow<Boolean> = store.data.map { it[whatsAppKey] ?: false }
-    val waFloor: Flow<Long> = store.data.map { it[waFloorKey] ?: 0L }
     val whatsApp: Flow<WhatsAppPrefs> = store.data.map { WhatsAppPrefs(it[whatsAppKey] ?: false, it[waFloorKey] ?: 0L) }
 
     suspend fun setMasterOn(on: Boolean) { store.edit { it[masterOnKey] = on } }
@@ -84,6 +83,16 @@ class SettingsStore(context: Context) {
     }
     suspend fun setAlertsDestinationId(id: Long?) { store.edit { if (id == null) it.remove(alertsDestKey) else it[alertsDestKey] = id } }
     suspend fun setCatchUpFloor(epochMs: Long) { store.edit { it[floorKey] = epochMs } }
+    /**
+     * Log "Clear": the deleted rows were the dedupe keys of SMS and WhatsApp alike, so both floors move in
+     * one edit ([waFloor] only; the WhatsApp toggle is untouched).
+     */
+    suspend fun setFloorsAfterClear(catchUpFloor: Long, waFloor: Long) {
+        store.edit {
+            it[floorKey] = catchUpFloor
+            it[waFloorKey] = waFloor
+        }
+    }
     suspend fun setMigrationDone(done: Boolean) { store.edit { it[migrationKey] = done } }
     suspend fun setSetupConfirmedOem(done: Boolean) { store.edit { it[oemKey] = done } }
     suspend fun setPendingReboot(at: Long?) { store.edit { if (at == null) it.remove(pendingRebootKey) else it[pendingRebootKey] = at } }
@@ -91,7 +100,7 @@ class SettingsStore(context: Context) {
     suspend fun setStoredUpdate(json: String) { store.edit { it[storedUpdateKey] = json } }
     suspend fun setOnboardingDone(done: Boolean) { store.edit { it[onboardingKey] = done } }
     suspend fun setPinAttempts(state: String) { store.edit { it[pinAttemptsKey] = state } }
-    /** Switching on also moves [waFloor] to [now] (one edit); switching off keeps the floor. */
+    /** Switching on also moves the WhatsApp floor to [now] (one edit); switching off keeps the floor. */
     suspend fun setWhatsAppEnabled(on: Boolean, now: Long) {
         store.edit {
             if (on) it[waFloorKey] = now

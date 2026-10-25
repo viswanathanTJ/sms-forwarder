@@ -10,12 +10,14 @@ import com.viswa2k.smsforwarder.AppGraph
 import com.viswa2k.smsforwarder.core.IncomingSms
 import com.viswa2k.smsforwarder.core.NotificationText
 import com.viswa2k.smsforwarder.core.Origin
+import com.viswa2k.smsforwarder.core.StyleMessage
 import com.viswa2k.smsforwarder.core.WaMessage
 import com.viswa2k.smsforwarder.data.prefs.V1MigrationRunner
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * WhatsApp notification source (spec addendum §2). Event-driven: no polling. Every other package is
@@ -51,7 +53,7 @@ class WhatsAppNotificationListener : NotificationListenerService() {
         try {
             // The service may bind before ForwarderApp finished first-run migration.
             V1MigrationRunner.awaitDone(graph)
-            val prefs = graph.whatsApp.filterNotNull().first()
+            val prefs = withTimeoutOrNull(PREFS_WAIT_MS) { graph.whatsApp.filterNotNull().first() } ?: return
             if (!prefs.enabled) return
             val n = sbn.notification ?: return
             if (n.flags and Notification.FLAG_GROUP_SUMMARY != 0) return
@@ -74,27 +76,25 @@ class WhatsAppNotificationListener : NotificationListenerService() {
         }
     }
 
-    /** MessagingStyle messages (each with its person and time); else the big/plain text under the title. */
+    /** Plain fields out of the notification; the selection rules live in [NotificationText.select]. */
     private fun extract(n: Notification, postTime: Long): List<WaMessage> {
-        val title = n.extras?.getCharSequence(Notification.EXTRA_TITLE)?.toString().orEmpty()
+        val extras = n.extras
         val style = NotificationCompat.MessagingStyle.extractMessagingStyleFromNotification(n)
-        if (style != null && style.messages.isNotEmpty()) {
-            val group = style.isGroupConversation
-            val userKey = style.user.key
-            return style.messages.mapNotNull { msg ->
-                val person = msg.person ?: return@mapNotNull null // null person = the phone owner's own message
-                if (userKey != null && person.key == userKey) return@mapNotNull null
-                val text = msg.text?.toString() ?: return@mapNotNull null
-                val name = person.name?.toString()
-                val chat = if (group) style.conversationTitle?.toString() ?: title else name ?: title
-                WaMessage(chat, if (group) name else null, text, msg.timestamp)
-            }
-        }
-        val text = (n.extras?.getCharSequence(Notification.EXTRA_BIG_TEXT) ?: n.extras?.getCharSequence(Notification.EXTRA_TEXT))
-            ?.toString() ?: return emptyList()
-        val ts = n.`when`.takeIf { it > 0 } ?: postTime
-        return listOf(WaMessage(title, null, text, ts))
+        return NotificationText.select(
+            title = extras?.getCharSequence(Notification.EXTRA_TITLE)?.toString(),
+            isGroup = style?.isGroupConversation == true,
+            conversationTitle = style?.conversationTitle?.toString(),
+            userKey = style?.user?.key,
+            messages = style?.messages?.map {
+                StyleMessage(it.text?.toString(), it.timestamp, it.person?.name?.toString(), it.person?.key, it.person != null)
+            },
+            fallbackText = (extras?.getCharSequence(Notification.EXTRA_BIG_TEXT) ?: extras?.getCharSequence(Notification.EXTRA_TEXT))?.toString(),
+            fallbackTs = n.`when`.takeIf { it > 0 } ?: postTime,
+        )
     }
 
-    private companion object { const val TAG = "WaListener" }
+    private companion object {
+        const val TAG = "WaListener"
+        const val PREFS_WAIT_MS = 10_000L
+    }
 }

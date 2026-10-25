@@ -22,6 +22,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 
@@ -63,7 +64,10 @@ class AppGraph(context: Context) {
      * null until the store has been read once.
      */
     val whatsApp: StateFlow<WhatsAppPrefs?> by lazy {
-        settings.whatsApp.stateIn(appScope, SharingStarted.Eagerly, null)
+        // A read error must not crash the process or leave listeners waiting: treat it as "off".
+        settings.whatsApp
+            .catch { emit(WhatsAppPrefs(enabled = false, floor = Long.MAX_VALUE)) }
+            .stateIn(appScope, SharingStarted.Eagerly, null)
     }
 
     /** False when the keyword lists failed to load (health check + problem alert). */

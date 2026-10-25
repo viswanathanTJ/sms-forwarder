@@ -66,7 +66,7 @@ Sent to the Alerts destination (default: first Telegram chat), once per problem,
 - Message classifier unavailable
 - A destination failing for more than an hour (with the last error)
 - Forwarding is switched off (master switch paused)
-- WhatsApp notification access removed (only while the WhatsApp source is on)
+- WhatsApp notification access not allowed (only while the WhatsApp source is on)
 - Phone rebooted (info)
 
 ## WhatsApp source

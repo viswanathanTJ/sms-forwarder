@@ -64,4 +64,13 @@ class ProblemAlertsApplyTest {
         s = ProblemAlerts.afterResolve(s, "old", sent = true)
         assertEquals(mapOf("stuck" to 5L), s)
     }
+
+    @Test fun `a problem whose feature was switched off is dropped silently`() {
+        val state = mapOf("notif_access" to 5L, "sms" to 7L)
+        assertEquals(mapOf("sms" to 7L), ProblemAlerts.dropInactive(state, "notif_access", active = false))
+        assertEquals(state, ProblemAlerts.dropInactive(state, "notif_access", active = true))
+    }
+
+    @Test fun `notification access text covers never granted`() =
+        assertEquals("WhatsApp notification access is not allowed", Problem.NOTIF_ACCESS.text)
 }

@@ -23,11 +23,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.viswa2k.smsforwarder.R
+import com.viswa2k.smsforwarder.core.Origin
 import com.viswa2k.smsforwarder.data.db.OutboxEntity
 import com.viswa2k.smsforwarder.ui.common.StatusChip
 import com.viswa2k.smsforwarder.ui.common.TypeChip
 import com.viswa2k.smsforwarder.ui.common.WhatsAppChip
-import com.viswa2k.smsforwarder.core.Origin
 
 /** Details of one entry: full body (masked as stored), what was detected, per-destination status/error, Resend for failures. */
 @OptIn(ExperimentalMaterial3Api::class)
