@@ -85,6 +85,7 @@ abstract class LogDao {
     @Query("SELECT * FROM outbox WHERE logId = :logId") abstract suspend fun outboxFor(logId: Long): List<OutboxEntity>
     @Query("UPDATE outbox SET text = :text WHERE id = :id") abstract suspend fun setOutboxText(id: Long, text: String)
     @Query("DELETE FROM logs") abstract suspend fun clear()
+    @Query("SELECT body FROM logs WHERE id = :id") abstract suspend fun bodyOf(id: Long): String?
 
     @Transaction
     open suspend fun prune(deleteBefore: Long, maskBefore: Long) {
@@ -102,6 +103,9 @@ interface OutboxDao {
 
     @Query("SELECT * FROM outbox WHERE state = 0 AND nextAttemptAt <= :now ORDER BY firstAttemptAt, id")
     suspend fun due(now: Long): List<OutboxEntity>
+
+    @Query("SELECT MIN(nextAttemptAt) FROM outbox WHERE state = 0")
+    suspend fun earliestPending(): Long?
 
     @Query("UPDATE outbox SET state = 1, attempts = attempts + 1, lastError = NULL WHERE id = :id")
     suspend fun markSent(id: Long)

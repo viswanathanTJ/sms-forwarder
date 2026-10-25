@@ -26,6 +26,9 @@ class LogRepository(private val dao: LogDao) {
 
     suspend fun clear() = dao.clear()
 
+    /** Stored SMS body (masked after 1 h for OTPs), or null when the log row is gone. */
+    suspend fun bodyOf(logId: Long): String? = dao.bodyOf(logId)
+
     companion object {
         const val RETENTION_MS = 48L * 3_600_000
         const val MASK_AFTER_MS = 3_600_000L

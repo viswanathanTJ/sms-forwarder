@@ -12,13 +12,17 @@ import com.viswa2k.smsforwarder.data.repo.DestinationRepository
 import com.viswa2k.smsforwarder.data.repo.LogRepository
 import com.viswa2k.smsforwarder.data.repo.OutboxRepository
 import com.viswa2k.smsforwarder.data.repo.RuleRepository
+import com.viswa2k.smsforwarder.delivery.Dispatcher
+import com.viswa2k.smsforwarder.delivery.SmsSender
+import com.viswa2k.smsforwarder.delivery.TelegramClient
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.first
 
 /** Hand-rolled DI: everything is `by lazy` so a receiver wake-up only builds what it touches. */
 class AppGraph(context: Context) {
-    private val appContext = context.applicationContext
+    val appContext: Context = context.applicationContext
 
     val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     val database by lazy { ForwarderDatabase.create(appContext) }
@@ -28,6 +32,12 @@ class AppGraph(context: Context) {
     val destinations by lazy { DestinationRepository(database) }
     val logs by lazy { LogRepository(database.logs()) }
     val outbox by lazy { OutboxRepository(database.outbox()) }
+
+    val telegram by lazy {
+        TelegramClient { settings.encryptedToken.first()?.let { tokenCipher.decrypt(it) } }
+    }
+    val smsSender by lazy { SmsSender(appContext) }
+    val dispatcher by lazy { Dispatcher(this) }
 
     /** Keyword lists load once; a failure leaves the analyzer in its reduced (null lists) mode. */
     val analyzer: MessageAnalyzer by lazy {
