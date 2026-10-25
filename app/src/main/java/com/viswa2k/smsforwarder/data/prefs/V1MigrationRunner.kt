@@ -50,7 +50,8 @@ object V1MigrationRunner {
     }
 
     private suspend fun migrate(graph: AppGraph) {
-        if (graph.settings.migrationDone.first()) return
+        val done = graph.settings.migrationDone.first()
+        if (done) return
         val prefs = graph.appContext.dataStore.data.first()
         val known = listOf(serviceOn, skipContacts, bySms, byTelegram, alias, smsTo, token, userIds)
         val v1 = if (known.none { it in prefs }) null else V1Settings(
@@ -65,24 +66,33 @@ object V1MigrationRunner {
         )
         val plan = V1Migration.plan(v1)
 
-        // A retry after a partial run must not duplicate rows: skip the DB step once rules exist.
-        if (graph.rules.all().isEmpty()) {
+        val steps = V1Migration.steps(done, graph.rules.all().isNotEmpty(), v1 != null)
+        if (steps.importDb) {
             graph.database.withTransaction {
                 val ids = plan.destinations.map { graph.destinations.save(it) }
                 DefaultRules.create(plan.assignToRules.map { ids[it] }, plan.sender)
                     .forEach { graph.rules.save(it) }
             }
         }
-        plan.token?.let { graph.settings.setEncryptedToken(graph.tokenCipher.encrypt(it)) }
-        graph.settings.setDeviceName(plan.deviceName)
-        graph.settings.setMasterOn(plan.masterOn)
-        graph.settings.setCatchUpFloor(System.currentTimeMillis())
-
-        // Cloud leftovers and migrated v1 keys. The store file itself stays (DataStore holds it open).
-        File(graph.appContext.filesDir, "cloud_upload_queue").deleteRecursively()
-        graph.appContext.dataStore.edit { p ->
-            p.asMap().keys.filter { it.name != KEEP_KEY }.forEach { p.remove(it) }
+        if (steps.writeSettings) {
+            plan.token?.let { graph.settings.setEncryptedToken(graph.tokenCipher.encrypt(it)) }
+            graph.settings.setDeviceName(plan.deviceName)
+            graph.settings.setMasterOn(plan.masterOn)
+            graph.settings.setCatchUpFloor(System.currentTimeMillis())
         }
-        graph.settings.setMigrationDone(true)
+        // Flag BEFORE the destructive cleanup: a crash after clearing v1 keys must not look like a fresh install.
+        if (steps.markDone) graph.settings.setMigrationDone(true)
+        if (steps.cleanup) {
+            try {
+                File(graph.appContext.filesDir, "cloud_upload_queue").deleteRecursively()
+                graph.appContext.dataStore.edit { p ->
+                    p.asMap().keys.filter { it.name != KEEP_KEY }.forEach { p.remove(it) }
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "v1 cleanup failed: ${e.javaClass.simpleName}")
+            }
+        }
     }
 }

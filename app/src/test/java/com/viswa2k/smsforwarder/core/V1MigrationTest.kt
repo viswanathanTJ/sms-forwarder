@@ -67,4 +67,24 @@ class V1MigrationTest {
     @Test fun blankChatEntriesAreDropped() {
         assertEquals(listOf("1", "2"), V1Migration.splitChats(" 1,, 2 ,"))
     }
+
+    @Test fun doneMeansNothing() {
+        assertEquals(Steps(false, false, false, false), V1Migration.steps(done = true, rulesExist = true, v1Present = true))
+    }
+
+    @Test fun rulesExistWithoutV1OnlyMarksDone() {
+        assertEquals(Steps(false, false, true, false), V1Migration.steps(done = false, rulesExist = true, v1Present = false))
+    }
+
+    @Test fun firstRunWithV1IsFull() {
+        assertEquals(Steps(true, true, true, true), V1Migration.steps(done = false, rulesExist = false, v1Present = true))
+    }
+
+    @Test fun firstRunWithoutV1IsFreshDefaults() {
+        assertEquals(Steps(true, true, true, true), V1Migration.steps(done = false, rulesExist = false, v1Present = false))
+    }
+
+    @Test fun partialRetryWithV1SkipsDbButRewritesSettings() {
+        assertEquals(Steps(false, true, true, true), V1Migration.steps(done = false, rulesExist = true, v1Present = true))
+    }
 }

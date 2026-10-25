@@ -19,6 +19,8 @@ Reads v1 DataStore `settings` (via `Context.dataStore` in MainActivity.kt) keys 
 - Pure mapping in `core/V1Migration.plan(V1Settings?)`: chats "Chat 1..n" (TELEGRAM), SMS destination "SMS"; only destinations of channels whose v1 flag was on are assigned to the default rules; `skipContacts` gives NOT_IN_CONTACTS; blank alias gives `""`; `null` (no v1 keys) gives no destinations and master off.
 - Runner: skip if `migrationDone`; DB step only if no rules exist (safe retry after partial run); then settings, delete `filesDir/cloud_upload_queue`, clear v1 keys, set flag last.
 - `AppGraph.migrationGate` opens when the runner ends (success or failure); `V1MigrationRunner.awaitDone` is awaited by IncomingProcessor.process, ForwarderService startup pass and WatchdogWorker.
+- A failed migration still opens the gate: nothing is forwarded (no rules gives NO_RULE) until the next launch retries.
+- Flag is set before the v1 key clear (best-effort cleanup); with rules present and no v1 keys only the flag is set, never fresh-install settings (`V1Migration.steps`).
 - Failure: log class name only, flag unset, retried next launch.
 
 ## Connections

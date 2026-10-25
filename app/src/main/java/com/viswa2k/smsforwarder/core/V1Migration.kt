@@ -25,7 +25,21 @@ data class MigrationPlan(
     val masterOn: Boolean,
 )
 
+/** Which parts of the migration still have to run (see [V1Migration.steps]). */
+data class Steps(val importDb: Boolean, val writeSettings: Boolean, val markDone: Boolean, val cleanup: Boolean)
+
 object V1Migration {
+    /**
+     * Retry-safe decision. Settings (masterOn/deviceName/floor) are only written when the DB import runs
+     * now or v1 data is still there to read: with rules already present and no v1 keys, a previous run got
+     * past its work and only the flag is missing, so applying fresh-install defaults would switch forwarding off.
+     */
+    fun steps(done: Boolean, rulesExist: Boolean, v1Present: Boolean): Steps = when {
+        done -> Steps(false, false, false, false)
+        rulesExist && !v1Present -> Steps(false, false, true, false)
+        else -> Steps(importDb = !rulesExist, writeSettings = true, markDone = true, cleanup = true)
+    }
+
     /** Splits v1's comma separated `TELEGRAM_USER_IDS`, dropping blanks. */
     fun splitChats(csv: String): List<String> = csv.split(',').map { it.trim() }.filter { it.isNotEmpty() }
 
