@@ -87,7 +87,7 @@
           switch + per-channel toggles, so this only forwards when the user has enabled it.
         -->
         <receiver
-            android:name=".SmsReceiver"
+            android:name=".pipeline.SmsReceiver"
             android:enabled="true"
             android:exported="true"
             android:permission="android.permission.BROADCAST_SMS">

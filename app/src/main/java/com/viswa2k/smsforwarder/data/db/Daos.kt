@@ -59,6 +59,11 @@ abstract class LogDao {
     /** Returns the new row id, or -1 when [LogEntity.key] already exists. */
     @Insert(onConflict = OnConflictStrategy.IGNORE) abstract suspend fun insert(entry: LogEntity): Long
 
+    @Query("UPDATE logs SET type = :type, senderKind = :senderKind, extracted = :extracted, matchedRules = :matchedRules, skip = :skip, otpCode = :otpCode WHERE id = :id")
+    abstract suspend fun updateDecision(id: Long, type: Int, senderKind: Int, extracted: String, matchedRules: String, skip: Int?, otpCode: String?)
+
+    @Query("DELETE FROM logs WHERE id = :id") abstract suspend fun delete(id: Long)
+
     @Transaction
     @Query("SELECT * FROM logs ORDER BY receivedAt DESC, id DESC LIMIT :limit")
     abstract fun recent(limit: Int): Flow<List<LogWithSends>>

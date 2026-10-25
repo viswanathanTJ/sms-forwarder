@@ -1,0 +1,12 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <!-- Debug builds only: adb broadcast needs exported="true". -->
+        <receiver
+            android:name=".debug.InjectSmsReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.viswa2k.smsforwarder.debug.INJECT_SMS" />
+            </intent-filter>
+        </receiver>
+    </application>
+</manifest>
