@@ -49,7 +49,6 @@ class Dispatcher(private val graph: AppGraph) {
             }
             val pending = graph.outbox.pending()
             if (pending.isNotEmpty()) {
-                val byId = pending.associateBy { it.id }
                 val destinations = graph.destinations.all().associateBy { it.id }
                 val order = DeliveryOrder(
                     pending.map { DeliveryOrder.Row(it.id, it.destinationId, it.firstAttemptAt, it.nextAttemptAt) }, now,
@@ -57,7 +56,8 @@ class Dispatcher(private val graph: AppGraph) {
                 while (true) {
                     coroutineContext.ensureActive()
                     val next = order.next() ?: break
-                    val row = byId.getValue(next.id)
+                    // Re-read: a concurrent prune may have expired the row (OTP > 1 h) since the snapshot.
+                    val row = graph.outbox.byId(next.id)?.takeIf { it.state == OutboxEntity.STATE_PENDING } ?: continue
                     // A send that was started is always recorded, even if the caller is cancelled.
                     val outcome = withContext(NonCancellable) { deliver(row, destinations[row.destinationId], now) }
                     if (outcome.retryAt != null) order.onRetry(next, outcome.retryAt) else if (outcome.sent) order.onSent(next)

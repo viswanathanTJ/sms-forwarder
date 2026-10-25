@@ -20,7 +20,7 @@ updated: 2026-10-25
 - Token comes from `SettingsStore.encryptedToken` through `TokenCipher.decrypt` on every send (never cached).
 
 ## How it works
-- A pass first runs `LogRepository.prune(now)` (OTP sends still queued 1 h after receipt become FAILED "OTP expired (not sent within 1 hour)"), then loads due rows oldest first and sends them one by one (a mutex allows one pass at a time).
+- A pass first runs `LogRepository.prune(now)` (OTP sends still queued 1 h after receipt become FAILED "OTP expired (not sent within 1 hour)"), then loads due rows oldest first and sends them one by one (a mutex allows one pass at a time). Each row is re-read just before sending and skipped if no longer PENDING (expired by a concurrent prune).
 - `RetryPolicy`: delay = `retry_after` or 30 s doubling, capped at 1 h; `null` (give up) once 24 h have passed since the first attempt, and the row becomes FAILED.
 - `TelegramResponse.classify`: 200 + `ok` is Sent; 429 is Retry with `retry_after`; 408/5xx/IO errors are Retry; other 4xx (400/401/403/404) are Fatal with Telegram's `description`.
 - `SmsSender`: `divideMessage` + `sendMultipartTextMessage`, one sent `PendingIntent` per part with a unique request code, one-shot receiver per send (unique action, unregistered in `finally`), 60 s timeout is Retry. Sent only when all parts are OK; radio off / no service are Retry; other codes are Fatal.

@@ -64,8 +64,9 @@ class LogViewModel(private val graph: AppGraph) : ViewModel() {
         graph.appScope.launch {
             InboxCatchUp.lock.withLock {
                 val now = System.currentTimeMillis()
-                graph.settings.setCatchUpFloor(LogClearPolicy.floorAfterClear(now, graph.settings.catchUpFloor.first()))
-                graph.logs.clear()
+                val floor = LogClearPolicy.floorAfterClear(now, graph.settings.catchUpFloor.first())
+                graph.settings.setCatchUpFloor(floor)
+                graph.logs.clear(floor)
             }
         }
     }

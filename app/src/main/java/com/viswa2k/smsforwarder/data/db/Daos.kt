@@ -86,17 +86,17 @@ abstract class LogDao {
     abstract suspend fun expireSend(id: Long, error: String)
     @Query("SELECT body FROM logs WHERE id = :id") abstract suspend fun bodyOf(id: Long): String?
 
-    @Query("SELECT id FROM logs") abstract suspend fun allIds(): List<Long>
+    @Query("SELECT id, receivedAt FROM logs") abstract suspend fun idsAndTimes(): List<LogIdTime>
     @Query("SELECT DISTINCT logId FROM outbox WHERE state = 0") abstract suspend fun logIdsWithPendingSends(): List<Long>
     @Query("DELETE FROM logs WHERE id IN (:ids)") abstract suspend fun deleteIds(ids: List<Long>)
 
-    /** Log "Clear": deletes every row except those with a queued send ([LogClearPolicy]). */
+    /** Log "Clear": deletes rows received before [floor] except those with a queued send ([LogClearPolicy]). */
     @Transaction
-    open suspend fun clear() {
+    open suspend fun clear(floor: Long) {
         val pending = logIdsWithPendingSends().toSet()
-        val rows = allIds().map { id -> LogClearPolicy.Row(id, listOf(id in pending)) }
+        val rows = idsAndTimes().map { LogClearPolicy.Row(it.id, it.receivedAt, listOf(it.id in pending)) }
         // Chunked: API 29's SQLite allows 999 bound variables.
-        LogClearPolicy.toDelete(rows).chunked(500).forEach { deleteIds(it) }
+        LogClearPolicy.toDelete(rows, floor).chunked(500).forEach { deleteIds(it) }
     }
 
     /**
@@ -124,6 +124,8 @@ interface OutboxDao {
     @Query("SELECT * FROM outbox WHERE state = 0 AND nextAttemptAt <= :now ORDER BY firstAttemptAt, id")
     suspend fun due(now: Long): List<OutboxEntity>
 
+    @Query("SELECT * FROM outbox WHERE id = :id") suspend fun byId(id: Long): OutboxEntity?
+
     @Query("SELECT * FROM outbox WHERE state = 0 ORDER BY firstAttemptAt, id")
     suspend fun pending(): List<OutboxEntity>
 
@@ -134,13 +136,15 @@ interface OutboxDao {
     @Query("SELECT MIN(nextAttemptAt) FROM outbox WHERE state = 0")
     suspend fun earliestPending(): Long?
 
-    @Query("UPDATE outbox SET state = 1, attempts = attempts + 1, lastError = NULL WHERE id = :id")
+    // Outcome updates apply only to a still-PENDING row: a row already FAILED (e.g. "OTP expired" by a
+    // concurrent prune) or SENT is never changed by a late send outcome.
+    @Query("UPDATE outbox SET state = 1, attempts = attempts + 1, lastError = NULL WHERE id = :id AND state = 0")
     suspend fun markSent(id: Long)
 
-    @Query("UPDATE outbox SET state = 0, attempts = attempts + 1, nextAttemptAt = :nextAt, lastError = :error WHERE id = :id")
+    @Query("UPDATE outbox SET state = 0, attempts = attempts + 1, nextAttemptAt = :nextAt, lastError = :error WHERE id = :id AND state = 0")
     suspend fun markRetry(id: Long, nextAt: Long, error: String?)
 
-    @Query("UPDATE outbox SET state = 2, attempts = attempts + 1, lastError = :error WHERE id = :id")
+    @Query("UPDATE outbox SET state = 2, attempts = attempts + 1, lastError = :error WHERE id = :id AND state = 0")
     suspend fun markFailed(id: Long, error: String?)
 
     /** Oldest first-attempt time of a still-unresolved error on [destinationId], newer than its last success. */
@@ -171,3 +175,6 @@ interface OutboxDao {
     )
     suspend fun resend(id: Long, now: Long)
 }
+
+/** Projection for [LogDao.clear]. */
+data class LogIdTime(val id: Long, val receivedAt: Long)

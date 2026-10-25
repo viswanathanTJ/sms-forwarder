@@ -14,6 +14,8 @@ class OutboxRepository(private val dao: OutboxDao) {
     suspend fun deferPending(destinationId: Long, nextAt: Long) = dao.deferPending(destinationId, nextAt)
     /** Due time of the soonest PENDING row, or null when nothing is pending. */
     suspend fun earliestPendingAt(): Long? = dao.earliestPending()
+    /** Current copy of a row (null when its log was deleted). */
+    suspend fun byId(id: Long): OutboxEntity? = dao.byId(id)
     suspend fun markSent(id: Long) = dao.markSent(id)
     suspend fun markRetry(id: Long, nextAt: Long, error: String?) = dao.markRetry(id, nextAt, error)
     suspend fun markFailed(id: Long, error: String?) = dao.markFailed(id, error)

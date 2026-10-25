@@ -19,7 +19,7 @@ updated: 2026-10-25
 ## Data and pipeline
 - `failingSince` approximates with `firstAttemptAt`; logs with only FAILED rows count in no bucket on older queries; midnight is fixed at call time; mapper fallbacks can hide bad rows; analyzer asset load may run on the main thread ([[Data Layer]]).
 - Log "Clear" moves the catch-up floor to now: an SMS the live receiver missed shortly before Clear is no longer caught up. Rows with a still-queued send survive Clear.
-- `DefaultRules.attachFirstDestination` recognises default rules by their default names; a renamed default rule is not auto-attached.
+- `DefaultRules.attachFirstDestination` recognises default rules by their default names; a renamed default rule is not auto-attached. Deleting every destination and then adding one re-runs the attach/enable (default rules without destinations get the new one and the first three are switched back on).
 - An OTP send already in flight when its hour passes still completes (prune fails only PENDING rows).
 - A corrupt `settings_v2` resets every setting (token, PIN, device name) and starts paused.
 - Literal plus separated OTP both present: the separated form stays unmasked in the Log.

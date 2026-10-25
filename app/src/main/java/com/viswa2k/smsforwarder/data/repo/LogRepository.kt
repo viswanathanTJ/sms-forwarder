@@ -27,9 +27,9 @@ class LogRepository(private val dao: LogDao) {
 
     /**
      * Log "Clear" ([LogClearPolicy]). The caller moves the catch-up floor to now FIRST (the deleted rows
-     * were the dedupe keys); rows with a queued send stay.
+     * were the dedupe keys) and passes it here: only rows received before it go; rows with a queued send stay.
      */
-    suspend fun clear() = dao.clear()
+    suspend fun clear(floor: Long) = dao.clear(floor)
 
     /** Stored SMS body (masked after 1 h for OTPs), or null when the log row is gone. */
     suspend fun bodyOf(logId: Long): String? = dao.bodyOf(logId)
